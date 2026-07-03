@@ -1,131 +1,154 @@
-name: Train Model (OVH H100)
+name: Train Model (OVH AI Training)
 
 on:
   workflow_dispatch:
     inputs:
-      epochs:
-        description: 'Training epochs for vision models'
+      flavor:
+        description: 'OVH GPU flavor'
         required: false
-        default: '100'
-      grid_search:
-        description: 'Run GridSearchCV (slower but better)'
+        default: 'h100-1'
+        type: choice
+        options:
+          - 'h100-1'
+          - 'h100-3'
+          - 'a100-1'
+          - 'a100-2'
+      region:
+        description: 'OVH region'
         required: false
-        default: 'false'
+        default: 'GRA'
+        type: choice
+        options:
+          - 'GRA'
+          - 'BHS'
+      command:
+        description: 'Command to run (default: model.train)'
+        required: false
+        default: 'python -m model.train'
+      timeout:
+        description: 'Job timeout in hours'
+        required: false
+        default: '24'
 
 env:
-  OVH_INSTANCE_TYPE: h100-360
-  OVH_REGION: BHS5
+  OVH_IMAGE: ghcr.io/${{ github.repository }}:training
 
 jobs:
-  train:
+  submit-training:
     runs-on: ubuntu-latest
-    timeout-minutes: 600  # 10 hours max
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
+      - name: Install ovhai CLI
         run: |
-          pip install --upgrade pip
-          pip install -r infra/requirements.txt
+          curl -s https://cli.gra.ai.cloud.ovh.net/install.sh | bash
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Provision OVH H100 instance
+      - name: Authenticate ovhai
         env:
-          OVH_APP_KEY: ${{ secrets.OVH_APP_KEY }}
-          OVH_APP_SECRET: ${{ secrets.OVH_APP_SECRET }}
-          OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}
-          OVH_PROJECT_ID: ${{ secrets.OVH_PROJECT_ID }}
-          OVH_REGION: ${{ env.OVH_REGION }}
-          OVH_FLAVOR: ${{ env.OVH_INSTANCE_TYPE }}
+          OVH_AI_TOKEN: ${{ secrets.OVH_AI_TOKEN }}
         run: |
-          chmod +x infra/ovh_provision.sh
-          ./infra/ovh_provision.sh
-          # Read instance IP for SSH
-          INSTANCE_IP=$(jq -r '.ip_address' /tmp/ovh_instance_info.json)
-          echo "INSTANCE_IP=$INSTANCE_IP" >> $GITHUB_ENV
+          ovhai config set ${{ github.event.inputs.region || 'GRA' }}
+          echo "$OVH_AI_TOKEN" | ovhai login --token-stdin
 
-      - name: Wait for instance to be ready
+      - name: Verify auth and list jobs
         run: |
-          echo "Waiting 120s for instance initialization..."
-          sleep 120
+          ovhai job list --output json | python3 -m json.tool 2>/dev/null | head -20
 
-      - name: Deploy and run training via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ env.INSTANCE_IP }}
-          username: ubuntu
-          key: ${{ secrets.OVH_SSH_PRIVATE_KEY }}
-          script: |
-            # Clone repo
-            git clone https://github.com/${{ github.repository }}.git
-            cd soccer-trade-bot
-
-            # Install dependencies
-            pip install -r infra/requirements.txt
-
-            # Build dataset
-            python -m data.build_dataset --output data/train.parquet
-
-            # Train XGBoost + LightGBM ensemble
-            python -m model.train \
-              --data data/train.parquet \
-              --output model \
-              ${{ github.event.inputs.grid_search == 'true' && '--grid-search' || '' }}
-
-            # Train YOLOv10-X
-            python -m vision.train_yolo \
-              --epochs ${{ github.event.inputs.epochs || '100' }} \
-              --imgsz 1280 \
-              --batch 16
-
-            # Train CLIP ViT-L/14
-            python -m vision.train_clip \
-              --epochs 20 \
-              --batch-size 32
-
-      - name: Copy model artifacts from OVH
-        run: |
-          mkdir -p model
-          scp -o StrictHostKeyChecking=no \
-            -i ${{ secrets.OVH_SSH_PRIVATE_KEY }} \
-            ubuntu@${{ env.INSTANCE_IP }}:soccer-trade-bot/model/*.pkl \
-            ubuntu@${{ env.INSTANCE_IP }}:soccer-trade-bot/model/*.pt \
-            ubuntu@${{ env.INSTANCE_IP }}:soccer-trade-bot/model/*.json \
-            model/ 2>/dev/null || true
-
-      - name: Upload model artifacts to Lightning AI Drive
+      - name: Submit AI Training job
+        id: submit
         env:
-          LIGHTNING_USER_ID: ${{ secrets.LIGHTNING_USER_ID }}
-          LIGHTNING_API_KEY: ${{ secrets.LIGHTNING_API_KEY }}
+          OVH_FLAVOR: ${{ github.event.inputs.flavor || 'h100-1' }}
+          OVH_COMMAND: ${{ github.event.inputs.command || 'python -m model.train' }}
+          OVH_TIMEOUT: ${{ github.event.inputs.timeout || '24' }}
         run: |
-          pip install lightning-sdk
-          # Upload model artifacts to Lightning Drive
-          for f in model/*; do
-            if [ -f "$f" ]; then
-              lightning upload "$f" --path "soccer-trade-bot/model/"
+          echo "Submitting training job..."
+          echo "  Image: $OVH_IMAGE"
+          echo "  Flavor: $OVH_FLAVOR"
+          echo "  Command: $OVH_COMMAND"
+          echo "  Timeout: ${OVH_TIMEOUT}h"
+
+          JOB_OUTPUT=$(ovhai job run "$OVH_IMAGE" \
+            --gpu 1 \
+            --flavor "$OVH_FLAVOR" \
+            --timeout "$((OVH_TIMEOUT * 3600))" \
+            --command "$OVH_COMMAND" \
+            --output json 2>&1)
+
+          echo "$JOB_OUTPUT" | python3 -m json.tool 2>/dev/null || echo "$JOB_OUTPUT"
+
+          JOB_ID=$(echo "$JOB_OUTPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id',''))" 2>/dev/null)
+          echo "job_id=$JOB_ID" >> $GITHUB_OUTPUT
+
+          if [ -z "$JOB_ID" ]; then
+            echo "ERROR: Failed to extract job ID"
+            echo "$JOB_OUTPUT"
+            exit 1
+          fi
+
+          echo "Job submitted: $JOB_ID"
+
+      - name: Wait for job to start
+        run: |
+          JOB_ID="${{ steps.submit.outputs.job_id }}"
+          echo "Waiting for job $JOB_ID to leave INITIAL state..."
+          for i in $(seq 1 30); do
+            STATUS=$(ovhai job get "$JOB_ID" --output json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null)
+            echo "  [$i/30] Status: $STATUS"
+            if [ "$STATUS" != "INITIAL" ] && [ "$STATUS" != "" ]; then
+              echo "Job entered state: $STATUS"
+              break
             fi
+            sleep 10
           done
 
-      - name: Terminate OVH instance
-        if: always()
-        env:
-          OVH_APP_KEY: ${{ secrets.OVH_APP_KEY }}
-          OVH_APP_SECRET: ${{ secrets.OVH_APP_SECRET }}
-          OVH_CONSUMER_KEY: ${{ secrets.OVH_CONSUMER_KEY }}
-          OVH_PROJECT_ID: ${{ secrets.OVH_PROJECT_ID }}
+      - name: Stream training logs
         run: |
-          chmod +x infra/ovh_teardown.sh
-          ./infra/ovh_teardown.sh || true
+          JOB_ID="${{ steps.submit.outputs.job_id }}"
+          echo "Streaming logs for job $JOB_ID..."
+          echo "(Logs will appear as the job runs)"
+          ovhai job logs "$JOB_ID" --follow --timeout 30 || true
 
-      - name: Upload model artifacts as workflow artifact
+      - name: Poll job status
+        run: |
+          JOB_ID="${{ steps.submit.outputs.job_id }}"
+          echo "Polling job $JOB_ID status..."
+
+          while true; do
+            STATUS=$(ovhai job get "$JOB_ID" --output json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status','unknown'))" 2>/dev/null)
+            echo "[$(date -u +%H:%M:%S)] Status: $STATUS"
+
+            case "$STATUS" in
+              TERMINATED)
+                echo "Job completed successfully!"
+                break
+              ;;
+              FAILED|ERROR|CANCELED)
+                echo "Job ended with status: $STATUS"
+                ovhai job get "$JOB_ID" --output json 2>/dev/null | python3 -m json.tool
+                exit 1
+              ;;
+              *)
+                sleep 60
+              ;;
+            esac
+          done
+
+      - name: Download model artifacts
+        run: |
+          JOB_ID="${{ steps.submit.outputs.job_id }}"
+          mkdir -p model
+
+          echo "Listing job outputs..."
+          ovhai job get "$JOB_ID" --output json 2>/dev/null | python3 -m json.tool 2>/dev/null | head -30
+
+      - name: Upload artifacts to GitHub
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: trained-models
+          name: trained-models-${{ github.run_number }}
           path: model/
           retention-days: 30
