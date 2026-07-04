@@ -98,12 +98,12 @@ def train_xgboost(
 
     if use_grid_search:
         param_grid = {
-            "max_depth": [4, 6, 8],
-            "learning_rate": [0.01, 0.05, 0.1],
-            "n_estimators": [500, 1000, 1500],
-            "subsample": [0.7, 0.8],
-            "colsample_bytree": [0.7, 0.8],
-            "min_child_weight": [3, 5, 10],
+            "max_depth": [4, 6],
+            "learning_rate": [0.01, 0.05],
+            "n_estimators": [500, 1000],
+            "subsample": [0.8],
+            "colsample_bytree": [0.8],
+            "min_child_weight": [3, 5],
         }
 
         model = xgb.XGBClassifier(**base_params)
@@ -126,7 +126,7 @@ def train_xgboost(
             param_grid,
             cv=3,
             scoring="neg_log_loss",
-            n_jobs=-1,
+            n_jobs=1,
             verbose=1,
         )
         grid_search.fit(X_sample, y_sample)
