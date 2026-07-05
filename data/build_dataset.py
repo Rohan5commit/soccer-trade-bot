@@ -187,20 +187,42 @@ def _build_snapshots_from_sb_events(
     events: List[Dict], match: Dict, comp_name: str,
 ) -> List[Dict]:
     """Build 5-minute interval snapshots from StatsBomb events JSON."""
-    match_id = str(match["match_id"])
+    match_id = str(match.get("match_id", ""))
 
-    home_team_id = match.get("home_team", {}).get("home_team_id")
-    away_team_id = match.get("away_team", {}).get("away_team_id")
+    # Derive home/away team IDs from Starting XI events
+    home_team_id = None
+    away_team_id = None
+    for e in events:
+        if e.get("type", {}).get("name") == "Starting XI":
+            team = e.get("team", {})
+            tid = team.get("id") if isinstance(team, dict) else None
+            if home_team_id is None:
+                home_team_id = tid
+            else:
+                away_team_id = tid
+                break
 
-    # Determine final result
-    home_score_final = match.get("home_score", 0) or 0
-    away_score_final = match.get("away_score", 0) or 0
+    # Count final score from events
+    home_score_final = 0
+    away_score_final = 0
+    for e in events:
+        if e.get("type", {}).get("name") == "Shot":
+            shot = e.get("shot", {})
+            outcome = shot.get("outcome", {})
+            outcome_name = outcome.get("name", "") if isinstance(outcome, dict) else str(outcome)
+            if outcome_name == "Goal":
+                team_id = e.get("team", {}).get("id") if isinstance(e.get("team"), dict) else None
+                if team_id == home_team_id:
+                    home_score_final += 1
+                elif team_id == away_team_id:
+                    away_score_final += 1
+
     if home_score_final > away_score_final:
-        target = 0  # home win
+        target = 0
     elif home_score_final == away_score_final:
-        target = 1  # draw
+        target = 1
     else:
-        target = 2  # away win
+        target = 2
 
     # Process events chronologically
     home_goals = []
