@@ -10,9 +10,12 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import subprocess
 import threading
 import time
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -44,9 +47,12 @@ def _run_with_timeout(func, timeout_sec, *args, **kwargs):
 
 
 def fetch_statsbomb_github(max_matches: int = 500) -> pd.DataFrame:
-    """Fetch StatsBomb open data by cloning the GitHub repo (sparse).
+    """Fetch StatsBomb open data via GitHub raw content API.
 
-    This is faster and more reliable than the statsbombpy API.
+    Strategy:
+    1. Shallow-clone only competitions.json + matches/ (tiny files)
+    2. Parse to find match IDs for major leagues
+    3. Download event files via raw.githubusercontent.com (parallel)
 
     Args:
         max_matches: Maximum number of matches to process.
@@ -54,111 +60,126 @@ def fetch_statsbomb_github(max_matches: int = 500) -> pd.DataFrame:
     Returns:
         DataFrame with match snapshots at 5-minute intervals.
     """
-    logger.info("Fetching StatsBomb data from GitHub (sparse clone)...")
+    logger.info("Fetching StatsBomb data from GitHub...")
 
     clone_dir = Path("/tmp/statsbomb_open_data")
+    events_dir = Path("/tmp/statsbomb_events")
+    events_dir.mkdir(exist_ok=True)
 
+    # Step 1: Get match metadata (competitions + matches JSON)
     def _do_clone():
-        if (clone_dir / ".git").exists():
-            logger.info("StatsBomb repo already cloned, pulling latest")
-            subprocess.run(
-                ["git", "-C", str(clone_dir), "pull", "--ff-only"],
-                capture_output=True, timeout=60,
-            )
-            return
+        if (clone_dir / "data" / "competitions.json").exists():
+            return  # already have metadata
         if clone_dir.exists():
             import shutil
             shutil.rmtree(clone_dir)
         subprocess.run(
-            ["git", "clone", "--filter=blob:none", "--sparse",
-             "https://github.com/statsbomb/open-data.git", str(clone_dir)],
-            capture_output=True, timeout=300,
+            ["git", "clone", "--depth", "1", "--filter=blob:limit=1m",
+             "--sparse", "https://github.com/statsbomb/open-data.git",
+             str(clone_dir)],
+            capture_output=True, timeout=120,
         )
         subprocess.run(
             ["git", "-C", str(clone_dir), "sparse-checkout", "set",
-             "data/competitions.json", "data/matches", "data/events"],
+             "--skip-checks", "data/competitions.json", "data/matches"],
             capture_output=True, timeout=60,
         )
 
-    _, timed_out = _run_with_timeout(_do_clone, 360)
+    _, timed_out = _run_with_timeout(_do_clone, 180)
     if timed_out:
-        logger.warning("StatsBomb GitHub clone timed out")
+        logger.warning("StatsBomb metadata clone timed out")
         return pd.DataFrame()
 
     if not (clone_dir / "data" / "competitions.json").exists():
         logger.warning("StatsBomb data not found after clone")
         return pd.DataFrame()
 
-    return _parse_statsbomb_github(clone_dir, max_matches)
+    # Step 2: Find match IDs for priority leagues
+    PRIORITY_COMP_IDS = {9, 11, 12, 16, 20, 37, 43, 44, 1}  # BuLi, EPL, LaLiga, UCL, SerieA, L1, etc.
 
-
-def _parse_statsbomb_github(clone_dir: Path, max_matches: int) -> pd.DataFrame:
-    """Parse StatsBomb GitHub data into training snapshots."""
-    data_dir = clone_dir / "data"
-
-    with open(data_dir / "competitions.json") as f:
+    with open(clone_dir / "data" / "competitions.json") as f:
         competitions = json.load(f)
 
-    # Focus on major men's leagues for speed
-    PRIORITY_LEAGUES = {
-        "Premier League", "La Liga", "Bundesliga",
-        "Serie A", "Ligue 1", "Champions League",
-        "FIFA World Cup", "Copa America",
-    }
-
-    # Sort: priority leagues first
-    competitions.sort(
-        key=lambda c: (c.get("competition_name", "") not in PRIORITY_LEAGUES,
-                       -c.get("season_id", 0))
-    )
-
-    all_snapshots = []
-    matches_processed = 0
-
+    all_match_ids = []
     for comp in competitions:
-        if matches_processed >= max_matches:
-            break
-
-        comp_id = comp["competition_id"]
-        season_id = comp["season_id"]
-        comp_name = comp.get("competition_name", "Unknown")
-
-        matches_path = data_dir / "matches" / str(comp_id) / f"{season_id}.json"
+        comp_id = comp.get("competition_id", -1)
+        season_id = comp.get("season_id", -1)
+        matches_path = clone_dir / "data" / "matches" / str(comp_id) / f"{season_id}.json"
         if not matches_path.exists():
             continue
-
         try:
             with open(matches_path) as f:
                 matches = json.load(f)
+            for m in matches:
+                all_match_ids.append({
+                    "match_id": m["match_id"],
+                    "comp_id": comp_id,
+                    "comp_name": comp.get("competition_name", ""),
+                })
         except Exception:
             continue
 
-        for match in matches:
-            if matches_processed >= max_matches:
-                break
+    # Sort: priority leagues first
+    all_match_ids.sort(key=lambda x: (x["comp_id"] not in PRIORITY_COMP_IDS,))
+    selected = all_match_ids[:max_matches]
+    logger.info("StatsBomb: %d total matches, selected %d from priority leagues",
+               len(all_match_ids), len(selected))
 
-            match_id = match["match_id"]
-            events_path = data_dir / "events" / f"{match_id}.json"
-            if not events_path.exists():
-                continue
+    # Step 3: Download event files via raw GitHub URL (parallel)
+    existing = {fn.replace(".json", "") for fn in os.listdir(events_dir) if fn.endswith(".json")}
+    to_fetch = [m for m in selected if str(m["match_id"]) not in existing]
+    logger.info("StatsBomb: %d events to fetch, %d already cached", len(to_fetch), len(existing))
 
-            try:
-                with open(events_path) as f:
-                    events = json.load(f)
-            except Exception:
-                continue
+    def _fetch_event(mid):
+        url = f"https://raw.githubusercontent.com/statsbomb/open-data/master/data/events/{mid}.json"
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = resp.read()
+            with open(events_dir / f"{mid}.json", "wb") as f:
+                f.write(data)
+            return True
+        except Exception:
+            return False
 
-            snapshots = _build_snapshots_from_sb_events(events, match, comp_name)
-            all_snapshots.extend(snapshots)
-            matches_processed += 1
+    if to_fetch:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {executor.submit(_fetch_event, m["match_id"]): m for m in to_fetch}
+            done = 0
+            for future in as_completed(futures):
+                done += 1
+                if done % 100 == 0:
+                    logger.info("StatsBomb: fetched %d/%d events", done, len(to_fetch))
 
-            if matches_processed % 50 == 0:
-                logger.info("StatsBomb: processed %d/%d matches, %d snapshots",
-                           matches_processed, max_matches, len(all_snapshots))
+    # Step 4: Parse events into snapshots
+    return _parse_downloaded_events(selected, events_dir)
+
+
+def _parse_downloaded_events(selected_matches: list, events_dir: Path) -> pd.DataFrame:
+    """Parse downloaded StatsBomb event files into training snapshots."""
+    match_lookup = {str(m["match_id"]): m for m in selected_matches}
+    all_snapshots = []
+
+    for fn in os.listdir(events_dir):
+        if not fn.endswith(".json"):
+            continue
+        mid = fn.replace(".json", "")
+        if mid not in match_lookup:
+            continue
+
+        try:
+            with open(events_dir / fn) as f:
+                events = json.load(f)
+        except Exception:
+            continue
+
+        snapshots = _build_snapshots_from_sb_events(events, match_lookup[mid], "")
+        all_snapshots.extend(snapshots)
 
     df = pd.DataFrame(all_snapshots) if all_snapshots else pd.DataFrame()
     logger.info("StatsBomb GitHub: %d snapshots from %d matches",
-               len(df), matches_processed)
+               len(df), len(set(s["match_id"] for s in all_snapshots)))
     return df
 
 
