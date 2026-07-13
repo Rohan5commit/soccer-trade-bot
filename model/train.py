@@ -36,8 +36,10 @@ LIGHTNING_TEAMSPACE = Path("/teamspace")
 OVH_OUTPUT = Path("/workspace/output")
 
 if LIGHTNING_TEAMSPACE.exists():
-    CHECKPOINT_DIR = LIGHTNING_TEAMSPACE / "checkpoints"
-    MODEL_DIR = LIGHTNING_TEAMSPACE / "model"
+    # Use studio-local writable path
+    _studio_home = Path.home()
+    CHECKPOINT_DIR = _studio_home / "checkpoints"
+    MODEL_DIR = _studio_home / "model_output"
 elif OVH_OUTPUT.exists():
     CHECKPOINT_DIR = OVH_OUTPUT / "checkpoints"
     MODEL_DIR = OVH_OUTPUT / "model"
@@ -82,6 +84,51 @@ def load_training_data(
     )
 
     return df, X, y, groups
+
+
+def train_stacking_meta(
+    oof_probs: np.ndarray,
+    y_true: np.ndarray,
+    val_probs: np.ndarray,
+    y_val: np.ndarray,
+) -> Tuple["SoccerEnsemble", float]:
+    """Train stacking meta-learner on out-of-fold probabilities.
+
+    Args:
+        oof_probs: Out-of-fold predictions (N, 3) from base models.
+        y_true: True labels for OOF data.
+        val_probs: Validation set predictions (N, 3) from base models.
+        y_val: True labels for validation data.
+
+    Returns:
+        Tuple of (meta_learner, calibrated_log_loss).
+    """
+    from sklearn.linear_model import LogisticRegression
+
+    logger.info("Training stacking meta-learner (LogisticRegression)...")
+    meta = LogisticRegression(
+        C=1.0, max_iter=1000, random_state=42, multi_class="multinomial",
+    )
+    meta.fit(oof_probs, y_true)
+
+    # Predict on validation
+    meta_probs = meta.predict_proba(val_probs)
+
+    # Calibrate
+    calibrator = ProbabilityCalibrator()
+    calibrator.fit(y_val, meta_probs)
+    calibrated = calibrator.predict(meta_probs)
+
+    ll = log_loss(y_val, calibrated)
+    logger.info("Stacking meta-learner calibrated log loss: %.4f", ll)
+
+    # Brier scores
+    for i, cls_name in enumerate(["home", "draw", "away"]):
+        binary_true = (y_val == i).astype(float)
+        bs = brier_score_loss(binary_true, calibrated[:, i])
+        logger.info("Stacking Brier (%s): %.4f", cls_name, bs)
+
+    return meta, calibrator, ll
 
 
 def _save_checkpoint(trial_results: List[Dict], best_params: Dict, best_score: float,
@@ -337,12 +384,14 @@ class SoccerEnsemble:
         self.xgb_weight = xgb_weight
         self.lgbm_weight = lgbm_weight
         self.cb_weight = cb_weight
+        self._stack_meta = None
+        self._use_stacking = False
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """Predict calibrated probabilities.
 
         Args:
-            X: Feature array (N, 39).
+            X: Feature array (N, 51).
 
         Returns:
             Calibrated probabilities (N, 3) for [home, draw, away].
@@ -364,9 +413,14 @@ class SoccerEnsemble:
         if not probs_list:
             raise ValueError("No models in ensemble")
 
-        # Weighted average
-        total_weight = sum(w for _, w in probs_list)
-        ensemble_probs = sum(p * w for p, w in probs_list) / total_weight
+        if self._use_stacking and self._stack_meta is not None:
+            # Use stacking meta-learner
+            base_probs = np.column_stack([p for p, _ in probs_list])
+            ensemble_probs = self._stack_meta.predict_proba(base_probs)
+        else:
+            # Weighted average
+            total_weight = sum(w for _, w in probs_list)
+            ensemble_probs = sum(p * w for p, w in probs_list) / total_weight
 
         # Calibrate
         if self.calibrator is not None:
@@ -405,6 +459,10 @@ class SoccerEnsemble:
         if self.calibrator is not None:
             self.calibrator.save(str(output_path / "calibrator.pkl"))
 
+        if self._use_stacking and self._stack_meta is not None:
+            joblib.dump(self._stack_meta, output_path / "stack_meta.pkl")
+            logger.info("Stacking meta-learner saved")
+
         # Save metadata
         meta = {
             "xgb_weight": self.xgb_weight,
@@ -413,6 +471,7 @@ class SoccerEnsemble:
             "feature_names": FEATURE_NAMES,
             "n_features": len(FEATURE_NAMES),
             "target_classes": ["home", "draw", "away"],
+            "use_stacking": self._use_stacking,
         }
         (output_path / "ensemble_meta.json").write_text(json.dumps(meta, indent=2))
 
@@ -442,6 +501,14 @@ class SoccerEnsemble:
         if cal_path.exists():
             calibrator = ProbabilityCalibrator.load(str(cal_path))
 
+        # Load stacking meta
+        stack_meta = None
+        use_stacking = False
+        stack_path = model_path / "stack_meta.pkl"
+        if stack_path.exists():
+            stack_meta = joblib.load(stack_path)
+            use_stacking = True
+
         # Load weights from metadata
         meta_path = model_path / "ensemble_meta.json"
         xgb_weight = 0.33
@@ -452,6 +519,7 @@ class SoccerEnsemble:
             xgb_weight = meta.get("xgb_weight", 0.33)
             lgbm_weight = meta.get("lgbm_weight", 0.33)
             cb_weight = meta.get("cb_weight", 0.34)
+            use_stacking = meta.get("use_stacking", use_stacking)
 
         ensemble = cls(
             xgb_model=xgb_model,
@@ -462,7 +530,9 @@ class SoccerEnsemble:
             lgbm_weight=lgbm_weight,
             cb_weight=cb_weight,
         )
-        logger.info("Ensemble loaded from %s", model_dir)
+        ensemble._stack_meta = stack_meta
+        ensemble._use_stacking = use_stacking
+        logger.info("Ensemble loaded from %s (stacking=%s)", model_dir, use_stacking)
         return ensemble
 
 
@@ -599,6 +669,7 @@ def run_optuna(
         ),
         n_trials=n_trials,
         show_progress_bar=True,
+        n_jobs=-1,  # Parallel Optuna trials
     )
 
     best_params = study.best_params
@@ -619,6 +690,7 @@ def train(
     use_optuna: bool = False,
     optuna_trials: int = 200,
     use_catboost: bool = True,
+    use_stacking: bool = True,
 ) -> SoccerEnsemble:
     """Full training pipeline.
 
@@ -713,7 +785,7 @@ def train(
         cb_model = train_catboost(X_train, y_train, X_val, y_val, params=cb_params)
 
     # Find optimal ensemble weights via grid search
-    logger.info("Optimizing ensemble weights...")
+    logger.info("Optimizing ensemble weights + stacking...")
     xgb_probs = xgb_model.predict_proba(X_val)
     lgbm_probs = lgbm_model.predict_proba(X_val)
 
@@ -749,15 +821,73 @@ def train(
         logger.info("Best weights: XGB=%.2f, LGBM=%.2f (log_loss=%.4f)",
                     xgb_weight, lgbm_weight, best_ll)
 
-    # Create ensemble with optimal weights
-    ensemble = SoccerEnsemble(
-        xgb_model=xgb_model,
-        lgbm_model=lgbm_model,
-        cb_model=cb_model,
-        xgb_weight=xgb_weight,
-        lgbm_weight=lgbm_weight,
-        cb_weight=cb_weight,
+    # === STACKING META-LEARNER ===
+    # Generate OOF predictions using 3-fold cross-validation on training data
+    n_oof = len(X_train)
+    oof_all = np.zeros((n_oof, 3), dtype=np.float32)
+    n_folds_oof = 3
+    fold_size = n_oof // n_folds_oof
+
+    for f in range(n_folds_oof):
+        start = f * fold_size
+        end = start + fold_size if f < n_folds_oof - 1 else n_oof
+        oof_val_idx = list(range(start, end))
+        oof_train_idx = list(range(0, start)) + list(range(end, n_oof))
+
+        if len(oof_val_idx) == 0 or len(oof_train_idx) == 0:
+            continue
+
+        X_oof_train, y_oof_train = X_train[oof_train_idx], y_train[oof_train_idx]
+        X_oof_val = X_train[oof_val_idx]
+
+        xgb_oof = train_xgboost(X_oof_train, y_oof_train, X_oof_val, y_oof_train[:1], params=xgb_params)
+        lgbm_oof = train_lightgbm(X_oof_train, y_oof_train, X_oof_val, y_oof_train[:1], params=lgb_params)
+        cb_oof = None
+        if cb_model is not None:
+            cb_oof = train_catboost(X_oof_train, y_oof_train, X_oof_val, y_oof_train[:1], params=cb_params)
+
+        oof_xgb = xgb_oof.predict_proba(X_oof_val)
+        oof_lgbm = lgbm_oof.predict_proba(X_oof_val)
+        if cb_oof is not None:
+            oof_cb = cb_oof.predict_proba(X_oof_val)
+            oof_all[oof_val_idx] = (oof_xgb + oof_lgbm + oof_cb) / 3.0
+        else:
+            oof_all[oof_val_idx] = (oof_xgb + oof_lgbm) / 2.0
+
+    # Train stacking meta-learner
+    stack_meta, stack_calibrator, stack_ll = train_stacking_meta(
+        oof_all, y_train, np.column_stack([xgb_probs, lgbm_probs, cb_probs]) if cb_model is not None else np.column_stack([xgb_probs, lgbm_probs]),
+        y_val,
     )
+
+    logger.info("Weighted avg log loss: %.4f | Stacking log loss: %.4f", best_ll, stack_ll)
+
+    # Use stacking if it's better
+    use_stacking = stack_ll < best_ll
+    if use_stacking:
+        logger.info("Using stacking meta-learner (better by %.4f)", best_ll - stack_ll)
+        # Build ensemble for stacking
+        ensemble = SoccerEnsemble(
+            xgb_model=xgb_model,
+            lgbm_model=lgbm_model,
+            cb_model=cb_model,
+            xgb_weight=1.0,  # Stacking handles weighting
+            lgbm_weight=0.0,
+            cb_weight=0.0,
+        )
+        ensemble.calibrator = stack_calibrator
+        ensemble._stack_meta = stack_meta
+        ensemble._use_stacking = True
+    else:
+        logger.info("Using weighted average (better by %.4f)", stack_ll - best_ll)
+        ensemble = SoccerEnsemble(
+            xgb_model=xgb_model,
+            lgbm_model=lgbm_model,
+            cb_model=cb_model,
+            xgb_weight=xgb_weight,
+            lgbm_weight=lgbm_weight,
+            cb_weight=cb_weight,
+        )
 
     # Calibrate on validation set
     raw_probs = ensemble.predict(X_val)
@@ -801,6 +931,7 @@ def main() -> None:
     parser.add_argument("--optuna", action="store_true", help="Run Optuna optimization")
     parser.add_argument("--optuna-trials", type=int, default=200, help="Number of Optuna trials")
     parser.add_argument("--no-catboost", action="store_true", help="Disable CatBoost")
+    parser.add_argument("--no-stacking", action="store_true", help="Disable stacking meta-learner")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
@@ -811,6 +942,7 @@ def main() -> None:
         use_optuna=args.optuna,
         optuna_trials=args.optuna_trials,
         use_catboost=not args.no_catboost,
+        use_stacking=not args.no_stacking,
     )
 
 

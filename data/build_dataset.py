@@ -31,7 +31,9 @@ LIGHTNING_TEAMSPACE = Path("/teamspace")
 OVH_OUTPUT = Path("/workspace/output")
 
 if LIGHTNING_TEAMSPACE.exists():
-    CACHE_BASE = LIGHTNING_TEAMSPACE / "cache"
+    # Use studio-local writable path (not /teamspace/cache which is read-only)
+    _studio_home = Path.home()
+    CACHE_BASE = _studio_home / "cache"
 elif OVH_OUTPUT.exists():
     CACHE_BASE = OVH_OUTPUT / "cache"
 else:
@@ -515,6 +517,20 @@ def _build_snapshots_from_sb_events(
         if score_diff < 0 and clock > 75:
             pressure = max(0.15, pressure - 0.2)
 
+        # === NEW FEATURES (v2) ===
+        xg_diff = h_xg - a_xg
+        xg_total = h_xg + a_xg
+        form_diff = home_form - away_form
+        elo_xg_interaction = elo_diff * xg_diff
+        pressure_x_time = pressure * time_remaining
+        clock_norm = clock / 90.0
+        home_dominance = xg_diff / max(xg_total, 0.1)
+        score_xg_consistent = 1.0 if (score_diff > 0 and xg_diff > 0) or (score_diff < 0 and xg_diff < 0) or (score_diff == 0 and abs(xg_diff) < 0.3) else 0.0
+        late_game = 1.0 if (clock > 75 and score_diff != 0) else 0.0
+        home_xg_per_min = h_xg / max(clock, 1)
+        away_xg_per_min = a_xg / max(clock, 1)
+        xg_mom_ratio = momentum / max(xg_total, 0.1)
+
         snapshots.append({
             "match_id": match_id,
             "source": "statsbomb",
@@ -557,6 +573,18 @@ def _build_snapshots_from_sb_events(
             "cards_last_15min": float(cards_last15),
             "score_diff_squared": float(score_diff ** 2),
             "momentum_shift": float(momentum),
+            "xg_diff": float(xg_diff),
+            "xg_total": float(xg_total),
+            "form_diff": float(form_diff),
+            "elo_xg_interaction": float(elo_xg_interaction),
+            "pressure_x_time_remaining": float(pressure_x_time),
+            "clock_normalized": float(clock_norm),
+            "home_dominance": float(home_dominance),
+            "score_xg_consistent": float(score_xg_consistent),
+            "late_game_state": float(late_game),
+            "home_xg_per_minute": float(home_xg_per_min),
+            "away_xg_per_minute": float(away_xg_per_min),
+            "xg_momentum_ratio": float(xg_mom_ratio),
             "target": target,
         })
 

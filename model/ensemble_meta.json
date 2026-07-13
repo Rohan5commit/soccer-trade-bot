@@ -1,6 +1,7 @@
 {
-  "xgb_weight": 0.5,
-  "lgbm_weight": 0.5,
+  "xgb_weight": 0.05,
+  "lgbm_weight": 0.8500000000000001,
+  "cb_weight": 0.09999999999999987,
   "feature_names": [
     "score_diff",
     "clock_minutes",

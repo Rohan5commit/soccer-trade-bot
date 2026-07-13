@@ -60,9 +60,22 @@ FEATURE_NAMES: List[str] = [
     "cards_last_15min",
     "score_diff_squared",
     "momentum_shift",
+    # === NEW FEATURES (v2) ===
+    "xg_diff",                  # home xG - away xG
+    "xg_total",                 # total xG in match
+    "form_diff",                # home form - away form
+    "elo_xg_interaction",       # elo_diff * xg_diff
+    "pressure_x_time_remaining",# pressure * time_remaining
+    "clock_normalized",         # clock / 90
+    "home_dominance",           # (home_xg - away_xg) / (home_xg + away_xg + 0.1)
+    "score_xg_consistent",      # 1 if score and xG agree on leader
+    "late_game_state",          # 1 if clock > 75 and score_diff != 0
+    "home_xg_per_minute",       # home_xg / max(clock, 1)
+    "away_xg_per_minute",       # away_xg / max(clock, 1)
+    "xg_momentum_ratio",        # (home_xg_recent - away_xg_recent) / (total_xg + 0.1)
 ]
 
-assert len(FEATURE_NAMES) == 39, f"Expected 39 features, got {len(FEATURE_NAMES)}"
+assert len(FEATURE_NAMES) == 51, f"Expected 51 features, got {len(FEATURE_NAMES)}"
 
 
 def state_to_vector(state: GameState) -> Dict[str, float]:

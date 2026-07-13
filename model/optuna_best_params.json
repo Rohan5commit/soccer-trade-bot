@@ -1,0 +1,29 @@
+{
+  "best_score": 0.35857200906271525,
+  "best_params": {
+    "xgb_max_depth": 3,
+    "xgb_lr": 0.261457138171703,
+    "xgb_n_est": 1300,
+    "xgb_subsample": 0.6199171077041113,
+    "xgb_colsample": 0.9379254591452574,
+    "xgb_min_child": 10,
+    "xgb_reg_alpha": 0.00016812702818487567,
+    "xgb_reg_lambda": 0.02810255055613193,
+    "lgb_num_leaves": 166,
+    "lgb_max_depth": 3,
+    "lgb_lr": 0.02733379946506844,
+    "lgb_n_est": 700,
+    "lgb_subsample": 0.8566784484920004,
+    "lgb_colsample": 0.9227021087924235,
+    "lgb_min_child": 18,
+    "lgb_reg_alpha": 6.174247580392149,
+    "lgb_reg_lambda": 2.3295059987877566e-06,
+    "cb_depth": 5,
+    "cb_lr": 0.011273531719684515,
+    "cb_iter": 2500,
+    "cb_l2": 0.011039548607801906
+  },
+  "phase": "optuna",
+  "timestamp": "2026-07-12 16:05:24",
+  "n_trials": 377
+}
