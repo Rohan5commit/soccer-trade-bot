@@ -720,6 +720,7 @@ def train(
     use_catboost: bool = True,
     use_stacking: bool = True,
     resume: bool = False,
+    skip_optuna: bool = False,
 ) -> SoccerEnsemble:
     """Full training pipeline.
 
@@ -777,6 +778,51 @@ def train(
         )
 
         # Extract per-model params from Optuna results
+        xgb_params = {
+            "max_depth": best_params.get("xgb_max_depth", 6),
+            "learning_rate": best_params.get("xgb_lr", 0.05),
+            "n_estimators": best_params.get("xgb_n_est", 1500),
+            "subsample": best_params.get("xgb_subsample", 0.8),
+            "colsample_bytree": best_params.get("xgb_colsample", 0.8),
+            "min_child_weight": best_params.get("xgb_min_child", 5),
+            "reg_alpha": best_params.get("xgb_reg_alpha", 0.1),
+            "reg_lambda": best_params.get("xgb_reg_lambda", 0.1),
+        }
+        lgb_params = {
+            "num_leaves": best_params.get("lgb_num_leaves", 63),
+            "max_depth": best_params.get("lgb_max_depth", 8),
+            "learning_rate": best_params.get("lgb_lr", 0.05),
+            "n_estimators": best_params.get("lgb_n_est", 1500),
+            "subsample": best_params.get("lgb_subsample", 0.8),
+            "colsample_bytree": best_params.get("lgb_colsample", 0.8),
+            "min_child_samples": best_params.get("lgb_min_child", 20),
+            "reg_alpha": best_params.get("lgb_reg_alpha", 0.1),
+            "reg_lambda": best_params.get("lgb_reg_lambda", 0.1),
+        }
+        if use_catboost:
+            cb_params = {
+                "depth": best_params.get("cb_depth", 6),
+                "learning_rate": best_params.get("cb_lr", 0.05),
+                "iterations": best_params.get("cb_iter", 1500),
+                "l2_leaf_reg": best_params.get("cb_l2", 3.0),
+            }
+
+    elif skip_optuna:
+        # Load best params from Optuna checkpoint
+        import json
+        checkpoint_dir = Path(output_dir)
+        # Try local dir, then teamspace dir
+        for try_dir in [checkpoint_dir, MODEL_DIR, Path("model")]:
+            params_file = try_dir / "optuna_best_params.json"
+            if params_file.exists():
+                with open(params_file) as f:
+                    best_params = json.load(f)
+                break
+        else:
+            raise FileNotFoundError(f"optuna_best_params.json not found in any of {[checkpoint_dir, MODEL_DIR, Path('model')]}")
+
+        logger.info("Loaded Optuna best params from checkpoint: log_loss=%.4f", best_params.get("best_score", -1))
+
         xgb_params = {
             "max_depth": best_params.get("xgb_max_depth", 6),
             "learning_rate": best_params.get("xgb_lr", 0.05),
@@ -969,6 +1015,7 @@ def main() -> None:
     parser.add_argument("--no-catboost", action="store_true", help="Disable CatBoost")
     parser.add_argument("--no-stacking", action="store_true", help="Disable stacking meta-learner")
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoint")
+    parser.add_argument("--skip-optuna", action="store_true", help="Skip Optuna, load best params from checkpoint")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
@@ -981,6 +1028,7 @@ def main() -> None:
         use_catboost=not args.no_catboost,
         use_stacking=not args.no_stacking,
         resume=args.resume,
+        skip_optuna=args.skip_optuna,
     )
 
 
