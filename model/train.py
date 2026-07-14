@@ -107,7 +107,7 @@ def train_stacking_meta(
 
     logger.info("Training stacking meta-learner (LogisticRegression)...")
     meta = LogisticRegression(
-        C=1.0, max_iter=1000, random_state=42, multi_class="multinomial",
+        C=1.0, max_iter=1000, random_state=42,
     )
     meta.fit(oof_probs, y_true)
 

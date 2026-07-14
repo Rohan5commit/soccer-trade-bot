@@ -1,7 +1,7 @@
 {
-  "xgb_weight": 0.05,
-  "lgbm_weight": 0.8500000000000001,
-  "cb_weight": 0.09999999999999987,
+  "xgb_weight": 0.1,
+  "lgbm_weight": 0.1,
+  "cb_weight": 0.8,
   "feature_names": [
     "score_diff",
     "clock_minutes",
@@ -41,12 +41,25 @@
     "goals_last_15min",
     "cards_last_15min",
     "score_diff_squared",
-    "momentum_shift"
+    "momentum_shift",
+    "xg_diff",
+    "xg_total",
+    "form_diff",
+    "elo_xg_interaction",
+    "pressure_x_time_remaining",
+    "clock_normalized",
+    "home_dominance",
+    "score_xg_consistent",
+    "late_game_state",
+    "home_xg_per_minute",
+    "away_xg_per_minute",
+    "xg_momentum_ratio"
   ],
-  "n_features": 39,
+  "n_features": 51,
   "target_classes": [
     "home",
     "draw",
     "away"
-  ]
+  ],
+  "use_stacking": false
 }
