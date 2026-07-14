@@ -852,48 +852,54 @@ def train(
                     xgb_weight, lgbm_weight, best_ll)
 
     # === STACKING META-LEARNER ===
-    # Generate OOF predictions using 3-fold cross-validation on training data
-    n_oof = len(X_train)
-    oof_all = np.zeros((n_oof, 3), dtype=np.float32)
-    n_folds_oof = 3
-    fold_size = n_oof // n_folds_oof
+    try:
+        # Generate OOF predictions using 3-fold cross-validation on training data
+        n_oof = len(X_train)
+        oof_all = np.zeros((n_oof, 3), dtype=np.float32)
+        n_folds_oof = 3
+        fold_size = n_oof // n_folds_oof
 
-    for f in range(n_folds_oof):
-        start = f * fold_size
-        end = start + fold_size if f < n_folds_oof - 1 else n_oof
-        oof_val_idx = list(range(start, end))
-        oof_train_idx = list(range(0, start)) + list(range(end, n_oof))
+        for f in range(n_folds_oof):
+            start = f * fold_size
+            end = start + fold_size if f < n_folds_oof - 1 else n_oof
+            oof_val_idx = list(range(start, end))
+            oof_train_idx = list(range(0, start)) + list(range(end, n_oof))
 
-        if len(oof_val_idx) == 0 or len(oof_train_idx) == 0:
-            continue
+            if len(oof_val_idx) == 0 or len(oof_train_idx) == 0:
+                continue
 
-        X_oof_train, y_oof_train = X_train[oof_train_idx], y_train[oof_train_idx]
-        X_oof_val = X_train[oof_val_idx]
+            X_oof_train, y_oof_train = X_train[oof_train_idx], y_train[oof_train_idx]
+            X_oof_val, y_oof_val = X_train[oof_val_idx], y_train[oof_val_idx]
 
-        xgb_oof = train_xgboost(X_oof_train, y_oof_train, X_oof_val, y_oof_train[:1], params=xgb_params)
-        lgbm_oof = train_lightgbm(X_oof_train, y_oof_train, X_oof_val, y_oof_train[:1], params=lgb_params)
-        cb_oof = None
-        if cb_model is not None:
-            cb_oof = train_catboost(X_oof_train, y_oof_train, X_oof_val, y_oof_train[:1], params=cb_params)
+            xgb_oof = train_xgboost(X_oof_train, y_oof_train, X_oof_val, y_oof_val, params=xgb_params)
+            lgbm_oof = train_lightgbm(X_oof_train, y_oof_train, X_oof_val, y_oof_val, params=lgb_params)
+            cb_oof = None
+            if cb_model is not None:
+                cb_oof = train_catboost(X_oof_train, y_oof_train, X_oof_val, y_oof_val, params=cb_params)
 
-        oof_xgb = xgb_oof.predict_proba(X_oof_val)
-        oof_lgbm = lgbm_oof.predict_proba(X_oof_val)
-        if cb_oof is not None:
-            oof_cb = cb_oof.predict_proba(X_oof_val)
-            oof_all[oof_val_idx] = (oof_xgb + oof_lgbm + oof_cb) / 3.0
-        else:
-            oof_all[oof_val_idx] = (oof_xgb + oof_lgbm) / 2.0
+            oof_xgb = xgb_oof.predict_proba(X_oof_val)
+            oof_lgbm = lgbm_oof.predict_proba(X_oof_val)
+            if cb_oof is not None:
+                oof_cb = cb_oof.predict_proba(X_oof_val)
+                oof_all[oof_val_idx] = (oof_xgb + oof_lgbm + oof_cb) / 3.0
+            else:
+                oof_all[oof_val_idx] = (oof_xgb + oof_lgbm) / 2.0
 
-    # Train stacking meta-learner
-    stack_meta, stack_calibrator, stack_ll = train_stacking_meta(
-        oof_all, y_train, np.column_stack([xgb_probs, lgbm_probs, cb_probs]) if cb_model is not None else np.column_stack([xgb_probs, lgbm_probs]),
-        y_val,
-    )
+        # Train stacking meta-learner
+        stack_meta, stack_calibrator, stack_ll = train_stacking_meta(
+            oof_all, y_train, np.column_stack([xgb_probs, lgbm_probs, cb_probs]) if cb_model is not None else np.column_stack([xgb_probs, lgbm_probs]),
+            y_val,
+        )
+        stacking_ok = True
+    except Exception as e:
+        logger.warning("Stacking failed: %s. Falling back to weighted average.", e)
+        stack_ll = float("inf")
+        stacking_ok = False
 
     logger.info("Weighted avg log loss: %.4f | Stacking log loss: %.4f", best_ll, stack_ll)
 
     # Use stacking if it's better
-    use_stacking = stack_ll < best_ll
+    use_stacking = stacking_ok and stack_ll < best_ll
     if use_stacking:
         logger.info("Using stacking meta-learner (better by %.4f)", best_ll - stack_ll)
         # Build ensemble for stacking
