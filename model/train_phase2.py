@@ -113,10 +113,13 @@ def train_ngboost(
         logger.warning("NGBoost not installed, skipping")
         return None
 
+    from sklearn.tree import DecisionTreeRegressor
+
+    base = DecisionTreeRegressor(max_depth=6)
     default_params = {
         "n_estimators": 500,
         "learning_rate": 0.1,
-        "max_depth": 6,
+        "Base": base,
         "minibatch_frac": 0.5,
         "col_sample": 0.8,
         "verbose": False,
@@ -124,10 +127,9 @@ def train_ngboost(
     if params:
         default_params.update(params)
 
-    logger.info("Training NGBoost with params: %s", {k: v for k, v in default_params.items() if k != "verbose"})
+    logger.info("Training NGBoost with params: %s", {k: v for k, v in default_params.items() if k not in ("verbose", "Base")})
 
     # NGBoost requires one-vs-rest for multiclass
-    from sklearn.multiclass import OneVsRestClassifier
     from ngboost import NGBClassifier
 
     # Train 3 binary classifiers (one per class)
