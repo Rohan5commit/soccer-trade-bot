@@ -207,7 +207,7 @@ def train_xgboost(
         "eval_metric": "mlogloss",
         "tree_method": "hist",
         "random_state": 42,
-        "nthread": 2,
+        "nthread": 4,
     }
 
     if params:
@@ -265,7 +265,7 @@ def train_lightgbm(
             "metric": "multi_logloss",
             "boosting_type": "gbdt",
             "random_state": 42,
-            "n_jobs": 2,
+            "n_jobs": 4,
             "verbose": -1,
         }
         lgb_params.update(params)
@@ -285,7 +285,7 @@ def train_lightgbm(
             "reg_alpha": 0.1,
             "reg_lambda": 0.1,
             "random_state": 42,
-            "n_jobs": 2,
+            "n_jobs": 4,
             "verbose": -1,
         }
 
@@ -331,6 +331,7 @@ def train_catboost(
             "classes_count": 3,
             "random_seed": 42,
             "verbose": 50,
+            "thread_count": 4,
             "early_stopping_rounds": 50,
         }
         cb_params.update(params)
@@ -345,6 +346,7 @@ def train_catboost(
             "l2_leaf_reg": 3,
             "random_seed": 42,
             "verbose": 50,
+            "thread_count": 4,
             "early_stopping_rounds": 50,
         }
 
@@ -697,7 +699,7 @@ def run_optuna(
         ),
         n_trials=remaining_trials,
         show_progress_bar=True,
-        n_jobs=16,  # 16 parallel trials for 16-core CPU
+        n_jobs=4,  # 4 parallel trials × 4 cores per model = 16 cores
     )
 
     best_params = study.best_params

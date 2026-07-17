@@ -278,6 +278,9 @@ def run_phase4(data_path: str = "data/train_full.parquet", output_dir: str = "mo
 def run_all_phases(data_path: str = "data/train_full.parquet") -> bool:
     """Run all phases sequentially.
 
+    Phase 2 (NGBoost/FT-Transformer) is skipped — marginal value, wastes compute.
+    Phase 3 Optuna is where profitability is built.
+
     Returns:
         True if all phases successful, False otherwise.
     """
@@ -289,12 +292,12 @@ def run_all_phases(data_path: str = "data/train_full.parquet") -> bool:
     if not run_phase1(data_path):
         return False
 
-    # Phase 2: Model Diversity
-    if not run_phase2(data_path):
-        return False
+    # Phase 2: SKIPPED (marginal value, wastes compute)
+    logger.info("Phase 2 SKIPPED — going straight to Optuna sweep")
+    save_master_checkpoint("phase2", "complete", {"skipped": True})
 
-    # Phase 3: Optuna Sweep
-    if not run_phase3(data_path):
+    # Phase 3: Optuna Sweep (2000 trials, 4 parallel × 4 cores = 16 cores)
+    if not run_phase3(data_path, n_trials=2000):
         return False
 
     # Phase 4: Final Ensemble
