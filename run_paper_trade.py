@@ -29,6 +29,7 @@ load_dotenv()
 
 from config import load_config, Config
 from market.kickoff_api_client import KickoffApiClient, LiveMatchState as KickoffMatchState
+from market.worldcup26_client import WorldCup26Client
 from market.kalshi_client import KalshiClient, KalshiMarket
 from model.predict import WinPredictor
 from trading.edge_calculator import EdgeCalculator
@@ -61,10 +62,10 @@ class ActiveMarket:
 
 
 class PaperTrader:
-    """Paper trading engine for Kalshi demo with API-Football live data.
+    """Paper trading engine for Kalshi demo with live match data.
 
     Modes:
-    - live: API-Football match state → model prediction → edge detection → paper trades
+    - live: worldcup26.ir/KickoffAPI match state -> model prediction -> edge detection -> paper trades
     - market_only: Polls Kalshi for odds, logs signals (no model)
     """
 
@@ -75,6 +76,7 @@ class PaperTrader:
 
         # Components
         self.kickoff: Optional[KickoffApiClient] = None
+        self.worldcup26: Optional[WorldCup26Client] = None
         self.kalshi: Optional[KalshiClient] = None
         self.predictor: Optional[WinPredictor] = None
         self.edge_calculator: Optional[EdgeCalculator] = None
@@ -105,27 +107,29 @@ class PaperTrader:
         """Initialize all components. Returns True if ready."""
         logger.info("=" * 60)
         logger.info("PAPER TRADER INITIALIZING")
-        logger.info("Mode: %s", "MARKET-ONLY" if self._market_only else "LIVE (KickoffAPI)")
+        logger.info("Mode: %s", "MARKET-ONLY" if self._market_only else "LIVE (worldcup26 + KickoffAPI)")
         logger.info("Bankroll: $%.2f", self._bankroll)
         logger.info("=" * 60)
 
         SIGNALS_DIR.mkdir(parents=True, exist_ok=True)
 
-        # KickoffAPI client
+        # WorldCup26 client (primary — unlimited, no Cloudflare)
+        if not self._market_only:
+            self.worldcup26 = WorldCup26Client()
+            logger.info("WorldCup26 client initialized (primary)")
+
+        # KickoffAPI client (backup — has events/stats, but may be Cloudflare-blocked)
         if not self._market_only:
             keys = []
-            # Collect all KickoffAPI keys from env
             key1 = os.environ.get("KICKOFF_API_KEY", "")
             key2 = os.environ.get("KICKOFF_API_KEY_2", "")
             if key1:
                 keys.append(key1)
             if key2:
                 keys.append(key2)
-            if not keys:
-                logger.error("KICKOFF_API_KEY not set")
-                return False
-            self.kickoff = KickoffApiClient(keys=keys)
-            logger.info("KickoffAPI client initialized with %d keys", len(keys))
+            if keys:
+                self.kickoff = KickoffApiClient(keys=keys)
+                logger.info("KickoffAPI client initialized with %d keys (backup)", len(keys))
 
         # Kalshi client
         if not self.config.kalshi_api_key:
@@ -251,55 +255,167 @@ class PaperTrader:
             logger.warning("No WC Final markets found — will retry in scan")
 
     def _poll_match_state(self) -> None:
-        """Poll KickoffAPI for live match state."""
+        """Poll for live match state. Uses worldcup26.ir (primary) + KickoffAPI (backup for events/stats)."""
         fixture_id = int(os.environ.get("KICKOFF_FIXTURE_ID", "1591866"))
-        if not fixture_id:
-            return
 
-        if not self.kickoff:
-            return
-
-        self._prev_match_state = self._match_state
-        self._match_state = self.kickoff.get_live_match(fixture_id)
-
-        if not self._match_state:
-            return
-
-        ms = self._match_state
-
-        # Log match state
-        logger.info(
-            "LIVE: %s %d - %d %s | %s %s' | events=%d | API calls=%d",
-            ms.home_team, ms.home_score, ms.away_score, ms.away_team,
-            ms.status, ms.clock_minutes,
-            len(ms.events), self.kickoff.request_count,
-        )
-
-        # Convert to GameState for prediction
-        self._game_state = self._match_state_to_game_state(ms)
-
-        # Log prediction if available
-        if self.predictor and self._game_state:
+        # Try worldcup26.ir first (unlimited, no Cloudflare)
+        if self.worldcup26:
             try:
-                p_home, p_draw, p_away = self.predictor.predict(self._game_state)
-                self._last_prediction = {
-                    "home": p_home,
-                    "draw": p_draw,
-                    "away": p_away,
-                    "confidence": max(p_home, p_draw, p_away),
-                    "clock": ms.clock_minutes,
-                }
-                logger.info(
-                    "PREDICTION: home=%.1f%% draw=%.1f%% away=%.1f%% (conf=%.1f%%)",
-                    p_home * 100, p_draw * 100, p_away * 100,
-                    self._last_prediction["confidence"] * 100,
-                )
-            except Exception as e:
-                logger.warning("Prediction failed: %s", e)
-                self._last_prediction = None
+                # WC Final MongoDB ID
+                match_data = self.worldcup26.get_match("679c9c8a5749c4077500e092")
+                if match_data:
+                    # Parse worldcup26 response
+                    home_team = match_data.get("home_team_name_en", "Spain")
+                    away_team = match_data.get("away_team_name_en", "Argentina")
+                    home_score = match_data.get("home_score", 0) or 0
+                    away_score = match_data.get("away_score", 0) or 0
+                    time_elapsed = match_data.get("time_elapsed", "notstarted")
 
-        # Update state file
-        self._write_state()
+                    # Determine status and clock
+                    status = "NS"
+                    clock_minutes = 0.0
+                    is_live = False
+                    period = 1
+
+                    if time_elapsed == "finished":
+                        status = "FT"
+                        clock_minutes = 90.0
+                    elif time_elapsed == "notstarted":
+                        status = "NS"
+                        clock_minutes = 0.0
+                    elif ":" in time_elapsed:
+                        # Parse "45:00" format
+                        parts = time_elapsed.split(":")
+                        try:
+                            clock_minutes = float(parts[0])
+                            is_live = True
+                            status = "1H" if clock_minutes <= 45 else "2H"
+                            period = 1 if clock_minutes <= 45 else 2
+                        except ValueError:
+                            pass
+
+                    # Create a compatible state object
+                    from dataclasses import dataclass
+                    @dataclass
+                    class WC26MatchState:
+                        fixture_id: int
+                        home_team: str
+                        away_team: str
+                        home_score: int
+                        away_score: int
+                        clock_minutes: float
+                        status: str
+                        is_live: bool
+                        period: int
+                        events: list = field(default_factory=list)
+                        home_stats: object = None
+                        away_stats: object = None
+                        home_xg_running: float = 0.0
+                        away_xg_running: float = 0.0
+                        home_pressure: float = 0.5
+                        home_red_cards: int = 0
+                        away_red_cards: int = 0
+                        home_yellow_cards: int = 0
+                        away_yellow_cards: int = 0
+                        last_update: float = field(default_factory=time.time)
+
+                    self._prev_match_state = self._match_state
+                    self._match_state = WC26MatchState(
+                        fixture_id=fixture_id,
+                        home_team=home_team,
+                        away_team=away_team,
+                        home_score=home_score,
+                        away_score=away_score,
+                        clock_minutes=clock_minutes,
+                        status=status,
+                        is_live=is_live,
+                        period=period,
+                    )
+
+                    logger.info(
+                        "WC26: %s %d - %d %s | %s %s' | API calls=%d",
+                        home_team, home_score, away_score, away_team,
+                        status, clock_minutes, self.worldcup26.request_count,
+                    )
+
+                    # Try to get events/stats from KickoffAPI (backup)
+                    if self.kickoff and is_live:
+                        try:
+                            kickoff_state = self.kickoff.get_live_match(fixture_id)
+                            if kickoff_state and kickoff_state.events:
+                                self._match_state.events = kickoff_state.events
+                                self._match_state.home_stats = kickoff_state.home_stats
+                                self._match_state.away_stats = kickoff_state.away_stats
+                                self._match_state.home_xg_running = kickoff_state.home_xg_running
+                                self._match_state.away_xg_running = kickoff_state.away_xg_running
+                                self._match_state.home_pressure = kickoff_state.home_pressure
+                                self._match_state.home_red_cards = kickoff_state.home_red_cards
+                                self._match_state.away_red_cards = kickoff_state.away_red_cards
+                                self._match_state.home_yellow_cards = kickoff_state.home_yellow_cards
+                                self._match_state.away_yellow_cards = kickoff_state.away_yellow_cards
+                                logger.info("  + KickoffAPI events/stats overlaid")
+                        except Exception as e:
+                            logger.debug("KickoffAPI backup failed: %s", e)
+
+                    # Convert to GameState for prediction
+                    self._game_state = self._match_state_to_game_state(self._match_state)
+
+                    # Log prediction if available
+                    if self.predictor and self._game_state:
+                        try:
+                            p_home, p_draw, p_away = self.predictor.predict(self._game_state)
+                            self._last_prediction = {
+                                "home": p_home,
+                                "draw": p_draw,
+                                "away": p_away,
+                                "confidence": max(p_home, p_draw, p_away),
+                                "clock": clock_minutes,
+                            }
+                            logger.info(
+                                "PREDICTION: home=%.1f%% draw=%.1f%% away=%.1f%% (conf=%.1f%%)",
+                                p_home * 100, p_draw * 100, p_away * 100,
+                                self._last_prediction["confidence"] * 100,
+                            )
+                        except Exception as e:
+                            logger.warning("Prediction failed: %s", e)
+                            self._last_prediction = None
+
+                    # Update state file
+                    self._write_state()
+                    return
+            except Exception as e:
+                logger.warning("worldcup26.ir failed: %s", e)
+
+        # Fallback: try KickoffAPI directly
+        if self.kickoff:
+            self._prev_match_state = self._match_state
+            self._match_state = self.kickoff.get_live_match(fixture_id)
+            if self._match_state:
+                ms = self._match_state
+                logger.info(
+                    "LIVE: %s %d - %d %s | %s %s' | events=%d | API calls=%d",
+                    ms.home_team, ms.home_score, ms.away_score, ms.away_team,
+                    ms.status, ms.clock_minutes,
+                    len(ms.events), self.kickoff.request_count,
+                )
+                self._game_state = self._match_state_to_game_state(ms)
+                if self.predictor and self._game_state:
+                    try:
+                        p_home, p_draw, p_away = self.predictor.predict(self._game_state)
+                        self._last_prediction = {
+                            "home": p_home, "draw": p_draw, "away": p_away,
+                            "confidence": max(p_home, p_draw, p_away),
+                            "clock": ms.clock_minutes,
+                        }
+                        logger.info(
+                            "PREDICTION: home=%.1f%% draw=%.1f%% away=%.1f%% (conf=%.1f%%)",
+                            p_home * 100, p_draw * 100, p_away * 100,
+                            self._last_prediction["confidence"] * 100,
+                        )
+                    except Exception as e:
+                        logger.warning("Prediction failed: %s", e)
+                        self._last_prediction = None
+                self._write_state()
 
     def _match_state_to_game_state(self, ms: KickoffMatchState) -> GameState:
         """Convert KickoffAPI LiveMatchState to GameState for model prediction."""
@@ -575,7 +691,7 @@ class PaperTrader:
                 "clock": ms.clock_minutes,
                 "status": ms.status,
                 "events": len(ms.events),
-                "api_calls": self.kickoff.request_count if self.kickoff else 0,
+                "api_calls": (self.worldcup26.request_count if self.worldcup26 else 0) + (self.kickoff.request_count if self.kickoff else 0),
             }
 
         state = {
