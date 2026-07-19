@@ -505,9 +505,9 @@ class PaperTrader:
                 try:
                     order = self.kalshi.place_order(
                         ticker=ticker,
-                        yes_price=int(odds["yes_ask"] * 100),
-                        count=int(kelly.bet_usd / odds["yes_ask"]),
-                        side="buy",
+                        yes_price=f"{odds['yes_ask']:.4f}",
+                        count=max(int(kelly.bet_usd / odds["yes_ask"]), 1),
+                        side="bid",
                     )
                     if order:
                         trade_record["order_id"] = order.get("order_id", "")
