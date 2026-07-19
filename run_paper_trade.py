@@ -95,6 +95,8 @@ class PaperTrader:
         self._prev_match_state: Optional[KickoffMatchState] = None
         self._game_state: Optional[GameState] = None
         self._last_prediction: Optional[Dict] = None
+        self._order_cooldown: Dict[str, float] = {}  # ticker -> last order attempt time
+        self._ORDER_COOLDOWN_SEC = 120  # min seconds between order attempts per ticker
 
         # World Cup Final market tickers
         self._WC_FINAL_TICKERS = {
@@ -568,12 +570,19 @@ class PaperTrader:
         if self._game_state.clock_minutes > (90 - self.config.final_minutes_skip):
             return
 
+        # Refresh balance once per edge check
+        fresh_balance = self.kalshi.get_balance()
+        if fresh_balance:
+            self._bankroll = fresh_balance
+
         # Map prediction outcomes to Kalshi market tickers
         outcome_map = {
             self._WC_FINAL_TICKERS["ESP"]: probs[0],  # Spain = home
             self._WC_FINAL_TICKERS["ARG"]: probs[2],  # Argentina = away
             self._WC_FINAL_TICKERS["TIE"]: probs[1],  # Draw
         }
+
+        now = time.time()
 
         for ticker, model_prob in outcome_map.items():
             if ticker not in self._active_markets:
@@ -584,8 +593,13 @@ class PaperTrader:
             if not odds or odds["yes_ask"] <= 0:
                 continue
 
-            # Cooldown: don't re-bet same market if we already traded it
+            # Cooldown: don't re-bet same market if already traded this session
             if market.trades_count > 0:
+                continue
+
+            # Per-ticker cooldown: don't retry failed orders too quickly
+            last_attempt = self._order_cooldown.get(ticker, 0)
+            if now - last_attempt < self._ORDER_COOLDOWN_SEC:
                 continue
 
             # Calculate edge
@@ -614,13 +628,9 @@ class PaperTrader:
             if kelly.bet_usd < self.config.min_bet_usd:
                 continue
 
-            # Refresh balance before placing
-            fresh_balance = self.kalshi.get_balance()
-            if fresh_balance:
-                self._bankroll = fresh_balance
-
             # PLACE PAPER TRADE
             self._total_edge_bets += 1
+            self._order_cooldown[ticker] = now  # set cooldown NOW
 
             trade_record = {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -640,10 +650,14 @@ class PaperTrader:
             # Actually place order on Kalshi demo
             if not self.config.dry_run:
                 try:
-                    # Cap contracts: max $3 per bet to fit available balance
-                    # (resting orders from earlier consume margin)
+                    # Cap: max $3 per bet (resting orders from earlier consume margin)
                     max_count = min(int(3.0 / odds["yes_ask"]), 8)
                     contract_count = min(max(int(kelly.bet_usd / odds["yes_ask"]), 1), max_count)
+
+                    # Check we have enough balance
+                    cost = contract_count * odds["yes_ask"]
+                    if cost > self._bankroll * 0.10:  # never bet more than 10% of bankroll
+                        contract_count = max(int(self._bankroll * 0.10 / odds["yes_ask"]), 1)
 
                     order = self.kalshi.place_order(
                         ticker=ticker,
@@ -659,7 +673,7 @@ class PaperTrader:
                         market.last_trade_side = "yes"
                         market.last_trade_price = odds["yes_ask"]
                     else:
-                        trade_record["status"] = "failed (check balance)"
+                        trade_record["status"] = "failed (no response)"
                 except Exception as e:
                     trade_record["status"] = f"error: {e}"
             else:
