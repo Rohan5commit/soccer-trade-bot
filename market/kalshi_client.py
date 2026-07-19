@@ -432,20 +432,22 @@ class KalshiClient:
         side: str,
         yes_price,
         count: int,
+        time_in_force: str = "immediate_or_cancel",
     ) -> Optional[str]:
         """Place a limit order on Kalshi demo.
 
         - side="bid" → buy YES (you think home team wins)
         - side="ask" → buy NO (you think away team wins)
         - yes_price: cents (int 1-99) or dollar string ("0.4300")
-        - Endpoint: POST /portfolio/orders
-        - Order type: good_till_canceled limit order
+        - Endpoint: POST /portfolio/events/orders
+        - Order type: immediate_or_cancel by default (fills or cancels)
 
         Args:
             ticker: Market ticker.
             side: 'bid' or 'ask'.
             yes_price: Price in cents (int) or dollar string (e.g., "0.4300").
             count: Number of contracts.
+            time_in_force: 'immediate_or_cancel' (default) or 'good_till_canceled'.
 
         Returns:
             Order ID if placed, None otherwise.
@@ -469,7 +471,7 @@ class KalshiClient:
             "side": side.lower(),  # "bid" or "ask"
             "count": f"{count:.2f}",  # Fixed-point string
             "price": price_str,
-            "time_in_force": "good_till_canceled",
+            "time_in_force": time_in_force,
             "self_trade_prevention_type": "taker_at_cross",
         }
 
@@ -505,7 +507,7 @@ class KalshiClient:
             return True
 
         resp = self._request(
-            "DELETE", f"/portfolio/orders/{order_id}",
+            "DELETE", f"/portfolio/events/orders/{order_id}",
             base_url=self._trade_url,
         )
         return resp is not None
