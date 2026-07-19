@@ -33,6 +33,7 @@ class Config:
     lightning_api_key: str = ""
 
     # --- Polymarket ---
+    polymarket_api_key: str = ""
     polymarket_private_key: str = ""
 
     # --- Kalshi ---
@@ -105,6 +106,7 @@ class Config:
             ovh_flavor_id=os.environ.get("OVH_FLAVOR_ID", ""),
             lightning_user_id=os.environ.get("LIGHTNING_USER_ID", ""),
             lightning_api_key=os.environ.get("LIGHTNING_API_KEY", ""),
+            polymarket_api_key=os.environ.get("POLYMARKET_API_KEY", ""),
             polymarket_private_key=os.environ.get("POLYMARKET_PRIVATE_KEY", ""),
             kalshi_api_key=os.environ.get("KALSHI_API_KEY", ""),
             kalshi_private_key=os.environ.get("KALSHI_PRIVATE_KEY", ""),

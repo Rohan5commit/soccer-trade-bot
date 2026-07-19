@@ -94,6 +94,7 @@ class SoccerTradeBot:
         # Market clients
         if self.config.polymarket_private_key:
             self.polymarket = PolymarketClient(
+                api_key=self.config.polymarket_api_key,
                 private_key=self.config.polymarket_private_key,
                 dry_run=self.config.dry_run,
             )

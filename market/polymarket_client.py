@@ -55,15 +55,18 @@ class PolymarketClient:
     """Polymarket CLOB API client for market data and order placement.
 
     Args:
-        private_key: Wallet private key for CLOB authentication.
+        api_key: Polymarket API key for CLOB authentication.
+        private_key: Wallet private key for EIP-712 signing.
         dry_run: If True, log orders without placing them.
     """
 
     def __init__(
         self,
+        api_key: str = "",
         private_key: str = "",
         dry_run: bool = True,
     ) -> None:
+        self.api_key = api_key
         self.private_key = private_key
         self.dry_run = dry_run
         self._clob_client = None
@@ -86,10 +89,20 @@ class PolymarketClient:
                 key=self.private_key,
             )
 
-            # Derive API credentials
-            creds = self._clob_client.create_or_derive_api_creds()
-            self._clob_client.set_api_creds(creds)
-            logger.info("Polymarket CLOB client initialized")
+            # Use provided API key or derive from wallet
+            if self.api_key:
+                from py_clob_client.creds import ApiCreds
+                creds = ApiCreds(
+                    api_key=self.api_key,
+                    api_secret=self.api_key,
+                    api_passphrase=self.api_key,
+                )
+                self._clob_client.set_api_creds(creds)
+                logger.info("Polymarket CLOB client initialized with API key")
+            else:
+                creds = self._clob_client.create_or_derive_api_creds()
+                self._clob_client.set_api_creds(creds)
+                logger.info("Polymarket CLOB client initialized (derived creds)")
 
         except ImportError:
             logger.warning("py-clob-client not installed, read-only mode")
