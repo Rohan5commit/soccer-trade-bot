@@ -470,8 +470,8 @@ class PaperTrader:
             if not odds or odds["yes_ask"] <= 0:
                 continue
 
-            # Cooldown: don't re-bet same market if we already traded it at same price
-            if market.trades_count > 0 and market.last_trade_price == odds["yes_ask"]:
+            # Cooldown: don't re-bet same market if we already traded it
+            if market.trades_count > 0:
                 continue
 
             # Calculate edge
