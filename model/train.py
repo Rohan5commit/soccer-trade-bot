@@ -706,9 +706,17 @@ def run_optuna(
                 return {mapping[k]: v for k, v in prev.items() if k in mapping}
 
             optuna_params = _to_optuna_params(prev_best)
+            # Build distributions from the param names so the frozen trial validates
+            distributions = {}
+            for k, v in optuna_params.items():
+                if isinstance(v, int):
+                    distributions[k] = optuna.distributions.IntDistribution(v, v)
+                else:
+                    distributions[k] = optuna.distributions.FloatDistribution(v, v)
             study.add_trial(
                 optuna.create_trial(
                     params=optuna_params,
+                    distributions=distributions,
                     values=[prev_score],
                     state=optuna.trial.TrialState.COMPLETE,
                 )
