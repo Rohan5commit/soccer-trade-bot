@@ -41,6 +41,10 @@ class Config:
     kalshi_private_key: str = ""
     kalshi_use_demo: bool = True
 
+    # --- API-Football (live match data) ---
+    api_football_key: str = ""
+    api_football_fixture_id: int = 0  # 0 = auto-discover
+
     # --- Trading parameters ---
     min_bet_usd: float = 5.0
     max_bet_pct: float = 0.02
@@ -112,6 +116,8 @@ class Config:
             kalshi_api_key=os.environ.get("KALSHI_API_KEY", ""),
             kalshi_private_key=os.environ.get("KALSHI_PRIVATE_KEY", ""),
             kalshi_use_demo=_bool("KALSHI_USE_DEMO", "true"),
+            api_football_key=os.environ.get("API_FOOTBALL_KEY", ""),
+            api_football_fixture_id=_int("API_FOOTBALL_FIXTURE_ID", 0),
             min_bet_usd=_float("MIN_BET_USD", 5.0),
             max_bet_pct=_float("MAX_BET_PCT", 0.02),
             kelly_fraction=_float("KELLY_FRACTION", 0.25),

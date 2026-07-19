@@ -19,6 +19,7 @@ data/val/
 data/soccernet*/
 data/yolo_soccer/
 data/clip_soccer_data/
+data/paper_signals/
 
 # Model artifacts (large files - use Git LFS)
 model/*.pkl
