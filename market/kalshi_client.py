@@ -358,9 +358,11 @@ class KalshiClient:
             KalshiOrderbook or None.
         """
         try:
+            # When in demo mode, read orderbook from demo too (prod prices can differ)
+            book_url = self._trade_url if self.use_demo else self._price_url
             resp = self._request(
                 "GET", f"/markets/{ticker}/orderbook",
-                base_url=self._price_url,
+                base_url=book_url,
             )
             if not resp:
                 return None
