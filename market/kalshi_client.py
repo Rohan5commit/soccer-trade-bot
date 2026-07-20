@@ -35,7 +35,12 @@ KALSHI_PROD_BASE = "https://api.elections.kalshi.com/trade-api/v2"
 KALSHI_DEMO_BASE = "https://demo-api.kalshi.co/trade-api/v2"
 
 # Known series tickers for soccer
-SOCCER_SERIES = ["KXWCGAME", "KXMENWORLDCUP", "KXSOCCER", "KXMLBSOCCER", "KXMLS", "KXPREMIERLEAGUE"]
+SOCCER_SERIES = [
+    "KXWCGAME", "KXMENWORLDCUP",
+    "KXALLSVENSKANGAME", "KXBRASILEIROBGAME", "KXBRASILEIROGAME",
+    "KXSUPERLIGGAME", "KXEREDIVISIEGAME", "KXPRIMERALIGAME",
+    "KXCHAMPIONSLEAGUEGAME", "KXPREMIERLEAGUE",
+]
 
 
 @dataclass
@@ -255,6 +260,7 @@ class KalshiClient:
         """Search for soccer match winner markets by team names.
 
         Flow: events → markets → filter by team names.
+        Searches across all known soccer series.
 
         Args:
             team_home: Home team name.
@@ -265,8 +271,19 @@ class KalshiClient:
         """
         all_markets = []
 
-        # Get all soccer events
-        events = self.get_game_events("soccer")
+        # Get all soccer events across multiple series
+        events = []
+        for series in SOCCER_SERIES:
+            try:
+                resp = self._request(
+                    "GET",
+                    "/events",
+                    params={"series_ticker": series, "limit": 50, "status": "open"},
+                )
+                if resp and "events" in resp:
+                    events.extend(resp["events"])
+            except Exception:
+                pass
 
         for event in events:
             event_ticker = event.get("event_ticker", "")
@@ -280,31 +297,6 @@ class KalshiClient:
                 # Get markets inside this event
                 markets = self.get_event_markets(event_ticker)
                 all_markets.extend(markets)
-
-        # Also search by direct market title/subtitle if event search found nothing
-        if not all_markets:
-            try:
-                resp = self._request(
-                    "GET",
-                    "/markets",
-                    params={"limit": 100, "status": "open", "series_ticker": "KXSOCCER"},
-                )
-                if resp and "markets" in resp:
-                    for item in resp["markets"]:
-                        title = item.get("title", "").lower()
-                        subtitle = item.get("subtitle", "").lower()
-                        if (
-                            team_home.lower() in title
-                            and team_away.lower() in title
-                        ) or (
-                            team_home.lower() in subtitle
-                            and team_away.lower() in subtitle
-                        ):
-                            market = self._parse_market(item)
-                            if market:
-                                all_markets.append(market)
-            except Exception as e:
-                logger.error("Failed to search Kalshi markets: %s", e)
 
         return all_markets
 
