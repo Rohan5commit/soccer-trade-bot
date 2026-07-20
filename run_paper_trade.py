@@ -1,11 +1,15 @@
 """Paper trading runner for Kalshi demo with live match data.
 
 Two modes:
-1. Live mode: Polls KickoffAPI for match state + Kalshi for odds. Full edge detection.
+1. Live mode: Polls live data APIs for match state + Kalshi for odds. Full edge detection.
 2. Market-only mode: Polls Kalshi for odds, logs signals (no model predictions).
 
+Supports any soccer match on Kalshi (Allsvenskan, Brasileiro, WC, etc.).
+FIFA World Cup matches get live data from worldcup26.ir. Other leagues
+run in market-only mode (odds tracking without model predictions).
+
 Usage:
-    # Live mode (World Cup Final)
+    # Live mode
     python run_paper_trade.py
 
     # Market-only mode (no live match)
@@ -90,7 +94,7 @@ class PaperTrader:
         self._total_trades: int = 0
         self._total_edge_bets: int = 0
         self._scan_interval: int = 30  # Kalshi event scan
-        self._poll_interval: int = 60  # KickoffAPI poll (60s to conserve requests)
+        self._poll_interval: int = 60  # API poll interval (60s to conserve requests)
         self._match_state: Optional[KickoffMatchState] = None
         self._prev_match_state: Optional[KickoffMatchState] = None
         self._game_state: Optional[GameState] = None
@@ -98,19 +102,24 @@ class PaperTrader:
         self._order_cooldown: Dict[str, float] = {}  # ticker -> last order attempt time
         self._ORDER_COOLDOWN_SEC = 30  # min seconds between order attempts per ticker
 
-        # World Cup Final market tickers
-        self._WC_FINAL_TICKERS = {
-            "ESP": "KXWCGAME-26JUL19ESPARG-ESP",
-            "ARG": "KXWCGAME-26JUL19ESPARG-ARG",
-            "TIE": "KXWCGAME-26JUL19ESPARG-TIE",
-        }
+        # Market discovery: scan all open GAME events
+        self._GAME_SERIES = [
+            "KXALLSVENSKANGAME",
+            "KXBRASILEIROBGAME",
+            "KXBRASILEIROGAME",
+            "KXWCGAME",
+            "KXMENWORLDCUP",
+            "KXSUPERLIGGAME",
+            "KXEREDIVISIEGAME",
+            "KXPRIMERALIGAME",
+            "KXCHAMPIONSLEAGUEGAME",
+        ]
 
         # Match timing
         self._match_kickoff: Optional[datetime] = None
         self._match_started = False
         self._match_ended = False
-        self._WC_FINAL_MONGODB_ID = "679c9c8a5749c4077500e092"
-        self._WC_FINAL_EVENT_TICKER = "KXWCGAME-26JUL19ESPARG"
+        self._wc_match_id: Optional[str] = None  # worldcup26 MongoDB ID for live FIFA matches
 
     def initialize(self) -> bool:
         """Initialize all components. Returns True if ready."""
@@ -189,8 +198,8 @@ class PaperTrader:
         signal.signal(signal.SIGINT, self._handle_shutdown)
         signal.signal(signal.SIGTERM, self._handle_shutdown)
 
-        # Pre-discover World Cup Final markets (must be after Kalshi init)
-        self._discover_wc_final_markets()
+        # Pre-discover markets (must be after Kalshi init)
+        self._discover_markets()
 
         # Detect match schedule from worldcup26 data
         self._detect_match_schedule()
@@ -246,106 +255,121 @@ class PaperTrader:
         self._shutdown()
 
     def _detect_match_schedule(self) -> None:
-        """Detect match schedule from worldcup26.ir data."""
+        """Detect match schedule from worldcup26.ir data (FIFA matches only).
+
+        For non-FIFA matches (Allsvenskan, Brasileiro, etc.), we rely
+        on Kalshi market status to determine when matches are live.
+        """
         if not self.worldcup26:
             return
 
         try:
-            match_data = self.worldcup26.get_match(self._WC_FINAL_MONGODB_ID)
-            if not match_data:
-                logger.warning("Could not fetch WC Final data for schedule detection")
+            matches = self.worldcup26.get_all_matches()
+            if not matches:
                 return
 
-            self._match_kickoff = self.worldcup26.parse_local_date(match_data)
-            status = self.worldcup26.get_match_status(match_data)
+            # Find live or upcoming matches
+            for m in matches:
+                match_data = self.worldcup26.get_match(m)
+                if not match_data:
+                    continue
 
-            if self._match_kickoff:
-                now = datetime.now(timezone.utc)
-                mins_until = (self._match_kickoff - now).total_seconds() / 60
-                logger.info(
-                    "WC Final kickoff: %s UTC (%.0f min from now) | status: %s",
-                    self._match_kickoff.strftime("%Y-%m-%d %H:%M"),
-                    mins_until, status,
-                )
+                status = self.worldcup26.get_match_status(match_data)
+                if status in ("live", "LIVE", "HALFTIME", "SECOND_HALF"):
+                    self._match_kickoff = self.worldcup26.parse_local_date(match_data)
+                    self._wc_match_id = m.get("_id")
+                    logger.info("Found live FIFA match: %s (ID: %s)", m.get("home_team_name_en"), self._wc_match_id)
+                    return
 
-                if status == "finished":
-                    self._match_ended = True
-                    logger.info("Match already finished — will not place trades")
-                elif status == "live" or (mins_until <= 0 and mins_until > -120):
-                    self._match_started = True
-                    logger.info("Match is LIVE — starting trading mode")
-                elif mins_until > 0:
-                    logger.info("Match starts in %.0f min — waiting...", mins_until)
-            else:
-                logger.warning("Could not parse kickoff time from worldcup26 data")
+            # No live match found — check for upcoming
+            now = datetime.now(timezone.utc)
+            for m in matches:
+                match_data = self.worldcup26.get_match(m)
+                if not match_data:
+                    continue
+
+                kickoff = self.worldcup26.parse_local_date(match_data)
+                if kickoff and kickoff > now and (kickoff - now).total_seconds() / 60 < 120:
+                    self._match_kickoff = kickoff
+                    self._wc_match_id = m.get("_id")
+                    logger.info("Upcoming FIFA match: %s at %s", m.get("home_team_name_en"), kickoff.strftime("%H:%M UTC"))
+                    return
 
         except Exception as e:
-            logger.warning("Failed to detect match schedule: %s", e)
+            logger.debug("Schedule detection failed: %s", e)
 
-    def _discover_wc_final_markets(self) -> None:
-        """Pre-discover World Cup Final markets on Kalshi.
+    def _discover_markets(self) -> None:
+        """Discover all open soccer match markets on Kalshi.
 
-        Fetches markets regardless of status (open, finalized, etc.)
-        since we need to track them for the entire match lifecycle.
+        Scans multiple league series for active match markets.
+        Each event has 3 markets: home winner, away winner, tie.
         """
-        logger.info("Discovering World Cup Final markets...")
+        logger.info("Discovering soccer match markets...")
 
-        event_ticker = self._WC_FINAL_EVENT_TICKER
+        found = 0
+        for series in self._GAME_SERIES:
+            try:
+                resp = self.kalshi._request(
+                    "GET", "/events",
+                    params={"series_ticker": series, "limit": 20, "status": "open"},
+                )
+                if not resp or "events" not in resp:
+                    continue
 
-        try:
-            # Fetch ALL markets for this event (no status filter)
-            resp = self.kalshi._request(
-                "GET",
-                "/markets",
-                params={"event_ticker": event_ticker, "limit": 10},
-            )
-            if not resp or "markets" not in resp:
-                logger.warning("No markets found for %s", event_ticker)
-                return
+                for event in resp["events"]:
+                    event_ticker = event.get("event_ticker", "")
+                    title = event.get("title", "")
 
-            for item in resp["markets"]:
-                ticker = item.get("ticker", "")
-                if ticker in self._WC_FINAL_TICKERS.values():
-                    market = self.kalshi._parse_market(item)
-                    if market:
-                        self._active_markets[ticker] = ActiveMarket(
-                            ticker=market.ticker,
-                            event_ticker=event_ticker,
-                            title=market.title,
-                            yes_bid=market.yes_bid,
-                            yes_ask=market.yes_ask,
-                            no_bid=market.no_bid,
-                            no_ask=market.no_ask,
-                            volume=market.volume,
-                        )
-                        logger.info(
-                            "WC Final market: %s | %s | status=%s | YES bid=%.2f ask=%.2f",
-                            ticker, market.title, market.status,
-                            market.yes_bid, market.yes_ask,
-                        )
+                    # Get markets for this event
+                    mresp = self.kalshi._request(
+                        "GET", "/markets",
+                        params={"event_ticker": event_ticker, "limit": 5},
+                    )
+                    if not mresp or "markets" not in mresp:
+                        continue
 
-        except Exception as e:
-            logger.warning("Failed to fetch WC Final markets: %s", e)
+                    for item in mresp["markets"]:
+                        ticker = item.get("ticker", "")
+                        if ticker not in self._active_markets:
+                            market = self.kalshi._parse_market(item)
+                            if market and market.yes_ask > 0:
+                                self._active_markets[ticker] = ActiveMarket(
+                                    ticker=market.ticker,
+                                    event_ticker=event_ticker,
+                                    title=market.title,
+                                    yes_bid=market.yes_bid,
+                                    yes_ask=market.yes_ask,
+                                    no_bid=market.no_bid,
+                                    no_ask=market.no_ask,
+                                    volume=market.volume,
+                                )
+                                found += 1
+                                logger.info(
+                                    "Market: %s | %s | ask=%.2f",
+                                    ticker, market.title[:50], market.yes_ask,
+                                )
+            except Exception as e:
+                logger.debug("Failed to scan series %s: %s", series, e)
 
+        logger.info("Discovered %d markets total", found)
         if not self._active_markets:
-            logger.warning("No WC Final markets found — will retry in scan")
+            logger.warning("No markets found — will retry in scan")
 
     def _poll_match_state(self) -> None:
         """Poll for live match state.
 
-        Primary: worldcup26.ir (unlimited, no Cloudflare).
+        Primary: worldcup26.ir (FIFA matches only, unlimited).
         Fallback: KickoffAPI (backup, may be Cloudflare-blocked).
 
-        Handles stale data: if worldcup26 says "notstarted" but match
-        should be live, retries with KickoffAPI.
+        For non-FIFA matches, returns None (market-only mode).
         """
         fixture_id = int(os.environ.get("KICKOFF_FIXTURE_ID", "1591866"))
         now = datetime.now(timezone.utc)
 
-        # Try worldcup26.ir first
-        if self.worldcup26:
+        # Try worldcup26.ir first (FIFA matches only)
+        if self.worldcup26 and self._wc_match_id:
             try:
-                match_data = self.worldcup26.get_match(self._WC_FINAL_MONGODB_ID)
+                match_data = self.worldcup26.get_match(self._wc_match_id)
                 if match_data:
                     # Detect match schedule if not done yet
                     if not self._match_kickoff:
@@ -430,8 +454,8 @@ class PaperTrader:
 
     def _parse_worldcup26_data(self, match_data: Dict, fixture_id: int) -> None:
         """Parse worldcup26 match data into internal state."""
-        home_team = match_data.get("home_team_name_en", "Spain")
-        away_team = match_data.get("away_team_name_en", "Argentina")
+        home_team = match_data.get("home_team_name_en", "Home")
+        away_team = match_data.get("away_team_name_en", "Away")
         home_score = int(match_data.get("home_score", 0) or 0)
         away_score = int(match_data.get("away_score", 0) or 0)
         time_elapsed = str(match_data.get("time_elapsed", "notstarted"))
@@ -549,9 +573,6 @@ class PaperTrader:
 
     def _match_state_to_game_state(self, ms: KickoffMatchState) -> GameState:
         """Convert KickoffAPI LiveMatchState to GameState for model prediction."""
-        # Determine if home team is actually home (in WC Final, it's neutral)
-        is_neutral = True  # World Cup Final is always neutral venue
-
         return GameState(
             match_id=str(ms.fixture_id),
             home_team=ms.home_team,
@@ -576,16 +597,16 @@ class PaperTrader:
             home_xg_running=ms.home_xg_running,
             away_xg_running=ms.away_xg_running,
             momentum_shift=self._compute_momentum(ms),
-            # Pre-match features (World Cup Final defaults)
-            home_elo=1900.0,  # Spain ~1900
-            away_elo=1880.0,  # Argentina ~1880
-            home_form_pts=12,
-            away_form_pts=13,
+            # Pre-match features (generic defaults — model should be retrained per league)
+            home_elo=1600.0,
+            away_elo=1600.0,
+            home_form_pts=7,
+            away_form_pts=7,
             h2h_home_winrate=0.45,
-            is_home_game=False,  # Neutral venue
+            is_home_game=True,  # Default to home advantage
             referee_cards_per_game=3.5,
-            home_squad_value_EUR=1_200_000_000,  # Spain ~€1.2B
-            away_squad_value_EUR=1_000_000_000,  # Argentina ~€1.0B
+            home_squad_value_EUR=50_000_000,  # Generic club value
+            away_squad_value_EUR=50_000_000,
             home_injuries_count=0,
             away_injuries_count=0,
             home_press_pct=ms.home_pressure,
@@ -594,8 +615,8 @@ class PaperTrader:
             away_xg_last5=ms.away_xg_running,
             home_xga_last5=ms.away_xg_running,
             away_xga_last5=ms.home_xg_running,
-            competition_tier=1,  # World Cup
-            match_importance=1.0,  # Final!
+            competition_tier=2,  # Generic league
+            match_importance=0.5,  # Default
             days_since_last_match_home=7,
             days_since_last_match_away=7,
         )
@@ -628,19 +649,16 @@ class PaperTrader:
     def _scan_events(self) -> None:
         """Scan Kalshi for soccer events and markets.
 
-        Fetches ALL market statuses (open, finalized, etc.) since we need
-        to track markets through their entire lifecycle.
+        Fetches ALL market statuses across multiple league series.
         """
         logger.debug("Scanning Kalshi for soccer events...")
 
-        # Only scan WC Final-related series to avoid rate limits
-        wc_series = ["KXWCGAME", "KXMENWORLDCUP"]
         events = []
-        for series in wc_series:
+        for series in self._GAME_SERIES:
             try:
                 resp = self.kalshi._request(
                     "GET", "/events",
-                    params={"series_ticker": series, "limit": 50},
+                    params={"series_ticker": series, "limit": 20, "status": "open"},
                 )
                 if resp and "events" in resp:
                     events.extend(resp["events"])
@@ -649,15 +667,12 @@ class PaperTrader:
 
         for event in events:
             event_ticker = event.get("event_ticker", "")
-            # Only track WC Final and tournament futures
-            if "KXWCGAME-26JUL19ESPARG" not in event_ticker and "KXMENWORLDCUP-26" not in event_ticker:
-                continue
 
-            # Fetch ALL markets for this event (no status filter)
+            # Fetch ALL markets for this event
             try:
                 resp = self.kalshi._request(
                     "GET", "/markets",
-                    params={"event_ticker": event_ticker, "limit": 10},
+                    params={"event_ticker": event_ticker, "limit": 5},
                 )
                 if not resp or "markets" not in resp:
                     continue
@@ -666,7 +681,7 @@ class PaperTrader:
                     ticker = item.get("ticker", "")
                     if ticker not in self._active_markets:
                         market = self.kalshi._parse_market(item)
-                        if market:
+                        if market and market.yes_ask > 0:
                             self._active_markets[ticker] = ActiveMarket(
                                 ticker=market.ticker,
                                 event_ticker=event_ticker,
@@ -678,12 +693,11 @@ class PaperTrader:
                                 volume=market.volume,
                             )
                             logger.info(
-                                "New market: %s | %s | status=%s | YES bid=%.2f ask=%.2f",
-                                ticker, market.title, market.status,
-                                market.yes_bid, market.yes_ask,
+                                "New market: %s | %s | ask=%.2f",
+                                ticker, market.title[:50], market.yes_ask,
                             )
                     else:
-                        # Update existing market's status/volume
+                        # Update existing market prices
                         market = self.kalshi._parse_market(item)
                         if market:
                             existing = self._active_markets[ticker]
@@ -764,13 +778,8 @@ class PaperTrader:
     def _check_edges(self) -> None:
         """Check for trading edges and place paper trades.
 
-        Checks ALL active markets on every call (no trades_count skip).
-        Per-ticker cooldown prevents rapid-fire orders.
-
-        Applies regulation-time adjustment: Kalshi KXWCGAME markets are
-        regulation-time only (90 min). Model predicts full-match winners.
-        Regulation-time draws are ~30% more likely than full-match draws
-        because some tied matches get decided in extra time.
+        Works with any soccer market — detects home/away/draw from ticker suffix.
+        Applies regulation-time adjustment for all match markets.
         """
         if not self.predictor or not self._game_state or not self._last_prediction:
             return
@@ -790,25 +799,21 @@ class PaperTrader:
         if fresh_balance:
             self._bankroll = fresh_balance
 
-        # Map prediction outcomes to Kalshi market tickers
-        outcome_map = {
-            self._WC_FINAL_TICKERS["ESP"]: probs[0],  # Spain = home
-            self._WC_FINAL_TICKERS["ARG"]: probs[2],  # Argentina = away
-            self._WC_FINAL_TICKERS["TIE"]: probs[1],  # Draw
-        }
-
         now = time.time()
 
-        for ticker, model_prob in outcome_map.items():
-            if ticker not in self._active_markets:
-                continue
-
-            market = self._active_markets[ticker]
+        for ticker, market in self._active_markets.items():
             odds = market.last_odds
             if not odds or odds["yes_ask"] <= 0:
                 continue
 
-            # Per-ticker cooldown: don't retry failed orders too quickly
+            # Determine outcome from ticker suffix
+            outcome = self._ticker_to_outcome(ticker)
+            if not outcome:
+                continue
+
+            model_prob = probs[{"home": 0, "draw": 1, "away": 2}[outcome]]
+
+            # Per-ticker cooldown
             last_attempt = self._order_cooldown.get(ticker, 0)
             if now - last_attempt < self._ORDER_COOLDOWN_SEC:
                 continue
@@ -822,12 +827,10 @@ class PaperTrader:
 
             # Calculate confidence
             confidence = max(probs)
-
             if confidence < self.config.confidence_threshold:
                 continue
 
             # Kelly sizing
-            outcome = "home" if "ESP" in ticker else ("away" if "ARG" in ticker else "draw")
             kelly = self.kelly_sizer.calculate(
                 outcome=outcome,
                 edge=edge,
@@ -841,7 +844,7 @@ class PaperTrader:
 
             # PLACE PAPER TRADE
             self._total_edge_bets += 1
-            self._order_cooldown[ticker] = now  # set cooldown NOW
+            self._order_cooldown[ticker] = now
 
             trade_record = {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -858,12 +861,9 @@ class PaperTrader:
                 "score": f"{self._game_state.home_score}-{self._game_state.away_score}",
             }
 
-            # Actually place order on Kalshi demo
             if not self.config.dry_run:
                 try:
                     contract_count = max(int(kelly.bet_usd / odds["yes_ask"]), 1)
-
-                    # Safety: never bet more than 20% of bankroll on a single market
                     max_cost = self._bankroll * 0.20
                     if contract_count * odds["yes_ask"] > max_cost:
                         contract_count = max(int(max_cost / odds["yes_ask"]), 1)
@@ -879,8 +879,6 @@ class PaperTrader:
                         trade_record["status"] = "placed"
                         self._total_trades += 1
                         market.trades_count += 1
-                        market.last_trade_side = "yes"
-                        market.last_trade_price = odds["yes_ask"]
                     else:
                         trade_record["status"] = "failed (no response)"
                 except Exception as e:
@@ -888,14 +886,60 @@ class PaperTrader:
             else:
                 trade_record["status"] = "dry_run"
 
-            # Log trade
             self._log_trade(trade_record)
-
             logger.info(
-                "EDGE BET: %s | model=%.1f%% market=%.1f%% edge=%.1f%% | $%.2f | %s",
-                ticker, model_prob * 100, market_prob * 100, edge * 100,
+                "EDGE BET: %s | %s | model=%.1f%% market=%.1f%% edge=%.1f%% | $%.2f | %s",
+                ticker, outcome, model_prob * 100, market_prob * 100, edge * 100,
                 kelly.bet_usd, trade_record["status"],
             )
+
+    def _ticker_to_outcome(self, ticker: str) -> Optional[str]:
+        """Map a Kalshi market ticker to an outcome (home/away/draw).
+
+        Examples:
+            KXALLSVENSKANGAME-26JUL20KALMAL-KAL → home (Kalmar is first team)
+            KXALLSVENSKANGAME-26JUL20KALMAL-MAL → away (Malmo is second team)
+            KXALLSVENSKANGAME-26JUL20KALMAL-TIE → draw
+        """
+        suffix = ticker.split("-")[-1].upper()
+        if suffix == "TIE":
+            return "draw"
+
+        # Get the event ticker to extract team names
+        for am in self._active_markets.values():
+            if am.ticker == ticker:
+                title = am.title.lower()
+                # Title format: "Team A vs Team B Winner?"
+                if " vs " in title:
+                    teams = title.split(" vs ")
+                    team_a = teams[0].strip().split(" winner")[0].strip()
+                    team_b = teams[1].strip().split(" winner")[0].strip()
+
+                    # Check if suffix matches team A (home) or team B (away)
+                    suffix_lower = suffix.lower()
+                    if suffix_lower in team_a.replace(" ", "").lower() or team_a.lower().startswith(suffix_lower[:3]):
+                        return "home"
+                    elif suffix_lower in team_b.replace(" ", "").lower() or team_b.lower().startswith(suffix_lower[:3]):
+                        return "away"
+                break
+
+        # Fallback: first non-TIE market = home, second = away
+        event_ticker = None
+        for am in self._active_markets.values():
+            if am.ticker == ticker:
+                event_ticker = am.event_ticker
+                break
+
+        if event_ticker:
+            event_markets = [t for t, m in self._active_markets.items()
+                           if m.event_ticker == event_ticker and "TIE" not in t.upper()]
+            if len(event_markets) >= 2:
+                if ticker == event_markets[0]:
+                    return "home"
+                elif ticker == event_markets[1]:
+                    return "away"
+
+        return None
 
     def _log_trade(self, trade: Dict) -> None:
         """Append trade to JSONL log."""
