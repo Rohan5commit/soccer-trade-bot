@@ -204,7 +204,7 @@ class PaperTrader:
         # Pre-discover markets (must be after Kalshi init)
         self._discover_markets()
 
-        # Detect match schedule from worldcup26 data
+        # Detect match schedule from worldcup26 data AND KickoffAPI
         self._detect_match_schedule()
 
         logger.info("Starting paper trading loop (poll every %ds)...", self._poll_interval)
