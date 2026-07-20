@@ -96,7 +96,7 @@ class PaperTrader:
         self._game_state: Optional[GameState] = None
         self._last_prediction: Optional[Dict] = None
         self._order_cooldown: Dict[str, float] = {}  # ticker -> last order attempt time
-        self._ORDER_COOLDOWN_SEC = 120  # min seconds between order attempts per ticker
+        self._ORDER_COOLDOWN_SEC = 30  # min seconds between order attempts per ticker
 
         # World Cup Final market tickers
         self._WC_FINAL_TICKERS = {
@@ -104,6 +104,13 @@ class PaperTrader:
             "ARG": "KXWCGAME-26JUL19ESPARG-ARG",
             "TIE": "KXWCGAME-26JUL19ESPARG-TIE",
         }
+
+        # Match timing
+        self._match_kickoff: Optional[datetime] = None
+        self._match_started = False
+        self._match_ended = False
+        self._WC_FINAL_MONGODB_ID = "679c9c8a5749c4077500e092"
+        self._WC_FINAL_EVENT_TICKER = "KXWCGAME-26JUL19ESPARG"
 
     def initialize(self) -> bool:
         """Initialize all components. Returns True if ready."""
@@ -185,6 +192,9 @@ class PaperTrader:
         # Pre-discover World Cup Final markets (must be after Kalshi init)
         self._discover_wc_final_markets()
 
+        # Detect match schedule from worldcup26 data
+        self._detect_match_schedule()
+
         logger.info("Starting paper trading loop (poll every %ds)...", self._poll_interval)
         self._print_status()
 
@@ -194,16 +204,24 @@ class PaperTrader:
             try:
                 now = time.time()
 
-                # Poll API-Football for live match state
+                # Poll for live match state
                 if not self._market_only and now - last_api_poll >= self._poll_interval:
                     self._poll_match_state()
                     last_api_poll = now
 
+                    # If match hasn't started yet, poll more frequently (every 10s)
+                    if not self._match_started and not self._match_ended:
+                        self._poll_interval = 10
+                    elif self._match_started and not self._match_ended:
+                        self._poll_interval = 30  # Live: poll every 30s
+                    else:
+                        self._poll_interval = 300  # Post-match: poll every 5min
+
                     # Check for edge right after fresh data
-                    if self.predictor and self._last_prediction:
+                    if self.predictor and self._last_prediction and self._match_started:
                         self._check_edges()
 
-                # Scan Kalshi for new events
+                # Scan Kalshi for new/changed events
                 if now - last_kalshi_scan >= self._scan_interval:
                     self._scan_events()
                     last_kalshi_scan = now
@@ -227,151 +245,176 @@ class PaperTrader:
 
         self._shutdown()
 
+    def _detect_match_schedule(self) -> None:
+        """Detect match schedule from worldcup26.ir data."""
+        if not self.worldcup26:
+            return
+
+        try:
+            match_data = self.worldcup26.get_match(self._WC_FINAL_MONGODB_ID)
+            if not match_data:
+                logger.warning("Could not fetch WC Final data for schedule detection")
+                return
+
+            self._match_kickoff = self.worldcup26.parse_local_date(match_data)
+            status = self.worldcup26.get_match_status(match_data)
+
+            if self._match_kickoff:
+                now = datetime.now(timezone.utc)
+                mins_until = (self._match_kickoff - now).total_seconds() / 60
+                logger.info(
+                    "WC Final kickoff: %s UTC (%.0f min from now) | status: %s",
+                    self._match_kickoff.strftime("%Y-%m-%d %H:%M"),
+                    mins_until, status,
+                )
+
+                if status == "finished":
+                    self._match_ended = True
+                    logger.info("Match already finished — will not place trades")
+                elif status == "live" or (mins_until <= 0 and mins_until > -120):
+                    self._match_started = True
+                    logger.info("Match is LIVE — starting trading mode")
+                elif mins_until > 0:
+                    logger.info("Match starts in %.0f min — waiting...", mins_until)
+            else:
+                logger.warning("Could not parse kickoff time from worldcup26 data")
+
+        except Exception as e:
+            logger.warning("Failed to detect match schedule: %s", e)
+
     def _discover_wc_final_markets(self) -> None:
-        """Pre-discover World Cup Final markets on Kalshi."""
+        """Pre-discover World Cup Final markets on Kalshi.
+
+        Fetches markets regardless of status (open, finalized, etc.)
+        since we need to track them for the entire match lifecycle.
+        """
         logger.info("Discovering World Cup Final markets...")
 
-        for result_key, ticker in self._WC_FINAL_TICKERS.items():
-            try:
-                markets = self.kalshi.get_event_markets("KXWCGAME-26JUL19ESPARG")
-                for m in markets:
-                    if m.ticker == ticker:
+        event_ticker = self._WC_FINAL_EVENT_TICKER
+
+        try:
+            # Fetch ALL markets for this event (no status filter)
+            resp = self.kalshi._request(
+                "GET",
+                "/markets",
+                params={"event_ticker": event_ticker, "limit": 10},
+            )
+            if not resp or "markets" not in resp:
+                logger.warning("No markets found for %s", event_ticker)
+                return
+
+            for item in resp["markets"]:
+                ticker = item.get("ticker", "")
+                if ticker in self._WC_FINAL_TICKERS.values():
+                    market = self.kalshi._parse_market(item)
+                    if market:
                         self._active_markets[ticker] = ActiveMarket(
-                            ticker=m.ticker,
-                            event_ticker="KXWCGAME-26JUL19ESPARG",
-                            title=m.title,
-                            yes_bid=m.yes_bid,
-                            yes_ask=m.yes_ask,
-                            no_bid=m.no_bid,
-                            no_ask=m.no_ask,
-                            volume=m.volume,
+                            ticker=market.ticker,
+                            event_ticker=event_ticker,
+                            title=market.title,
+                            yes_bid=market.yes_bid,
+                            yes_ask=market.yes_ask,
+                            no_bid=market.no_bid,
+                            no_ask=market.no_ask,
+                            volume=market.volume,
                         )
                         logger.info(
-                            "WC Final market: %s | %s | YES bid=%.2f ask=%.2f",
-                            ticker, m.title, m.yes_bid, m.yes_ask,
+                            "WC Final market: %s | %s | status=%s | YES bid=%.2f ask=%.2f",
+                            ticker, market.title, market.status,
+                            market.yes_bid, market.yes_ask,
                         )
-            except Exception as e:
-                logger.warning("Failed to fetch market %s: %s", ticker, e)
+
+        except Exception as e:
+            logger.warning("Failed to fetch WC Final markets: %s", e)
 
         if not self._active_markets:
             logger.warning("No WC Final markets found — will retry in scan")
 
     def _poll_match_state(self) -> None:
-        """Poll for live match state. Uses worldcup26.ir (primary) + KickoffAPI (backup for events/stats)."""
-        fixture_id = int(os.environ.get("KICKOFF_FIXTURE_ID", "1591866"))
+        """Poll for live match state.
 
-        # Try worldcup26.ir first (unlimited, no Cloudflare)
+        Primary: worldcup26.ir (unlimited, no Cloudflare).
+        Fallback: KickoffAPI (backup, may be Cloudflare-blocked).
+
+        Handles stale data: if worldcup26 says "notstarted" but match
+        should be live, retries with KickoffAPI.
+        """
+        fixture_id = int(os.environ.get("KICKOFF_FIXTURE_ID", "1591866"))
+        now = datetime.now(timezone.utc)
+
+        # Try worldcup26.ir first
         if self.worldcup26:
             try:
-                # WC Final MongoDB ID
-                match_data = self.worldcup26.get_match("679c9c8a5749c4077500e092")
+                match_data = self.worldcup26.get_match(self._WC_FINAL_MONGODB_ID)
                 if match_data:
-                    # Parse worldcup26 response
-                    home_team = match_data.get("home_team_name_en", "Spain")
-                    away_team = match_data.get("away_team_name_en", "Argentina")
-                    home_score = match_data.get("home_score", 0) or 0
-                    away_score = match_data.get("away_score", 0) or 0
-                    time_elapsed = match_data.get("time_elapsed", "notstarted")
+                    # Detect match schedule if not done yet
+                    if not self._match_kickoff:
+                        self._match_kickoff = self.worldcup26.parse_local_date(match_data)
 
-                    # Determine status and clock
-                    status = "NS"
-                    clock_minutes = 0.0
-                    is_live = False
-                    period = 1
-
-                    if time_elapsed == "finished":
-                        status = "FT"
-                        clock_minutes = 90.0
-                    elif time_elapsed == "notstarted":
-                        status = "NS"
-                        clock_minutes = 0.0
-                    elif ":" in time_elapsed:
-                        # Parse "45:00" format
-                        parts = time_elapsed.split(":")
-                        try:
-                            clock_minutes = float(parts[0])
-                            is_live = True
-                            status = "1H" if clock_minutes <= 45 else "2H"
-                            period = 1 if clock_minutes <= 45 else 2
-                        except ValueError:
-                            pass
-
-                    # Create a compatible state object
-                    from dataclasses import dataclass
-                    @dataclass
-                    class WC26MatchState:
-                        fixture_id: int
-                        home_team: str
-                        away_team: str
-                        home_score: int
-                        away_score: int
-                        clock_minutes: float
-                        status: str
-                        is_live: bool
-                        period: int
-                        events: list = field(default_factory=list)
-                        home_stats: object = None
-                        away_stats: object = None
-                        home_xg_running: float = 0.0
-                        away_xg_running: float = 0.0
-                        home_pressure: float = 0.5
-                        home_red_cards: int = 0
-                        away_red_cards: int = 0
-                        home_yellow_cards: int = 0
-                        away_yellow_cards: int = 0
-                        last_update: float = field(default_factory=time.time)
-
-                    self._prev_match_state = self._match_state
-                    self._match_state = WC26MatchState(
-                        fixture_id=fixture_id,
-                        home_team=home_team,
-                        away_team=away_team,
-                        home_score=home_score,
-                        away_score=away_score,
-                        clock_minutes=clock_minutes,
-                        status=status,
-                        is_live=is_live,
-                        period=period,
+                    wc_status = self.worldcup26.get_match_status(match_data)
+                    should_be_live = self._match_kickoff and (
+                        (now - self._match_kickoff).total_seconds() / 60 >= -5 and
+                        (now - self._match_kickoff).total_seconds() / 60 <= 120
                     )
+
+                    # Detect stale data: worldcup26 says "notstarted" but match should be live
+                    if wc_status == "notstarted" and should_be_live:
+                        logger.warning(
+                            "worldcup26 says 'notstarted' but match should be live "
+                            "(kickoff was %s). Retrying with KickoffAPI...",
+                            self._match_kickoff.strftime("%H:%M UTC") if self._match_kickoff else "?",
+                        )
+                        # Fall through to KickoffAPI fallback below
+                    elif wc_status == "finished":
+                        if not self._match_ended:
+                            self._match_ended = True
+                            logger.info("MATCH ENDED (worldcup26 reports finished)")
+                        self._parse_worldcup26_data(match_data, fixture_id)
+                        return
+                    elif wc_status == "live" or (":" in str(match_data.get("time_elapsed", ""))):
+                        if not self._match_started:
+                            self._match_started = True
+                            logger.info("MATCH IS LIVE")
+                        self._parse_worldcup26_data(match_data, fixture_id)
+                        return
+                    else:
+                        # Not started yet, not stale — just waiting
+                        self._parse_worldcup26_data(match_data, fixture_id)
+                        return
+
+            except Exception as e:
+                logger.warning("worldcup26.ir failed: %s", e)
+
+        # Fallback: try KickoffAPI directly
+        if self.kickoff:
+            try:
+                self._prev_match_state = self._match_state
+                self._match_state = self.kickoff.get_live_match(fixture_id)
+                if self._match_state:
+                    ms = self._match_state
+                    if ms.status in ("1H", "2H", "HT", "ET", "PEN", "LIVE"):
+                        if not self._match_started:
+                            self._match_started = True
+                            logger.info("MATCH IS LIVE (via KickoffAPI)")
+                    elif ms.status == "FT":
+                        if not self._match_ended:
+                            self._match_ended = True
+                            logger.info("MATCH ENDED (via KickoffAPI)")
 
                     logger.info(
-                        "WC26: %s %d - %d %s | %s %s' | API calls=%d",
-                        home_team, home_score, away_score, away_team,
-                        status, clock_minutes, self.worldcup26.request_count,
+                        "LIVE: %s %d - %d %s | %s %s' | events=%d | API calls=%d",
+                        ms.home_team, ms.home_score, ms.away_score, ms.away_team,
+                        ms.status, ms.clock_minutes,
+                        len(ms.events), self.kickoff.request_count,
                     )
-
-                    # Try to get events/stats from KickoffAPI (backup)
-                    if self.kickoff and is_live:
-                        try:
-                            kickoff_state = self.kickoff.get_live_match(fixture_id)
-                            if kickoff_state and kickoff_state.events:
-                                self._match_state.events = kickoff_state.events
-                                self._match_state.home_stats = kickoff_state.home_stats
-                                self._match_state.away_stats = kickoff_state.away_stats
-                                self._match_state.home_xg_running = kickoff_state.home_xg_running
-                                self._match_state.away_xg_running = kickoff_state.away_xg_running
-                                self._match_state.home_pressure = kickoff_state.home_pressure
-                                self._match_state.home_red_cards = kickoff_state.home_red_cards
-                                self._match_state.away_red_cards = kickoff_state.away_red_cards
-                                self._match_state.home_yellow_cards = kickoff_state.home_yellow_cards
-                                self._match_state.away_yellow_cards = kickoff_state.away_yellow_cards
-                                logger.info("  + KickoffAPI events/stats overlaid")
-                        except Exception as e:
-                            logger.debug("KickoffAPI backup failed: %s", e)
-
-                    # Convert to GameState for prediction
-                    self._game_state = self._match_state_to_game_state(self._match_state)
-
-                    # Log prediction if available
+                    self._game_state = self._match_state_to_game_state(ms)
                     if self.predictor and self._game_state:
                         try:
                             p_home, p_draw, p_away = self.predictor.predict(self._game_state)
                             self._last_prediction = {
-                                "home": p_home,
-                                "draw": p_draw,
-                                "away": p_away,
+                                "home": p_home, "draw": p_draw, "away": p_away,
                                 "confidence": max(p_home, p_draw, p_away),
-                                "clock": clock_minutes,
+                                "clock": ms.clock_minutes,
                             }
                             logger.info(
                                 "PREDICTION: home=%.1f%% draw=%.1f%% away=%.1f%% (conf=%.1f%%)",
@@ -381,43 +424,128 @@ class PaperTrader:
                         except Exception as e:
                             logger.warning("Prediction failed: %s", e)
                             self._last_prediction = None
-
-                    # Update state file
                     self._write_state()
-                    return
             except Exception as e:
-                logger.warning("worldcup26.ir failed: %s", e)
+                logger.warning("KickoffAPI fallback failed: %s", e)
 
-        # Fallback: try KickoffAPI directly
-        if self.kickoff:
-            self._prev_match_state = self._match_state
-            self._match_state = self.kickoff.get_live_match(fixture_id)
-            if self._match_state:
-                ms = self._match_state
+    def _parse_worldcup26_data(self, match_data: Dict, fixture_id: int) -> None:
+        """Parse worldcup26 match data into internal state."""
+        home_team = match_data.get("home_team_name_en", "Spain")
+        away_team = match_data.get("away_team_name_en", "Argentina")
+        home_score = int(match_data.get("home_score", 0) or 0)
+        away_score = int(match_data.get("away_score", 0) or 0)
+        time_elapsed = str(match_data.get("time_elapsed", "notstarted"))
+
+        # Determine status and clock
+        status = "NS"
+        clock_minutes = 0.0
+        is_live = False
+        period = 1
+
+        if time_elapsed == "finished":
+            status = "FT"
+            clock_minutes = 90.0
+        elif time_elapsed == "notstarted":
+            status = "NS"
+            clock_minutes = 0.0
+        elif ":" in time_elapsed:
+            parts = time_elapsed.split(":")
+            try:
+                clock_minutes = float(parts[0])
+                is_live = True
+                status = "1H" if clock_minutes <= 45 else "2H"
+                period = 1 if clock_minutes <= 45 else 2
+            except ValueError:
+                pass
+
+        from dataclasses import dataclass as dc
+
+        @dc
+        class WC26MatchState:
+            fixture_id: int
+            home_team: str
+            away_team: str
+            home_score: int
+            away_score: int
+            clock_minutes: float
+            status: str
+            is_live: bool
+            period: int
+            events: list = field(default_factory=list)
+            home_stats: object = None
+            away_stats: object = None
+            home_xg_running: float = 0.0
+            away_xg_running: float = 0.0
+            home_pressure: float = 0.5
+            home_red_cards: int = 0
+            away_red_cards: int = 0
+            home_yellow_cards: int = 0
+            away_yellow_cards: int = 0
+            last_update: float = field(default_factory=time.time)
+
+        self._prev_match_state = self._match_state
+        self._match_state = WC26MatchState(
+            fixture_id=fixture_id,
+            home_team=home_team,
+            away_team=away_team,
+            home_score=home_score,
+            away_score=away_score,
+            clock_minutes=clock_minutes,
+            status=status,
+            is_live=is_live,
+            period=period,
+        )
+
+        logger.info(
+            "WC26: %s %d - %d %s | %s %s' | API calls=%d",
+            home_team, home_score, away_score, away_team,
+            status, clock_minutes, self.worldcup26.request_count,
+        )
+
+        # Try to get events/stats from KickoffAPI (backup) if live
+        if self.kickoff and is_live:
+            try:
+                kickoff_state = self.kickoff.get_live_match(fixture_id)
+                if kickoff_state and kickoff_state.events:
+                    self._match_state.events = kickoff_state.events
+                    self._match_state.home_stats = kickoff_state.home_stats
+                    self._match_state.away_stats = kickoff_state.away_stats
+                    self._match_state.home_xg_running = kickoff_state.home_xg_running
+                    self._match_state.away_xg_running = kickoff_state.away_xg_running
+                    self._match_state.home_pressure = kickoff_state.home_pressure
+                    self._match_state.home_red_cards = kickoff_state.home_red_cards
+                    self._match_state.away_red_cards = kickoff_state.away_red_cards
+                    self._match_state.home_yellow_cards = kickoff_state.home_yellow_cards
+                    self._match_state.away_yellow_cards = kickoff_state.away_yellow_cards
+                    logger.info("  + KickoffAPI events/stats overlaid")
+            except Exception as e:
+                logger.debug("KickoffAPI backup failed: %s", e)
+
+        # Convert to GameState for prediction
+        self._game_state = self._match_state_to_game_state(self._match_state)
+
+        # Log prediction if available
+        if self.predictor and self._game_state:
+            try:
+                p_home, p_draw, p_away = self.predictor.predict(self._game_state)
+                self._last_prediction = {
+                    "home": p_home,
+                    "draw": p_draw,
+                    "away": p_away,
+                    "confidence": max(p_home, p_draw, p_away),
+                    "clock": clock_minutes,
+                }
                 logger.info(
-                    "LIVE: %s %d - %d %s | %s %s' | events=%d | API calls=%d",
-                    ms.home_team, ms.home_score, ms.away_score, ms.away_team,
-                    ms.status, ms.clock_minutes,
-                    len(ms.events), self.kickoff.request_count,
+                    "PREDICTION: home=%.1f%% draw=%.1f%% away=%.1f%% (conf=%.1f%%)",
+                    p_home * 100, p_draw * 100, p_away * 100,
+                    self._last_prediction["confidence"] * 100,
                 )
-                self._game_state = self._match_state_to_game_state(ms)
-                if self.predictor and self._game_state:
-                    try:
-                        p_home, p_draw, p_away = self.predictor.predict(self._game_state)
-                        self._last_prediction = {
-                            "home": p_home, "draw": p_draw, "away": p_away,
-                            "confidence": max(p_home, p_draw, p_away),
-                            "clock": ms.clock_minutes,
-                        }
-                        logger.info(
-                            "PREDICTION: home=%.1f%% draw=%.1f%% away=%.1f%% (conf=%.1f%%)",
-                            p_home * 100, p_draw * 100, p_away * 100,
-                            self._last_prediction["confidence"] * 100,
-                        )
-                    except Exception as e:
-                        logger.warning("Prediction failed: %s", e)
-                        self._last_prediction = None
-                self._write_state()
+            except Exception as e:
+                logger.warning("Prediction failed: %s", e)
+                self._last_prediction = None
+
+        # Update state file
+        self._write_state()
 
     def _match_state_to_game_state(self, ms: KickoffMatchState) -> GameState:
         """Convert KickoffAPI LiveMatchState to GameState for model prediction."""
@@ -498,7 +626,11 @@ class PaperTrader:
         return (curr_xg - prev_xg) / delta_time
 
     def _scan_events(self) -> None:
-        """Scan Kalshi for open soccer events."""
+        """Scan Kalshi for soccer events and markets.
+
+        Fetches ALL market statuses (open, finalized, etc.) since we need
+        to track markets through their entire lifecycle.
+        """
         logger.debug("Scanning Kalshi for soccer events...")
 
         # Only scan WC Final-related series to avoid rate limits
@@ -508,7 +640,7 @@ class PaperTrader:
             try:
                 resp = self.kalshi._request(
                     "GET", "/events",
-                    params={"series_ticker": series, "limit": 50, "status": "open"},
+                    params={"series_ticker": series, "limit": 50},
                 )
                 if resp and "events" in resp:
                     events.extend(resp["events"])
@@ -521,23 +653,48 @@ class PaperTrader:
             if "KXWCGAME-26JUL19ESPARG" not in event_ticker and "KXMENWORLDCUP-26" not in event_ticker:
                 continue
 
-            markets = self.kalshi.get_event_markets(event_ticker)
-            for m in markets:
-                if m.ticker not in self._active_markets and m.status == "active":
-                    self._active_markets[m.ticker] = ActiveMarket(
-                        ticker=m.ticker,
-                        event_ticker=event_ticker,
-                        title=m.title,
-                        yes_bid=m.yes_bid,
-                        yes_ask=m.yes_ask,
-                        no_bid=m.no_bid,
-                        no_ask=m.no_ask,
-                        volume=m.volume,
-                    )
-                    logger.info(
-                        "New market: %s | %s | YES bid=%.2f ask=%.2f",
-                        m.ticker, m.title, m.yes_bid, m.yes_ask,
-                    )
+            # Fetch ALL markets for this event (no status filter)
+            try:
+                resp = self.kalshi._request(
+                    "GET", "/markets",
+                    params={"event_ticker": event_ticker, "limit": 10},
+                )
+                if not resp or "markets" not in resp:
+                    continue
+
+                for item in resp["markets"]:
+                    ticker = item.get("ticker", "")
+                    if ticker not in self._active_markets:
+                        market = self.kalshi._parse_market(item)
+                        if market:
+                            self._active_markets[ticker] = ActiveMarket(
+                                ticker=market.ticker,
+                                event_ticker=event_ticker,
+                                title=market.title,
+                                yes_bid=market.yes_bid,
+                                yes_ask=market.yes_ask,
+                                no_bid=market.no_bid,
+                                no_ask=market.no_ask,
+                                volume=market.volume,
+                            )
+                            logger.info(
+                                "New market: %s | %s | status=%s | YES bid=%.2f ask=%.2f",
+                                ticker, market.title, market.status,
+                                market.yes_bid, market.yes_ask,
+                            )
+                    else:
+                        # Update existing market's status/volume
+                        market = self.kalshi._parse_market(item)
+                        if market:
+                            existing = self._active_markets[ticker]
+                            existing.yes_bid = market.yes_bid
+                            existing.yes_ask = market.yes_ask
+                            existing.no_bid = market.no_bid
+                            existing.no_ask = market.no_ask
+                            existing.volume = market.volume
+
+            except Exception as e:
+                logger.debug("Failed to scan event %s: %s", event_ticker, e)
 
     def _update_prices(self) -> None:
         """Update prices for all active markets."""
@@ -559,7 +716,11 @@ class PaperTrader:
                 }
 
     def _check_edges(self) -> None:
-        """Check for trading edges and place paper trades."""
+        """Check for trading edges and place paper trades.
+
+        Checks ALL active markets on every call (no trades_count skip).
+        Per-ticker cooldown prevents rapid-fire orders.
+        """
         if not self.predictor or not self._game_state or not self._last_prediction:
             return
 
@@ -591,10 +752,6 @@ class PaperTrader:
             market = self._active_markets[ticker]
             odds = market.last_odds
             if not odds or odds["yes_ask"] <= 0:
-                continue
-
-            # Cooldown: don't re-bet same market if already traded this session
-            if market.trades_count > 0:
                 continue
 
             # Per-ticker cooldown: don't retry failed orders too quickly
@@ -714,6 +871,8 @@ class PaperTrader:
             "total_signals": self._total_signals,
             "total_trades": self._total_trades,
             "total_edge_bets": self._total_edge_bets,
+            "match_started": self._match_started,
+            "match_ended": self._match_ended,
             "prediction": self._last_prediction,
             "match": match_info,
             "markets": {
@@ -735,10 +894,17 @@ class PaperTrader:
     def _print_status(self) -> None:
         """Print current status."""
         mode = "MARKET-ONLY" if self._market_only else "LIVE"
+        match_state = "WAITING"
+        if self._match_ended:
+            match_state = "FINISHED"
+        elif self._match_started:
+            match_state = "IN-PLAY"
+
         logger.info(
-            "STATUS [%s]: bankroll=$%.2f | markets=%d | signals=%d | edge_bets=%d | trades=%d",
+            "STATUS [%s]: bankroll=$%.2f | markets=%d | signals=%d | edge_bets=%d | trades=%d | match=%s",
             mode, self._bankroll, len(self._active_markets),
             self._total_signals, self._total_edge_bets, self._total_trades,
+            match_state,
         )
 
         # Show match state
@@ -763,11 +929,12 @@ class PaperTrader:
             odds = market.last_odds
             if odds:
                 logger.info(
-                    "  %s: YES bid=%.2f ask=%.2f | vol=%d",
+                    "  %s: YES bid=%.2f ask=%.2f | vol=%d trades=%d",
                     ticker,
                     odds.get("yes_bid", 0),
                     odds.get("yes_ask", 0),
                     market.volume,
+                    market.trades_count,
                 )
 
     def _handle_shutdown(self, signum, frame) -> None:

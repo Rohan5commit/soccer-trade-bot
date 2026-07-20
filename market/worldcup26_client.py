@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Dict, Optional
 
 import requests
@@ -86,6 +87,68 @@ class WorldCup26Client:
                (home_team.lower() in a.lower() and away_team.lower() in h.lower()):
                 return m
         return None
+
+    @staticmethod
+    def parse_local_date(match_data: Dict) -> Optional[datetime]:
+        """Parse local_date from match data into a UTC datetime.
+
+        local_date format: "07/19/2026 15:00" (MM/DD/YYYY HH:MM, UTC).
+        Returns None if parse fails.
+        """
+        local_date = match_data.get("local_date", "")
+        if not local_date:
+            return None
+        try:
+            # Format: "07/19/2026 15:00"
+            dt = datetime.strptime(local_date, "%m/%d/%Y %H:%M")
+            return dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            return None
+
+    @staticmethod
+    def get_match_status(match_data: Dict) -> str:
+        """Determine match status from worldcup26 data.
+
+        Returns: 'notstarted', 'live', 'finished', or 'unknown'.
+        Handles the case where time_elapsed is wrong (e.g., "notstarted"
+        when match should be live/finished).
+        """
+        time_elapsed = match_data.get("time_elapsed", "notstarted")
+        finished = match_data.get("finished", "FALSE")
+
+        if finished == "TRUE" or time_elapsed == "finished":
+            return "finished"
+        elif time_elapsed == "notstarted":
+            return "notstarted"
+        elif ":" in str(time_elapsed):
+            return "live"
+        return "unknown"
+
+    @staticmethod
+    def is_match_scheduled_to_be_live(match_data: Dict, buffer_minutes: int = 5) -> bool:
+        """Check if the match is scheduled to be live right now.
+
+        Uses local_date to determine if current time is within the match window.
+        A typical soccer match is ~105 min (90 + halftime + stoppage).
+
+        Args:
+            match_data: Raw match dict from worldcup26.ir.
+            buffer_minutes: Minutes before kickoff to start treating as live.
+
+        Returns:
+            True if current time is within the match window.
+        """
+        kick = WorldCup26Client.parse_local_date(match_data)
+        if not kick:
+            return False
+
+        now = datetime.now(timezone.utc)
+        elapsed = (now - kick).total_seconds() / 60
+
+        # Match window: from buffer_minutes before kickoff to 120 min after
+        if elapsed >= -buffer_minutes and elapsed <= 120:
+            return True
+        return False
 
     @property
     def request_count(self) -> int:
