@@ -93,7 +93,7 @@ class PaperTrader:
         self._total_signals: int = 0
         self._total_trades: int = 0
         self._total_edge_bets: int = 0
-        self._scan_interval: int = 30  # Kalshi event scan
+        self._scan_interval: int = 120  # Kalshi event scan (120s to avoid 429s)
         self._poll_interval: int = 60  # API poll interval (60s to conserve requests)
         self._match_state: Optional[KickoffMatchState] = None
         self._prev_match_state: Optional[KickoffMatchState] = None
@@ -101,6 +101,7 @@ class PaperTrader:
         self._last_prediction: Optional[Dict] = None
         self._order_cooldown: Dict[str, float] = {}  # ticker -> last order attempt time
         self._ORDER_COOLDOWN_SEC = 30  # min seconds between order attempts per ticker
+        self._last_price_update: float = 0  # Throttle _update_prices() to every 30s
 
         # Market discovery: scan all open GAME events
         self._GAME_SERIES = [
@@ -238,8 +239,10 @@ class PaperTrader:
                     self._scan_events()
                     last_kalshi_scan = now
 
-                # Update prices
-                self._update_prices()
+                # Update prices (throttled to every 30s to avoid 429s)
+                if now - self._last_price_update >= 30:
+                    self._update_prices()
+                    self._last_price_update = now
 
                 # Status every 60 cycles (~60s)
                 self._cycle_count += 1
