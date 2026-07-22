@@ -33,7 +33,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install --quiet lightning-sdk cloudscraper python-dotenv
+          pip install --quiet lightning-sdk cloudscraper python-dotenv cryptography
 
       - name: Configure Lightning credentials
         env:
