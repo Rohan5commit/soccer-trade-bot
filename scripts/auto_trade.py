@@ -378,16 +378,18 @@ def find_best_match(fixtures: List[Dict], kalshi_events: List[Dict]) -> Optional
             if league_id not in TRACKED_LEAGUES:
                 continue
 
-            # Parse kickoff from event ticker (format: KXALLSVENSKANGAME-26JUL20KALMAL-MAL)
+            # Parse kickoff from event ticker (format: KXALLSVENSKANGAME-26JUL22KALMAL-MAL)
             try:
-                # Extract date from ticker: 26JUL20 → Jul 26, 2026
+                # Extract date from ticker: 26JUL22 → Jul 26, 2022 (but we need 2026)
                 date_part = event_ticker.split("-")[1] if "-" in event_ticker else ""
                 if len(date_part) >= 6:
                     day = int(date_part[:2])
                     month_map = {"JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6,
                                 "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}
                     month = month_map.get(date_part[2:5].upper(), 0)
-                    year = 2000 + int(date_part[5:7]) if len(date_part) >= 7 else 2026
+                    ticker_year = int(date_part[5:7]) if len(date_part) >= 7 else 26
+                    # Two-digit year in ticker is DD-MM-YY format but events are always current year
+                    year = now.year
                     if month > 0:
                         kickoff = datetime(year, month, day, 20, 0, tzinfo=timezone.utc)  # Default to 8PM UTC
                         minutes_until = (kickoff - now).total_seconds() / 60
@@ -488,9 +490,8 @@ def cmd_check():
                         month_map = {"JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6,
                                     "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}
                         month = month_map.get(date_part[2:5].upper(), 0)
-                        year = 2000 + int(date_part[5:7]) if len(date_part) >= 7 else 2026
                         if month > 0:
-                            kickoff = datetime(year, month, day, 20, 0, tzinfo=timezone.utc)
+                            kickoff = datetime(now.year, month, day, 20, 0, tzinfo=timezone.utc)
                             mins = (kickoff - now).total_seconds() / 60
                             if mins > 0:
                                 all_candidates.append((home, away, mins))
