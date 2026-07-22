@@ -48,6 +48,17 @@ jobs:
           }
           EOF
 
+      - name: Debug env vars
+        env:
+          KICKOFF_API_KEY: ${{ secrets.KICKOFF_API_KEY }}
+          KICKOFF_API_KEY_2: ${{ secrets.KICKOFF_API_KEY_2 }}
+          KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
+        run: |
+          echo "KICKOFF_API_KEY length: ${#KICKOFF_API_KEY}"
+          echo "KICKOFF_API_KEY_2 length: ${#KICKOFF_API_KEY_2}"
+          echo "KALSHI_API_KEY length: ${#KALSHI_API_KEY}"
+          echo "KALSHI_PRIVATE_KEY length: ${#KALSHI_PRIVATE_KEY}"
+
       - name: Run auto-trade check
         env:
           LIGHTNING_USER_ID: ${{ secrets.LIGHTNING_USER_ID }}
