@@ -1,0 +1,71 @@
+name: Auto Trade - Match Scheduler
+
+on:
+  schedule:
+    # Run every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to run'
+        required: true
+        default: 'check'
+        type: choice
+        options:
+          - check
+          - start
+          - stop
+          - status
+
+jobs:
+  check-matches:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --quiet lightning-sdk cloudscraper python-dotenv
+
+      - name: Configure Lightning credentials
+        env:
+          LIGHTNING_USER_ID: ${{ secrets.LIGHTNING_USER_ID }}
+          LIGHTNING_API_KEY: ${{ secrets.LIGHTNING_API_KEY }}
+        run: |
+          mkdir -p ~/.lightning
+          cat > ~/.lightning/config.json << EOF
+          {
+            "user_id": "$LIGHTNING_USER_ID",
+            "api_key": "$LIGHTNING_API_KEY"
+          }
+          EOF
+
+      - name: Run auto-trade check
+        env:
+          LIGHTNING_USER_ID: ${{ secrets.LIGHTNING_USER_ID }}
+          LIGHTNING_API_KEY: ${{ secrets.LIGHTNING_API_KEY }}
+          KICKOFF_API_KEY: ${{ secrets.KICKOFF_API_KEY }}
+          KICKOFF_API_KEY_2: ${{ secrets.KICKOFF_API_KEY_2 }}
+          KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
+          KALSHI_PRIVATE_KEY: ${{ secrets.KALSHI_PRIVATE_KEY }}
+        run: |
+          ACTION="${{ github.event.inputs.action || 'check' }}"
+          python scripts/auto_trade.py "$ACTION"
+
+      - name: Save state artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auto-trade-state
+          path: |
+            data/auto_trade_state.json
+            data/auto_trade.log
+          retention-days: 7

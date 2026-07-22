@@ -1,0 +1,568 @@
+#!/usr/bin/env python3
+"""Auto-trade lifecycle manager.
+
+Checks for upcoming soccer matches, starts Lightning studio,
+runs the paper trader, and stops the studio after the match ends.
+
+Usage:
+    python scripts/auto_trade.py check      # Check for matches, start/stop as needed
+    python scripts/auto_trade.py status     # Check if bot is running
+    python scripts/auto_trade.py start      # Force start studio + bot
+    python scripts/auto_trade.py stop       # Force stop studio + bot
+"""
+from __future__ import annotations
+
+import json
+import logging
+import os
+import subprocess
+import sys
+import time
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+import cloudscraper
+
+# Config
+TEAMSPACE = "juy595711-org/deploy-model-project"
+STUDIO_NAME = "soccer-trade-train"
+TRACKED_LEAGUES = {113: 1.0, 71: 1.0, 72: 0.8}  # Allsvenskan, Serie A, Serie B
+MATCH_BUFFER_MINUTES = 120  # Start studio 2hr before kickoff
+POST_MATCH_BUFFER_MINUTES = 30  # Stop 30min after expected end
+KICKOFF_API_KEYS = [
+    os.environ.get("KICKOFF_API_KEY", ""),
+    os.environ.get("KICKOFF_API_KEY_2", ""),
+]
+KALSHI_API_KEY = os.environ.get("KALSHI_API_KEY", "")
+KALSHI_PRIVATE_KEY = os.environ.get("KALSHI_PRIVATE_KEY", "")
+BOT_LOG = Path("data/auto_trade.log")
+STATE_FILE = Path("data/auto_trade_state.json")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(BOT_LOG, mode="a"),
+    ],
+)
+logger = logging.getLogger("auto_trade")
+
+# Lightning SDK imports
+try:
+    from lightning_sdk import Studio, Machine
+    HAS_SDK = True
+except ImportError:
+    HAS_SDK = False
+    logger.warning("lightning-sdk not installed, CLI fallback enabled")
+
+
+def run_cmd(cmd: str, timeout: int = 60) -> Tuple[int, str, str]:
+    """Run a shell command and return (returncode, stdout, stderr)."""
+    try:
+        result = subprocess.run(
+            cmd, shell=True, capture_output=True, text=True, timeout=timeout
+        )
+        return result.returncode, result.stdout.strip(), result.stderr.strip()
+    except subprocess.TimeoutExpired:
+        return -1, "", "timeout"
+    except Exception as e:
+        return -1, "", str(e)
+
+
+def get_studio_status() -> str:
+    """Check if studio is running, stopped, or unknown."""
+    rc, out, err = run_cmd(f"lightning studio list --teamspace {TEAMSPACE} 2>&1")
+    if rc != 0:
+        return "unknown"
+
+    for line in out.split("\n"):
+        if STUDIO_NAME in line:
+            if "Running" in line or "running" in line:
+                return "running"
+            elif "Stopped" in line or "stopped" in line:
+                return "stopped"
+    return "unknown"
+
+
+def start_studio() -> bool:
+    """Start the Lightning studio."""
+    logger.info("Starting studio %s...", STUDIO_NAME)
+
+    if HAS_SDK:
+        try:
+            studio = Studio(STUDIO_NAME, teamspace=TEAMSPACE)
+            studio.start(Machine.CPU)
+            logger.info("Studio started via SDK")
+            return True
+        except Exception as e:
+            logger.warning("SDK start failed: %s, trying CLI", e)
+
+    rc, out, err = run_cmd(
+        f"lightning studio start --name {STUDIO_NAME} --teamspace {TEAMSPACE} 2>&1",
+        timeout=120,
+    )
+    if rc == 0:
+        logger.info("Studio started via CLI")
+        return True
+    else:
+        logger.error("Failed to start studio: %s", err)
+        return False
+
+
+def stop_studio() -> bool:
+    """Stop the Lightning studio."""
+    logger.info("Stopping studio %s...", STUDIO_NAME)
+
+    if HAS_SDK:
+        try:
+            studio = Studio(STUDIO_NAME, teamspace=TEAMSPACE)
+            studio.stop()
+            logger.info("Studio stopped via SDK")
+            return True
+        except Exception as e:
+            logger.warning("SDK stop failed: %s, trying CLI", e)
+
+    rc, out, err = run_cmd(
+        f"lightning studio stop --name {STUDIO_NAME} --teamspace {TEAMSPACE} 2>&1",
+        timeout=120,
+    )
+    if rc == 0:
+        logger.info("Studio stopped via CLI")
+        return True
+    else:
+        logger.error("Failed to stop studio: %s", err)
+        return False
+
+
+def configure_ssh() -> bool:
+    """Regenerate SSH key for current studio session."""
+    rc, out, err = run_cmd("lightning ssh configure --overwrite 2>&1", timeout=30)
+    return rc == 0
+
+
+def ssh_exec(cmd: str, timeout: int = 30) -> Tuple[bool, str]:
+    """Execute a command on the Lightning studio via SSH."""
+    ssh_user = os.environ.get("LIGHTNING_SSH_USER", "")
+    if not ssh_user:
+        # Try to get from config
+        rc, out, _ = run_cmd("lightning config get studio 2>&1")
+        # Fallback: parse SSH config
+        rc2, out2, _ = run_cmd("grep -A 2 'soccer-trade-train' ~/.ssh/config 2>/dev/null | grep User | awk '{print $2}'")
+        ssh_user = out2.strip()
+
+    if not ssh_user:
+        logger.error("No SSH user found")
+        return False, ""
+
+    ssh_cmd = (
+        f'ssh -i ~/.ssh/lightning_rsa -o StrictHostKeyChecking=no '
+        f'-o ConnectTimeout=15 {ssh_user}@ssh.lightning.ai "{cmd}"'
+    )
+    rc, out, err = run_cmd(ssh_cmd, timeout=timeout)
+    return rc == 0, out
+
+
+def is_bot_running() -> bool:
+    """Check if the paper trader is running on the studio."""
+    ok, out = ssh_exec("screen -ls 2>/dev/null | grep paper_trade || echo 'not_running'")
+    return "paper_trade" in out and "not_running" not in out
+
+
+def start_bot() -> bool:
+    """Start the paper trader on the studio via SSH."""
+    logger.info("Starting paper trader on studio...")
+
+    # Kill any existing session
+    ssh_exec("screen -S paper_trade -X quit 2>/dev/null || true")
+    time.sleep(2)
+
+    # Start new session
+    cmd = (
+        "cd /teamspace/studios/this_studio/soccer-trade-bot && "
+        "screen -dmS paper_trade bash -c '"
+        "source .env 2>/dev/null || true; "
+        "export $(grep -v \"^#\" .env | xargs) 2>/dev/null || true; "
+        "python run_paper_trade.py > data/paper_trade_cloud.log 2>&1'"
+    )
+    ok, out = ssh_exec(cmd, timeout=30)
+    if ok:
+        logger.info("Paper trader started")
+        time.sleep(5)
+        return is_bot_running()
+    else:
+        logger.error("Failed to start paper trader: %s", out)
+        return False
+
+
+def stop_bot() -> bool:
+    """Stop the paper trader on the studio."""
+    logger.info("Stopping paper trader on studio...")
+    ssh_exec("screen -S paper_trade -X quit 2>/dev/null || true")
+    ssh_exec("pkill -f 'run_paper_trade.py' 2>/dev/null || true")
+    return True
+
+
+def fetch_kickoff_fixtures(date: str) -> List[Dict]:
+    """Fetch fixtures from KickoffAPI for a given date."""
+    keys = [k for k in KICKOFF_API_KEYS if k]
+    if not keys:
+        logger.warning("No KickoffAPI keys configured")
+        return []
+
+    session = cloudscraper.create_scraper()
+    for key in keys:
+        try:
+            resp = session.get(
+                "https://api.kickoffapi.com/api/v1/fixtures",
+                params={"date": date},
+                headers={"x-api-key": key, "User-Agent": "Mozilla/5.0"},
+                timeout=15,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                return data.get("response", [])
+            elif resp.status_code == 429:
+                logger.warning("KickoffAPI rate limited on key %s...", key[:10])
+                continue
+        except Exception as e:
+            logger.warning("KickoffAPI request failed: %s", e)
+    return []
+
+
+def fetch_kalshi_events() -> List[Dict]:
+    """Fetch open soccer events from Kalshi."""
+    if not KALSHI_API_KEY:
+        return []
+
+    # Import KalshiClient
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    try:
+        from market.kalshi_client import KalshiClient
+        client = KalshiClient(
+            api_key=KALSHI_API_KEY,
+            private_key_pem=KALSHI_PRIVATE_KEY,
+            dry_run=True,
+            use_demo=True,
+        )
+    except Exception as e:
+        logger.warning("Failed to init KalshiClient: %s", e)
+        return []
+
+    series = [
+        "KXALLSVENSKANGAME", "KXBRASILEIROBGAME", "KXBRASILEIROGAME",
+        "KXWCGAME", "KXMENWORLDCUP", "KXSUPERLIGGAME",
+        "KXEREDIVISIEGAME", "KXPRIMERALIGAME", "KXCHAMPIONSLEAGUEGAME",
+    ]
+
+    events = []
+    for s in series:
+        try:
+            resp = client._request("GET", "/events", params={
+                "series_ticker": s, "limit": 20, "status": "open"
+            })
+            if resp and "events" in resp:
+                events.extend(resp["events"])
+            time.sleep(1)
+        except Exception:
+            pass
+
+    return events
+
+
+def find_best_match(fixtures: List[Dict], kalshi_events: List[Dict]) -> Optional[Dict]:
+    """Find the best upcoming match to track.
+
+    Returns dict with keys: fixture_id, home, away, kickoff_utc, league_id, kalshi_score
+    """
+    now = datetime.now(timezone.utc)
+    candidates = []
+
+    for f in fixtures:
+        league_id = f.get("leagueId")
+        status = f.get("statusShort", "NS")
+        home = f.get("homeTeam", {}).get("name", "")
+        away = f.get("awayTeam", {}).get("name", "")
+        fixture_id = f.get("id", 0)
+        date_str = f.get("date", "")
+
+        if league_id not in TRACKED_LEAGUES or status == "FT":
+            continue
+
+        # Parse kickoff time
+        try:
+            kickoff = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+            minutes_until = (kickoff - now).total_seconds() / 60
+        except Exception:
+            continue
+
+        # Only consider matches starting within 4 hours
+        if minutes_until < -10 or minutes_until > 240:
+            continue
+
+        # Live matches are highest priority
+        if status in ("1H", "2H", "HT", "ET", "PEN", "LIVE"):
+            return {
+                "fixture_id": fixture_id,
+                "home": home,
+                "away": away,
+                "kickoff_utc": kickoff.isoformat(),
+                "league_id": league_id,
+                "status": status,
+                "minutes_until": minutes_until,
+                "kalshi_score": 0.5,
+            }
+
+        # Score Kalshi market liquidity
+        kalshi_score = 0.0
+        for event in kalshi_events:
+            title = event.get("title", "").lower()
+            if " vs " in title:
+                teams = title.split(" vs ")
+                t_a = teams[0].strip().lower()
+                t_b = teams[1].strip().split(" winner")[0].strip().lower()
+                h_words = [w for w in home.lower().split() if len(w) > 3]
+                a_words = [w for w in away.lower().split() if len(w) > 3]
+                if any(w in t_a for w in h_words) and any(w in t_b for w in a_words):
+                    kalshi_score = 0.8
+                    break
+
+        time_bonus = min(1.0, max(0.0, 1.0 - minutes_until / 300)) if minutes_until > 0 else 0.5
+        league_weight = TRACKED_LEAGUES[league_id]
+        combined = kalshi_score * 0.6 + league_weight * 0.2 + time_bonus * 0.2
+
+        candidates.append({
+            "fixture_id": fixture_id,
+            "home": home,
+            "away": away,
+            "kickoff_utc": kickoff.isoformat(),
+            "league_id": league_id,
+            "status": status,
+            "minutes_until": minutes_until,
+            "kalshi_score": kalshi_score,
+            "combined": combined,
+        })
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda x: x["combined"], reverse=True)
+    return candidates[0]
+
+
+def load_state() -> Dict:
+    """Load auto-trade state."""
+    if STATE_FILE.exists():
+        try:
+            return json.loads(STATE_FILE.read_text())
+        except Exception:
+            pass
+    return {}
+
+
+def save_state(state: Dict) -> None:
+    """Save auto-trade state."""
+    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    STATE_FILE.write_text(json.dumps(state, indent=2))
+
+
+def cmd_check():
+    """Check for upcoming matches and manage studio lifecycle."""
+    logger.info("=" * 60)
+    logger.info("AUTO-TRADE CHECK")
+    logger.info("=" * 60)
+
+    now = datetime.now(timezone.utc)
+    today = now.strftime("%Y-%m-%d")
+    state = load_state()
+
+    # Fetch data
+    logger.info("Fetching KickoffAPI fixtures for %s...", today)
+    fixtures = fetch_kickoff_fixtures(today)
+    logger.info("Found %d fixtures", len(fixtures))
+
+    logger.info("Fetching Kalshi events...")
+    kalshi_events = fetch_kalshi_events()
+    logger.info("Found %d Kalshi events", len(kalshi_events))
+
+    # Find best match
+    best = find_best_match(fixtures, kalshi_events)
+
+    if not best:
+        logger.info("No matches starting within 4 hours")
+
+        # Log next upcoming match for visibility
+        all_candidates = []
+        for f in fixtures:
+            league_id = f.get("leagueId")
+            status = f.get("statusShort", "NS")
+            if league_id not in TRACKED_LEAGUES or status == "FT":
+                continue
+            try:
+                kickoff = datetime.fromisoformat(f.get("date", "").replace("Z", "+00:00"))
+                mins = (kickoff - now).total_seconds() / 60
+                if mins > 0:
+                    all_candidates.append((f, mins))
+            except Exception:
+                pass
+
+        if all_candidates:
+            all_candidates.sort(key=lambda x: x[1])
+            f, mins = all_candidates[0]
+            home = f.get("homeTeam", {}).get("name", "")
+            away = f.get("awayTeam", {}).get("name", "")
+            logger.info(
+                "Next match: %s vs %s in %.1f hours (league %s) — studio will start when within 2hr",
+                home, away, mins / 60, f.get("leagueId"),
+            )
+
+        # If studio is running and no match, stop it
+        status = get_studio_status()
+        if status == "running" and state.get("match_active"):
+            logger.info("Match ended, stopping studio...")
+            stop_bot()
+            stop_studio()
+            state["match_active"] = False
+            state["last_stop"] = now.isoformat()
+            save_state(state)
+        elif status == "running" and not state.get("match_active"):
+            # Studio running but no active match — check if bot is running
+            if is_bot_running():
+                logger.info("Bot is running but no match detected. Waiting...")
+            else:
+                logger.info("Studio running but bot not active. Will stop to save credits.")
+                stop_studio()
+        return
+
+    logger.info(
+        "Best match: %s vs %s (league %s, status=%s, %.1fh until kickoff)",
+        best["home"], best["away"], best["league_id"],
+        best["status"], best["minutes_until"] / 60,
+    )
+
+    # Determine action based on match timing
+    minutes_until = best["minutes_until"]
+    status = get_studio_status()
+
+    if best["status"] in ("1H", "2H", "HT", "ET", "PEN", "LIVE"):
+        # Match is LIVE
+        logger.info("Match is LIVE!")
+        if status != "running":
+            logger.info("Starting studio for live match...")
+            configure_ssh()
+            if start_studio():
+                time.sleep(30)  # Wait for studio to boot
+                configure_ssh()
+                start_bot()
+        elif not is_bot_running():
+            logger.info("Studio running but bot not active, starting bot...")
+            configure_ssh()
+            start_bot()
+
+        state["match_active"] = True
+        state["current_match"] = f"{best['home']} vs {best['away']}"
+        state["match_status"] = best["status"]
+        state["last_check"] = now.isoformat()
+        save_state(state)
+
+    elif minutes_until <= MATCH_BUFFER_MINUTES and minutes_until > -POST_MATCH_BUFFER_MINUTES:
+        # Match starting within 2 hours
+        logger.info("Match starting in %.1f minutes, starting studio...", minutes_until)
+        if status != "running":
+            configure_ssh()
+            if start_studio():
+                time.sleep(30)
+                configure_ssh()
+                start_bot()
+
+        state["match_active"] = True
+        state["current_match"] = f"{best['home']} vs {best['away']}"
+        state["match_kickoff"] = best["kickoff_utc"]
+        state["last_check"] = now.isoformat()
+        save_state(state)
+
+    elif minutes_until < -POST_MATCH_BUFFER_MINUTES:
+        # Match ended (more than 30min ago)
+        logger.info("Match ended (%.1f min ago), stopping studio...", abs(minutes_until))
+        if status == "running":
+            stop_bot()
+            stop_studio()
+        state["match_active"] = False
+        state["current_match"] = ""
+        state["last_stop"] = now.isoformat()
+        save_state(state)
+
+    else:
+        # Match is > 2 hours away
+        logger.info("Match is %.1f hours away, waiting...", minutes_until / 60)
+        state["match_active"] = False
+        state["current_match"] = f"{best['home']} vs {best['away']}"
+        state["match_kickoff"] = best["kickoff_utc"]
+        state["last_check"] = now.isoformat()
+        save_state(state)
+
+
+def cmd_status():
+    """Check current status."""
+    status = get_studio_status()
+    bot_running = False
+    if status == "running":
+        configure_ssh()
+        bot_running = is_bot_running()
+
+    state = load_state()
+    print(json.dumps({
+        "studio_status": status,
+        "bot_running": bot_running,
+        "match_active": state.get("match_active", False),
+        "current_match": state.get("current_match", ""),
+        "last_check": state.get("last_check", ""),
+    }, indent=2))
+
+
+def cmd_start():
+    """Force start studio and bot."""
+    configure_ssh()
+    if start_studio():
+        time.sleep(30)
+        configure_ssh()
+        if start_bot():
+            print("Studio and bot started successfully")
+        else:
+            print("Studio started but bot failed to start")
+    else:
+        print("Failed to start studio")
+
+
+def cmd_stop():
+    """Force stop studio and bot."""
+    stop_bot()
+    stop_studio()
+    state = load_state()
+    state["match_active"] = False
+    save_state(state)
+    print("Studio and bot stopped")
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: auto_trade.py [check|status|start|stop]")
+        sys.exit(1)
+
+    cmd = sys.argv[1].lower()
+    if cmd == "check":
+        cmd_check()
+    elif cmd == "status":
+        cmd_status()
+    elif cmd == "start":
+        cmd_start()
+    elif cmd == "stop":
+        cmd_stop()
+    else:
+        print(f"Unknown command: {cmd}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
