@@ -220,17 +220,15 @@ def fetch_kickoff_fixtures(date: str) -> List[Dict]:
                 headers={"x-api-key": key, "User-Agent": "Mozilla/5.0"},
                 timeout=15,
             )
-            logger.info("KickoffAPI response: status=%d, length=%d", resp.status_code, len(resp.text))
             if resp.status_code == 200:
                 data = resp.json()
-                fixtures = data.get("response", [])
-                logger.info("KickoffAPI returned %d fixtures for %s", len(fixtures), date)
-                return fixtures
+                return data.get("response", [])
             elif resp.status_code == 429:
                 logger.warning("KickoffAPI rate limited on key %s...", key[:10])
                 continue
-            else:
-                logger.warning("KickoffAPI error %d: %s", resp.status_code, resp.text[:200])
+            elif resp.status_code == 403:
+                logger.warning("KickoffAPI blocked by Cloudflare (CI environment)")
+                return []
         except Exception as e:
             logger.warning("KickoffAPI request failed: %s", e)
     return []
