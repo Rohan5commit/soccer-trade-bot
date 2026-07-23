@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import subprocess
 import sys
 import time
@@ -378,20 +379,19 @@ def find_best_match(fixtures: List[Dict], kalshi_events: List[Dict]) -> Optional
             # Accept all soccer events with " vs " in title
             league_id = 0  # Generic — not used for filtering anymore
 
-            # Parse kickoff from event ticker (format: KXALLSVENSKANGAME-26JUL22KALMAL-MAL)
+            # Parse kickoff from sub_title (format: "TWE vs FTC (Jul 23)")
             try:
-                # Extract date from ticker: 26JUL22 → Jul 26, 2022 (but we need 2026)
-                date_part = event_ticker.split("-")[1] if "-" in event_ticker else ""
-                if len(date_part) >= 6:
-                    day = int(date_part[:2])
+                sub_title = event.get("sub_title", "")
+                # Extract date from sub_title: "(Jul 23)" → Jul 23
+                date_match = re.search(r'\((\w{3})\s+(\d{1,2})\)', sub_title)
+                if date_match:
+                    month_str = date_match.group(1).upper()
+                    day = int(date_match.group(2))
                     month_map = {"JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6,
                                 "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}
-                    month = month_map.get(date_part[2:5].upper(), 0)
-                    ticker_year = int(date_part[5:7]) if len(date_part) >= 7 else 26
-                    # Two-digit year in ticker is DD-MM-YY format but events are always current year
-                    year = now.year
+                    month = month_map.get(month_str, 0)
                     if month > 0:
-                        kickoff = datetime(year, month, day, 20, 0, tzinfo=timezone.utc)  # Default to 8PM UTC
+                        kickoff = datetime(now.year, month, day, 20, 0, tzinfo=timezone.utc)
                         minutes_until = (kickoff - now).total_seconds() / 60
                         if minutes_until < -10 or minutes_until > 1440:
                             continue
@@ -481,15 +481,16 @@ def cmd_check():
                 teams = title.split(" vs ")
                 home = teams[0].strip()
                 away = teams[1].strip().split(" winner")[0].strip()
-                # Estimate kickoff from event ticker
-                event_ticker = event.get("event_ticker", "")
-                date_part = event_ticker.split("-")[1] if "-" in event_ticker else ""
-                if len(date_part) >= 6:
+                # Estimate kickoff from sub_title
+                sub_title = event.get("sub_title", "")
+                date_match = re.search(r'\((\w{3})\s+(\d{1,2})\)', sub_title)
+                if date_match:
                     try:
-                        day = int(date_part[:2])
+                        month_str = date_match.group(1).upper()
+                        day = int(date_match.group(2))
                         month_map = {"JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6,
                                     "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}
-                        month = month_map.get(date_part[2:5].upper(), 0)
+                        month = month_map.get(month_str, 0)
                         if month > 0:
                             kickoff = datetime(now.year, month, day, 20, 0, tzinfo=timezone.utc)
                             mins = (kickoff - now).total_seconds() / 60
