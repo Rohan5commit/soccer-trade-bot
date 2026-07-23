@@ -27,7 +27,7 @@ import cloudscraper
 # Config
 TEAMSPACE = "juy595711-org/deploy-model-project"
 STUDIO_NAME = "soccer-trade-train"
-TRACKED_LEAGUES = {113: 1.0, 71: 1.0, 72: 0.8}  # Allsvenskan, Serie A, Serie B
+DEFAULT_LEAGUE_WEIGHT = 0.5  # Default weight for any soccer league
 MATCH_BUFFER_MINUTES = 120  # Start studio 2hr before kickoff
 POST_MATCH_BUFFER_MINUTES = 30  # Stop 30min after expected end
 KICKOFF_API_KEYS = [
@@ -255,8 +255,18 @@ def fetch_kalshi_events() -> List[Dict]:
 
     series = [
         "KXALLSVENSKANGAME", "KXBRASILEIROBGAME", "KXBRASILEIROGAME",
-        "KXWCGAME", "KXMENWORLDCUP", "KXSUPERLIGGAME",
-        "KXEREDIVISIEGAME", "KXPRIMERALIGAME", "KXCHAMPIONSLEAGUEGAME",
+        "KXSUPERLIGGAME", "KXEREDIVISIEGAME", "KXPRIMERALIGAME",
+        "KXCHAMPIONSLEAGUEGAME", "KXPREMIERLEAGUE",
+        "KXMLSGAME", "KXSERIEAGAME", "KXSERIEBGAME",
+        "KXLIGAMXGAME", "KXSAUDIPLGAME", "KXSCOTTISHPREMGAME",
+        "KXSLGREECEGAME", "KXSWISSLEAGUEGAME", "KXTHAIL1GAME",
+        "KXUAEPLGAME", "KXUCLGAME", "KXUELGAME", "KXUECLGAME",
+        "KXUEFAGAME", "KXUEFANLGAME", "KXUSLGAME", "KXUSOPENCUPGAME",
+        "KXPERLIGA1GAME", "KXSPBGAME", "KXVENFUTVEGAME",
+        "KXQSTARSGAME", "KXTACAPORTGAME", "KXDENSUPERLIGAGAME",
+        "KXISLGAME", "KXCHNSLGAME", "KXKLEAGUEGAME",
+        "KXCLUBFGAME", "KXASEANGAME", "KXWIBPLGAME",
+        "KXSCOCUPGAME", "KXUSLCUPGAME", "KXARGNACBGAME",
     ]
 
     events = []
@@ -294,7 +304,7 @@ def find_best_match(fixtures: List[Dict], kalshi_events: List[Dict]) -> Optional
         fixture_id = f.get("id", 0)
         date_str = f.get("date", "")
 
-        if league_id not in TRACKED_LEAGUES or status == "FT":
+        if status == "FT":
             continue
 
         # Parse kickoff time
@@ -304,8 +314,8 @@ def find_best_match(fixtures: List[Dict], kalshi_events: List[Dict]) -> Optional
         except Exception:
             continue
 
-        # Only consider matches starting within 4 hours
-        if minutes_until < -10 or minutes_until > 240:
+        # Only consider matches starting within 24 hours
+        if minutes_until < -10 or minutes_until > 1440:
             continue
 
         # Live matches are highest priority
@@ -337,7 +347,7 @@ def find_best_match(fixtures: List[Dict], kalshi_events: List[Dict]) -> Optional
                     break
 
         time_bonus = min(1.0, max(0.0, 1.0 - minutes_until / 300)) if minutes_until > 0 else 0.5
-        league_weight = TRACKED_LEAGUES[league_id]
+        league_weight = DEFAULT_LEAGUE_WEIGHT
         combined = kalshi_score * 0.6 + league_weight * 0.2 + time_bonus * 0.2
 
         candidates.append({
@@ -365,16 +375,8 @@ def find_best_match(fixtures: List[Dict], kalshi_events: List[Dict]) -> Optional
             home = teams[0].strip()
             away = teams[1].strip().split(" winner")[0].strip()
 
-            # Check if this is a tracked league
-            series = event.get("series_ticker", "")
-            league_map = {
-                "KXALLSVENSKANGAME": 113,
-                "KXBRASILEIROGAME": 71,
-                "KXBRASILEIROBGAME": 72,
-            }
-            league_id = league_map.get(series, 0)
-            if league_id not in TRACKED_LEAGUES:
-                continue
+            # Accept all soccer events with " vs " in title
+            league_id = 0  # Generic — not used for filtering anymore
 
             # Parse kickoff from event ticker (format: KXALLSVENSKANGAME-26JUL22KALMAL-MAL)
             try:
@@ -391,7 +393,7 @@ def find_best_match(fixtures: List[Dict], kalshi_events: List[Dict]) -> Optional
                     if month > 0:
                         kickoff = datetime(year, month, day, 20, 0, tzinfo=timezone.utc)  # Default to 8PM UTC
                         minutes_until = (kickoff - now).total_seconds() / 60
-                        if minutes_until < -10 or minutes_until > 240:
+                        if minutes_until < -10 or minutes_until > 1440:
                             continue
                         candidates.append({
                             "fixture_id": hash(event_ticker) % 1000000,
@@ -402,7 +404,7 @@ def find_best_match(fixtures: List[Dict], kalshi_events: List[Dict]) -> Optional
                             "status": "NS",
                             "minutes_until": minutes_until,
                             "kalshi_score": 0.8,
-                            "combined": 0.8 * 0.6 + TRACKED_LEAGUES[league_id] * 0.2 + 0.5 * 0.2,
+                            "combined": 0.8 * 0.6 + DEFAULT_LEAGUE_WEIGHT * 0.2 + 0.5 * 0.2,
                         })
             except Exception:
                 pass
@@ -461,7 +463,7 @@ def cmd_check():
         for f in fixtures:
             league_id = f.get("leagueId")
             status = f.get("statusShort", "NS")
-            if league_id not in TRACKED_LEAGUES or status == "FT":
+            if status == "FT":
                 continue
             try:
                 kickoff = datetime.fromisoformat(f.get("date", "").replace("Z", "+00:00"))
@@ -475,7 +477,7 @@ def cmd_check():
         for event in kalshi_events:
             title = event.get("title", "")
             series = event.get("series_ticker", "")
-            if " vs " in title and series in ("KXALLSVENSKANGAME", "KXBRASILEIROGAME", "KXBRASILEIROBGAME"):
+            if " vs " in title:
                 teams = title.split(" vs ")
                 home = teams[0].strip()
                 away = teams[1].strip().split(" winner")[0].strip()
