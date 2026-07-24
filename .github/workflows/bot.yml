@@ -45,11 +45,15 @@ jobs:
           if_no_artifact_found: warn
           workflow: bot.yml
 
+      - name: Decode Kalshi private key
+        env:
+          KALSHI_PRIVATE_KEY_B64: ${{ secrets.KALSHI_PRIVATE_KEY_B64 }}
+        run: echo "KALSHI_PRIVATE_KEY=$(echo $KALSHI_PRIVATE_KEY_B64 | base64 -d)" >> $GITHUB_ENV
+
       - name: Run paper trader
         id: trade
         env:
           KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
-          KALSHI_PRIVATE_KEY: ${{ secrets.KALSHI_PRIVATE_KEY_B64 }}
           KALSHI_USE_DEMO: "true"
           KICKOFF_API_KEY: ${{ secrets.KICKOFF_API_KEY }}
           KICKOFF_API_KEY_2: ${{ secrets.KICKOFF_API_KEY_2 }}

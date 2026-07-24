@@ -28,11 +28,15 @@ jobs:
           if_no_artifact_found: warn
           workflow: scheduler.yml
 
+      - name: Decode Kalshi private key
+        env:
+          KALSHI_PRIVATE_KEY_B64: ${{ secrets.KALSHI_PRIVATE_KEY_B64 }}
+        run: echo "KALSHI_PRIVATE_KEY=$(echo $KALSHI_PRIVATE_KEY_B64 | base64 -d)" >> $GITHUB_ENV
+
       - name: Check proximity and dispatch bot
         id: check
         env:
           KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
-          KALSHI_PRIVATE_KEY: ${{ secrets.KALSHI_PRIVATE_KEY_B64 }}
           KALSHI_USE_DEMO: "false"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

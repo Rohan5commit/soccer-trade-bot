@@ -23,11 +23,17 @@ jobs:
       - name: Install dependencies
         run: pip install -q cloudscraper requests cryptography
 
+      - name: Decode Kalshi private key
+        id: decode_key
+        env:
+          KALSHI_PRIVATE_KEY_B64: ${{ secrets.KALSHI_PRIVATE_KEY_B64 }}
+        run: |
+          echo "KALSHI_PRIVATE_KEY=$(echo $KALSHI_PRIVATE_KEY_B64 | base64 -d)" >> $GITHUB_ENV
+
       - name: Discover matches
         id: discover
         env:
           KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
-          KALSHI_PRIVATE_KEY: ${{ secrets.KALSHI_PRIVATE_KEY_B64 }}
           KALSHI_USE_DEMO: "false"
         run: |
           python scripts/match_scheduler.py --within-hours 24 --output data/schedule.json

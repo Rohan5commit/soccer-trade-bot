@@ -21,7 +21,7 @@ from typing import Dict, List, Optional, Tuple
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from market.kalshi_client import KalshiClient, SOCCER_SERIES
-from config import get_config
+from config import load_config
 
 
 def parse_kalshi_event(event: dict, now: datetime) -> Optional[Dict]:
@@ -96,7 +96,7 @@ def discover_matches() -> List[Dict]:
 
     Returns sorted list of match dicts, soonest first.
     """
-    cfg = get_config()
+    cfg = load_config()
     now = datetime.now(timezone.utc)
 
     client = KalshiClient(
