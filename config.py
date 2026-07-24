@@ -114,7 +114,7 @@ class Config:
             polymarket_api_key=os.environ.get("POLYMARKET_API_KEY", ""),
             polymarket_private_key=os.environ.get("POLYMARKET_PRIVATE_KEY", ""),
             kalshi_api_key=os.environ.get("KALSHI_API_KEY", ""),
-            kalshi_private_key=os.environ.get("KALSHI_PRIVATE_KEY", ""),
+            kalshi_private_key=os.environ.get("KALSHI_PRIVATE_KEY", "").replace("\\n", "\n"),
             kalshi_use_demo=_bool("KALSHI_USE_DEMO", "true"),
             api_football_key=os.environ.get("API_FOOTBALL_KEY", ""),
             api_football_fixture_id=_int("API_FOOTBALL_FIXTURE_ID", 0),
