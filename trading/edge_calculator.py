@@ -155,6 +155,6 @@ class EdgeCalculator:
             market_p = market_prices.get(outcome, 0.0)
             if market_p is None or market_p <= 0.0:
                 continue
-            if model_p - market_p >= self.edge_threshold:
+            if model_p - market_p >= self.edge_threshold and model_p >= self.confidence_threshold:
                 count += 1
         return count >= min_outcomes

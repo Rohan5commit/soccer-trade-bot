@@ -85,10 +85,16 @@ class Config:
             return os.environ.get(key, default).lower() in ("true", "1", "yes")
 
         def _float(key: str, default: float) -> float:
-            return float(os.environ.get(key, str(default)))
+            try:
+                return float(os.environ.get(key, str(default)))
+            except (ValueError, TypeError):
+                return default
 
         def _int(key: str, default: int) -> int:
-            return int(os.environ.get(key, str(default)))
+            try:
+                return int(os.environ.get(key, str(default)))
+            except (ValueError, TypeError):
+                return default
 
         def _tuple3(key: str) -> Optional[Tuple[int, int, int, int]]:
             val = os.environ.get(key, "")
@@ -119,7 +125,7 @@ class Config:
             api_football_key=os.environ.get("API_FOOTBALL_KEY", ""),
             api_football_fixture_id=_int("API_FOOTBALL_FIXTURE_ID", 0),
             min_bet_usd=_float("MIN_BET_USD", 5.0),
-            max_bet_pct=_float("MAX_BET_PCT", 0.50),
+            max_bet_pct=_float("MAX_BET_PCT", 0.05),
             kelly_fraction=_float("KELLY_FRACTION", 0.25),
             edge_threshold=_float("EDGE_THRESHOLD", 0.05),
             confidence_threshold=_float("CONFIDENCE_THRESHOLD", 0.70),

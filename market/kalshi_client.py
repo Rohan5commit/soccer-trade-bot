@@ -36,10 +36,20 @@ KALSHI_DEMO_BASE = "https://demo-api.kalshi.co/trade-api/v2"
 
 # Known series tickers for soccer
 SOCCER_SERIES = [
-    "KXWCGAME", "KXMENWORLDCUP",
     "KXALLSVENSKANGAME", "KXBRASILEIROBGAME", "KXBRASILEIROGAME",
     "KXSUPERLIGGAME", "KXEREDIVISIEGAME", "KXPRIMERALIGAME",
     "KXCHAMPIONSLEAGUEGAME", "KXPREMIERLEAGUE",
+    "KXMLSGAME", "KXSERIEAGAME", "KXSERIEBGAME",
+    "KXLIGAMXGAME", "KXSAUDIPLGAME", "KXSCOTTISHPREMGAME",
+    "KXSLGREECEGAME", "KXSWISSLEAGUEGAME", "KXTHAIL1GAME",
+    "KXUAEPLGAME", "KXUCLGAME", "KXUELGAME", "KXUECLGAME",
+    "KXUEFAGAME", "KXUEFANLGAME", "KXUSLGAME", "KXUSOPENCUPGAME",
+    "KXPERLIGA1GAME", "KXSPBGAME", "KXVENFUTVEGAME",
+    "KXQSTARSGAME", "KXTACAPORTGAME", "KXDENSUPERLIGAGAME",
+    "KXISLGAME", "KXCHNSLGAME", "KXKLEAGUEGAME",
+    "KXCLUBFGAME", "KXASEANGAME", "KXWIBPLGAME",
+    "KXSCOCUPGAME", "KXUSLCUPGAME", "KXARGNACBGAME",
+    "KXWCGAME", "KXMENWORLDCUP",
 ]
 
 
@@ -172,24 +182,34 @@ class KalshiClient:
         url = f"{base_url or self._price_url}{path}"
         headers = self._sign_request(method, path, base_url=base_url)
 
-        try:
-            resp = self._session.request(
-                method=method,
-                url=url,
-                headers=headers,
-                params=params,
-                json=json_data,
-                timeout=10,
-            )
-            resp.raise_for_status()
-            return resp.json()
+        for attempt in range(3):
+            try:
+                resp = self._session.request(
+                    method=method,
+                    url=url,
+                    headers=headers,
+                    params=params,
+                    json=json_data,
+                    timeout=10,
+                )
+                if resp.status_code == 429:
+                    retry_after = int(resp.headers.get("Retry-After", 2 ** attempt))
+                    logger.warning("Kalshi 429 rate limited, retry %d/3 in %ds", attempt + 1, retry_after)
+                    time.sleep(retry_after)
+                    headers = self._sign_request(method, path, base_url=base_url)
+                    continue
+                resp.raise_for_status()
+                return resp.json()
 
-        except requests.exceptions.HTTPError as e:
-            logger.error("Kalshi API error: %s - %s", e.response.status_code, e.response.text[:200])
-            return None
-        except Exception as e:
-            logger.error("Kalshi request failed: %s", e)
-            return None
+            except requests.exceptions.HTTPError as e:
+                logger.error("Kalshi API error: %s - %s", e.response.status_code, e.response.text[:200])
+                return None
+            except Exception as e:
+                logger.error("Kalshi request failed: %s", e)
+                return None
+
+        logger.error("Kalshi request failed after 3 retries: %s %s", method, path)
+        return None
 
     # ── Event-based market discovery ──────────────────────────────
 
@@ -463,7 +483,7 @@ class KalshiClient:
         order_data = {
             "ticker": ticker,
             "side": side.lower(),  # "bid" or "ask"
-            "count": f"{count:.2f}",  # Fixed-point string
+            "count": count,
             "price": price_str,
             "time_in_force": time_in_force,
             "self_trade_prevention_type": "taker_at_cross",

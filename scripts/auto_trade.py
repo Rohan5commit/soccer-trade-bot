@@ -206,7 +206,7 @@ def start_bot() -> bool:
         "screen -dmS paper_trade bash -c '"
         "source .env 2>/dev/null || true; "
         "export $(grep -v \"^#\" .env | xargs) 2>/dev/null || true; "
-        "python run_paper_trade.py > data/paper_trade_cloud.log 2>&1'"
+        "python3 run_paper_trade.py > data/paper_trade_cloud.log 2>&1'"
     )
     ok, out = ssh_exec(cmd, timeout=120, retries=3)
     if ok:
@@ -300,13 +300,13 @@ def fetch_kalshi_events() -> List[Dict]:
     for s in series:
         try:
             resp = client._request("GET", "/events", params={
-                "series_ticker": s, "limit": 20, "status": "open"
+                "series_ticker": s, "limit": 50, "status": "open"
             })
             if resp and "events" in resp:
                 events.extend(resp["events"])
             time.sleep(1)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to fetch series %s: %s", s, e)
 
     return events
 
@@ -361,6 +361,8 @@ def find_best_match(fixtures: List[Dict], kalshi_events: List[Dict]) -> Optional
         # Score Kalshi market liquidity
         kalshi_score = 0.0
         for i, event in enumerate(kalshi_events):
+            if i in matched_kalshi:
+                continue
             title = event.get("title", "").lower()
             if " vs " in title:
                 teams = title.split(" vs ")
@@ -368,7 +370,10 @@ def find_best_match(fixtures: List[Dict], kalshi_events: List[Dict]) -> Optional
                 t_b = teams[1].strip().split(" winner")[0].strip().lower()
                 h_words = [w for w in home.lower().split() if len(w) > 3]
                 a_words = [w for w in away.lower().split() if len(w) > 3]
-                if any(w in t_a for w in h_words) and any(w in t_b for w in a_words):
+                # Check both orderings (home/away and away/home)
+                fwd = any(w in t_a for w in h_words) and any(w in t_b for w in a_words)
+                rev = any(w in t_b for w in h_words) and any(w in t_a for w in a_words)
+                if fwd or rev:
                     kalshi_score = 0.8
                     matched_kalshi.add(i)
                     break
@@ -389,8 +394,9 @@ def find_best_match(fixtures: List[Dict], kalshi_events: List[Dict]) -> Optional
             "combined": combined,
         })
 
-    # If no fixtures from KickoffAPI, create candidates from Kalshi events
-    if not fixtures:
+    # If no non-FT fixtures from KickoffAPI, create candidates from Kalshi events
+    non_ft_fixtures = [f for f in fixtures if f.get("statusShort", "NS") != "FT"]
+    if not non_ft_fixtures:
         for i, event in enumerate(kalshi_events):
             if i in matched_kalshi:
                 continue
@@ -417,7 +423,13 @@ def find_best_match(fixtures: List[Dict], kalshi_events: List[Dict]) -> Optional
                                 "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}
                     month = month_map.get(month_str, 0)
                     if month > 0:
-                        kickoff = datetime(now.year, month, day, 20, 0, tzinfo=timezone.utc)
+                        year = now.year
+                        # Handle year rollover (Dec → Jan)
+                        if month < now.month - 6:
+                            year += 1
+                        elif month > now.month + 6:
+                            year -= 1
+                        kickoff = datetime(year, month, day, 18, 0, tzinfo=timezone.utc)
                         minutes_until = (kickoff - now).total_seconds() / 60
                         if minutes_until < -10 or minutes_until > 1440:
                             continue
@@ -518,7 +530,12 @@ def cmd_check():
                                     "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12}
                         month = month_map.get(month_str, 0)
                         if month > 0:
-                            kickoff = datetime(now.year, month, day, 20, 0, tzinfo=timezone.utc)
+                            year = now.year
+                            if month < now.month - 6:
+                                year += 1
+                            elif month > now.month + 6:
+                                year -= 1
+                            kickoff = datetime(year, month, day, 18, 0, tzinfo=timezone.utc)
                             mins = (kickoff - now).total_seconds() / 60
                             if mins > 0:
                                 all_candidates.append((home, away, mins))
@@ -572,12 +589,17 @@ def cmd_check():
                 time.sleep(90)
                 configure_ssh()
                 start_bot()
+                state["match_active"] = True
+            else:
+                logger.error("Failed to start studio for live match")
         elif not is_bot_running():
             logger.info("Studio running but bot not active, starting bot...")
             configure_ssh()
             start_bot()
+            state["match_active"] = True
+        else:
+            state["match_active"] = True
 
-        state["match_active"] = True
         state["current_match"] = f"{best['home']} vs {best['away']}"
         state["match_status"] = best["status"]
         state["last_check"] = now.isoformat()
@@ -593,8 +615,18 @@ def cmd_check():
                 time.sleep(90)
                 configure_ssh()
                 start_bot()
+                state["match_active"] = True
+            else:
+                logger.error("Failed to start studio")
+        elif not is_bot_running():
+            # Auto-recovery: studio running but bot crashed — restart it
+            logger.info("Studio running but bot not active, restarting bot...")
+            configure_ssh()
+            start_bot()
+            state["match_active"] = True
+        else:
+            state["match_active"] = True
 
-        state["match_active"] = True
         state["current_match"] = f"{best['home']} vs {best['away']}"
         state["match_kickoff"] = best["kickoff_utc"]
         state["last_check"] = now.isoformat()
@@ -660,6 +692,10 @@ def cmd_stop():
     stop_studio()
     state = load_state()
     state["match_active"] = False
+    state["current_match"] = ""
+    state["match_kickoff"] = ""
+    state["match_status"] = ""
+    state["last_stop"] = datetime.now(timezone.utc).isoformat()
     save_state(state)
     print("Studio and bot stopped")
 

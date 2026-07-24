@@ -86,7 +86,9 @@ class KickoffApiClient:
         self._current_key_idx = 0
         self._request_count = 0
         self._last_request_time = 0.0
-        self._session = cloudscraper.create_scraper()
+        self._session = cloudscraper.create_scraper(
+            browser={"browser": "chrome", "platform": "linux", "mobile": False}
+        )
         self._remaining_per_key: Dict[str, int] = {k: 100 for k in keys}
 
     @property
@@ -146,6 +148,11 @@ class KickoffApiClient:
                     elif resp.status_code == 403:
                         logger.warning("KickoffAPI 403 (Cloudflare?) on key %d, retry %d/%d...",
                                       self._current_key_idx + 1, retry + 1, retries)
+                        if retry >= retries - 1:
+                            logger.warning("403 retries exhausted on key %d, rotating", self._current_key_idx + 1)
+                            if not self._rotate_key():
+                                return None
+                            break
                         time.sleep(3)
                         continue
                     else:
@@ -277,7 +284,7 @@ class KickoffApiClient:
         elapsed = fixture.get("elapsed") or 0
 
         # Determine period
-        is_live = status_short in ("1H", "2H", "HT", "ET", "P", "BT", "ST", "LIVE")
+        is_live = status_short in ("1H", "2H", "HT", "ET", "P", "BT", "ST", "LIVE", "AET", "PEN")
         period = 1
         if status_short == "2H":
             period = 2
