@@ -1,0 +1,91 @@
+name: Paper Trade Bot
+
+on:
+  workflow_dispatch:
+    inputs:
+      home:
+        description: 'Home team name'
+        required: true
+        type: string
+      away:
+        description: 'Away team name'
+        required: true
+        type: string
+      kickoff:
+        description: 'Kickoff time (ISO 8601 UTC)'
+        required: true
+        type: string
+      event_ticker:
+        description: 'Kalshi event ticker'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  trade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 210  # 3.5 hours max (match + buffer)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -q cloudscraper requests cryptography numpy scikit-learn xgboost lightgbm catboost
+
+      - name: Download previous trades DB
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: paper-trades-db
+          path: data/paper_signals/
+          if_no_artifact_found: warn
+          workflow: bot.yml
+
+      - name: Run paper trader
+        id: trade
+        env:
+          KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
+          KALSHI_PRIVATE_KEY: ${{ secrets.KALSHI_PRIVATE_KEY_B64 }}
+          KALSHI_USE_DEMO: "true"
+          KICKOFF_API_KEY: ${{ secrets.KICKOFF_API_KEY }}
+          KICKOFF_API_KEY_2: ${{ secrets.KICKOFF_API_KEY_2 }}
+          MATCH_HOME: ${{ inputs.home }}
+          MATCH_AWAY: ${{ inputs.away }}
+          MATCH_KICKOFF: ${{ inputs.kickoff }}
+          MATCH_EVENT_TICKER: ${{ inputs.event_ticker }}
+          PAPER_MODE: "true"
+          DRY_RUN: "true"
+          MAX_BET_PCT: "0.05"
+          KELLY_FRACTION: "0.25"
+          EDGE_THRESHOLD: "0.05"
+          CONFIDENCE_THRESHOLD: "0.70"
+        run: |
+          python scripts/run_bot_github.py 2>&1 | tee data/bot_output.log
+
+      - name: Save trades DB
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: paper-trades-db
+          path: data/paper_signals/
+          retention-days: 30
+
+      - name: Save logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bot-log-${{ inputs.event_ticker }}
+          path: data/bot_output.log
+          retention-days: 7
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Paper Trade Bot Results" >> $GITHUB_STEP_SUMMARY
+          echo "- Match: ${{ inputs.home }} vs ${{ inputs.away }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Event: ${{ inputs.event_ticker }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Kickoff: ${{ inputs.kickoff }}" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,46 @@
+name: Match Watcher
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # Every 30 minutes
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download latest schedule
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: match-schedule
+          path: data/
+          if_no_artifact_found: warn
+          workflow: scheduler.yml
+
+      - name: Check proximity and dispatch bot
+        id: check
+        env:
+          KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
+          KALSHI_PRIVATE_KEY: ${{ secrets.KALSHI_PRIVATE_KEY_B64 }}
+          KALSHI_USE_DEMO: "false"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/watch_proximity.py
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Watcher Results" >> $GITHUB_STEP_SUMMARY
+          echo "- Dispatched: ${{ steps.check.outputs.dispatched || 'none' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Time: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY

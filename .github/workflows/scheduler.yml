@@ -1,0 +1,50 @@
+name: Match Scheduler
+
+on:
+  schedule:
+    - cron: '0 10 * * *'  # 10:00 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -q cloudscraper requests cryptography
+
+      - name: Discover matches
+        id: discover
+        env:
+          KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
+          KALSHI_PRIVATE_KEY: ${{ secrets.KALSHI_PRIVATE_KEY_B64 }}
+          KALSHI_USE_DEMO: "false"
+        run: |
+          python scripts/match_scheduler.py --within-hours 24 --output data/schedule.json
+          MATCH_COUNT=$(python -c "import json; d=json.load(open('data/schedule.json')); print(d['match_count'])")
+          echo "match_count=$MATCH_COUNT" >> $GITHUB_OUTPUT
+          echo "Matches found: $MATCH_COUNT"
+
+      - name: Store schedule as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: match-schedule
+          path: data/schedule.json
+          retention-days: 2
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Match Scheduler Results" >> $GITHUB_STEP_SUMMARY
+          echo "- Matches found: ${{ steps.discover.outputs.match_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Generated at: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
