@@ -24,11 +24,15 @@ jobs:
         run: pip install -q cloudscraper requests cryptography
 
       - name: Decode Kalshi private key
-        id: decode_key
         env:
           KALSHI_PRIVATE_KEY_B64: ${{ secrets.KALSHI_PRIVATE_KEY_B64 }}
         run: |
-          echo "KALSHI_PRIVATE_KEY=$(echo $KALSHI_PRIVATE_KEY_B64 | base64 -d)" >> $GITHUB_ENV
+          DECODED=$(echo "$KALSHI_PRIVATE_KEY_B64" | base64 -d)
+          {
+            echo "KALSHI_PRIVATE_KEY<<EOF"
+            echo "$DECODED"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
 
       - name: Discover matches
         id: discover

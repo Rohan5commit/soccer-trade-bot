@@ -31,7 +31,13 @@ jobs:
       - name: Decode Kalshi private key
         env:
           KALSHI_PRIVATE_KEY_B64: ${{ secrets.KALSHI_PRIVATE_KEY_B64 }}
-        run: echo "KALSHI_PRIVATE_KEY=$(echo $KALSHI_PRIVATE_KEY_B64 | base64 -d)" >> $GITHUB_ENV
+        run: |
+          DECODED=$(echo "$KALSHI_PRIVATE_KEY_B64" | base64 -d)
+          {
+            echo "KALSHI_PRIVATE_KEY<<EOF"
+            echo "$DECODED"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
 
       - name: Check proximity and dispatch bot
         id: check
