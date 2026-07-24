@@ -139,30 +139,51 @@ def stop_studio() -> bool:
 
 def configure_ssh() -> bool:
     """Regenerate SSH key for current studio session."""
-    rc, out, err = run_cmd("lightning ssh configure --overwrite 2>&1", timeout=30)
+    logger.info("Configuring SSH for Lightning studio...")
+    rc, out, err = run_cmd("lightning ssh configure --overwrite 2>&1", timeout=60)
+    if rc == 0:
+        logger.info("SSH configured successfully: %s", out[:200])
+    else:
+        logger.error("SSH configure failed (rc=%d): %s | %s", rc, out[:300], err[:300])
     return rc == 0
 
 
-def ssh_exec(cmd: str, timeout: int = 30) -> Tuple[bool, str]:
-    """Execute a command on the Lightning studio via SSH."""
+def ssh_exec(cmd: str, timeout: int = 120, retries: int = 3) -> Tuple[bool, str]:
+    """Execute a command on the Lightning studio via SSH with retries.
+
+    Returns (success, output) where output is stdout on success or stderr on failure.
+    """
     ssh_user = os.environ.get("LIGHTNING_SSH_USER", "")
     if not ssh_user:
-        # Try to get from config
-        rc, out, _ = run_cmd("lightning config get studio 2>&1")
         # Fallback: parse SSH config
         rc2, out2, _ = run_cmd("grep -A 2 'soccer-trade-train' ~/.ssh/config 2>/dev/null | grep User | awk '{print $2}'")
         ssh_user = out2.strip()
 
     if not ssh_user:
-        logger.error("No SSH user found")
+        logger.error("No SSH user found — cannot SSH to studio")
         return False, ""
 
-    ssh_cmd = (
-        f'ssh -i ~/.ssh/lightning_rsa -o StrictHostKeyChecking=no '
-        f'-o ConnectTimeout=15 {ssh_user}@ssh.lightning.ai "{cmd}"'
-    )
-    rc, out, err = run_cmd(ssh_cmd, timeout=timeout)
-    return rc == 0, out
+    # Verify SSH key exists
+    key_path = Path("~/.ssh/lightning_rsa").expanduser()
+    if not key_path.exists():
+        logger.error("SSH key not found at %s — run 'lightning ssh configure'", key_path)
+        return False, ""
+
+    for attempt in range(retries):
+        ssh_cmd = (
+            f'ssh -i ~/.ssh/lightning_rsa -o StrictHostKeyChecking=no '
+            f'-o ConnectTimeout=30 {ssh_user}@ssh.lightning.ai "{cmd}"'
+        )
+        rc, out, err = run_cmd(ssh_cmd, timeout=timeout)
+        if rc == 0:
+            return True, out
+        logger.warning(
+            "SSH attempt %d/%d failed (rc=%d): %s",
+            attempt + 1, retries, rc, (err or out or "unknown error")[:200],
+        )
+        if attempt < retries - 1:
+            time.sleep(15)
+    return False, err or out
 
 
 def is_bot_running() -> bool:
@@ -172,11 +193,11 @@ def is_bot_running() -> bool:
 
 
 def start_bot() -> bool:
-    """Start the paper trader on the studio via SSH."""
+    """Start the paper trader on the studio via SSH (with retries)."""
     logger.info("Starting paper trader on studio...")
 
-    # Kill any existing session
-    ssh_exec("screen -S paper_trade -X quit 2>/dev/null || true")
+    # Kill any existing session (ignore failures)
+    ssh_exec("screen -S paper_trade -X quit 2>/dev/null || true", timeout=30, retries=1)
     time.sleep(2)
 
     # Start new session
@@ -187,13 +208,18 @@ def start_bot() -> bool:
         "export $(grep -v \"^#\" .env | xargs) 2>/dev/null || true; "
         "python run_paper_trade.py > data/paper_trade_cloud.log 2>&1'"
     )
-    ok, out = ssh_exec(cmd, timeout=30)
+    ok, out = ssh_exec(cmd, timeout=120, retries=3)
     if ok:
-        logger.info("Paper trader started")
-        time.sleep(5)
-        return is_bot_running()
+        logger.info("Paper trader SSH command sent successfully")
+        time.sleep(10)
+        running = is_bot_running()
+        if running:
+            logger.info("Paper trader confirmed running on studio")
+        else:
+            logger.warning("SSH succeeded but bot not detected in screen sessions — may still be starting")
+        return running
     else:
-        logger.error("Failed to start paper trader: %s", out)
+        logger.error("Failed to start paper trader (all SSH retries exhausted): %s", out)
         return False
 
 
@@ -542,7 +568,8 @@ def cmd_check():
             logger.info("Starting studio for live match...")
             configure_ssh()
             if start_studio():
-                time.sleep(30)  # Wait for studio to boot
+                logger.info("Waiting 90s for studio to fully boot...")
+                time.sleep(90)
                 configure_ssh()
                 start_bot()
         elif not is_bot_running():
@@ -562,7 +589,8 @@ def cmd_check():
         if status != "running":
             configure_ssh()
             if start_studio():
-                time.sleep(30)
+                logger.info("Waiting 90s for studio to fully boot...")
+                time.sleep(90)
                 configure_ssh()
                 start_bot()
 
@@ -615,7 +643,8 @@ def cmd_start():
     """Force start studio and bot."""
     configure_ssh()
     if start_studio():
-        time.sleep(30)
+        logger.info("Waiting 90s for studio to fully boot...")
+        time.sleep(90)
         configure_ssh()
         if start_bot():
             print("Studio and bot started successfully")

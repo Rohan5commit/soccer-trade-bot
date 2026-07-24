@@ -20,7 +20,7 @@ on:
 jobs:
   check-matches:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -44,8 +44,19 @@ jobs:
           printf '{"user_id":"%s","api_key":"%s","auth_token":""}\n' "$LIGHTNING_USER_ID" "$LIGHTNING_API_KEY" > ~/.lightning/credentials.json
           printf 'studio:\n  name: soccer-trade-train\nteamspace:\n  name: deploy-model-project\n  owner: juy595711-org\n  owner_type: organization\n' > ~/.lightning/config.yaml
           echo "Lightning config written"
-          cat ~/.lightning/credentials.json
-          cat ~/.lightning/config.yaml
+
+      - name: Configure SSH for Lightning
+        env:
+          LIGHTNING_USER_ID: ${{ secrets.LIGHTNING_USER_ID }}
+          LIGHTNING_API_KEY: ${{ secrets.LIGHTNING_API_KEY }}
+        run: |
+          lightning ssh configure --overwrite --name soccer-trade-train --teamspace juy595711-org/deploy-model-project 2>&1 || true
+          echo "--- SSH config ---"
+          cat ~/.ssh/config 2>/dev/null || echo "No ~/.ssh/config"
+          echo "--- SSH key exists ---"
+          ls -la ~/.ssh/lightning_rsa 2>/dev/null || echo "No SSH key found"
+          echo "--- SSH user from config ---"
+          grep -A 2 'soccer-trade-train' ~/.ssh/config 2>/dev/null | grep User | awk '{print $2}' || echo "No SSH user found"
 
       - name: Decode Kalshi private key
         env:
