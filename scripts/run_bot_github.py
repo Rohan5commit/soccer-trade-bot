@@ -186,6 +186,17 @@ class GitHubBot:
                     if elapsed > 120:
                         logger.info("Match likely over (%.0f min elapsed). Stopping.", elapsed)
                         break
+
+                    # Pre-match: sleep until 5 minutes before kickoff
+                    if elapsed < -5:
+                        wait_min = abs(elapsed) - 5
+                        logger.info(
+                            "Pre-match: kickoff in %.0f min. Sleeping 60s...",
+                            abs(elapsed),
+                        )
+                        time.sleep(60)
+                        continue
+
                     # Update game state clock
                     if elapsed > 0:
                         self._game_state.clock_minutes = min(elapsed, 90)
@@ -199,9 +210,9 @@ class GitHubBot:
                     # Check edges after fresh prices
                     self._check_edges()
 
-                # Status every 60 cycles (~60s)
+                # Status every 300 cycles (~5 min)
                 self._poll_count += 1
-                if self._poll_count % 60 == 0:
+                if self._poll_count % 300 == 0:
                     self._print_status()
 
                 time.sleep(1)
@@ -238,13 +249,25 @@ class GitHubBot:
         market_bids = {}
 
         for ticker, market in self._markets.items():
-            ticker_lower = ticker.lower()
-            if "home" in ticker_lower or "yes" in ticker_lower:
+            # Determine outcome from ticker suffix (e.g., KXMLSGAME-26JUL25NYRBCLT-HOME)
+            ticker_upper = ticker.upper()
+            if ticker_upper.endswith("-HOME") or ticker_upper.endswith("-YES"):
                 outcome = "home"
-            elif "draw" in ticker_lower:
+            elif ticker_upper.endswith("-DRAW"):
                 outcome = "draw"
-            else:
+            elif ticker_upper.endswith("-AWAY") or ticker_upper.endswith("-NO"):
                 outcome = "away"
+            else:
+                # Fallback: check subtitle for clues
+                sub = market.subtitle.lower()
+                if "home" in sub or "1" in sub:
+                    outcome = "home"
+                elif "draw" in sub:
+                    outcome = "draw"
+                elif "away" in sub or "2" in sub:
+                    outcome = "away"
+                else:
+                    continue
 
             if market.yes_ask > 0:
                 market_prices[outcome] = (market.yes_bid + market.yes_ask) / 2
@@ -298,10 +321,14 @@ class GitHubBot:
         # Find the matching ticker
         ticker = None
         for t, m in self._markets.items():
-            t_lower = t.lower()
-            if (outcome == "home" and ("home" in t_lower or "yes" in t_lower)) or \
-               (outcome == "draw" and "draw" in t_lower) or \
-               (outcome == "away" and ("away" in t_lower or "no" in t_lower)):
+            t_upper = t.upper()
+            if outcome == "home" and (t_upper.endswith("-HOME") or t_upper.endswith("-YES")):
+                ticker = t
+                break
+            elif outcome == "draw" and t_upper.endswith("-DRAW"):
+                ticker = t
+                break
+            elif outcome == "away" and (t_upper.endswith("-AWAY") or t_upper.endswith("-NO")):
                 ticker = t
                 break
 

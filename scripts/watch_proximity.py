@@ -40,21 +40,21 @@ def load_schedule() -> list:
     return []
 
 
-def is_bot_already_running(event_ticker: str) -> bool:
-    """Check if a bot workflow is already running for this match."""
-    try:
-        result = subprocess.run(
-            ["gh", "run", "list", "--workflow=bot.yml", "--status=in_progress",
-             "--limit=10", "--json=name,status,createdAt"],
-            capture_output=True, text=True, timeout=15,
-        )
-        if result.returncode == 0:
-            runs = json.loads(result.stdout)
-            for run in runs:
-                if event_ticker in run.get("name", ""):
+def is_bot_already_running() -> bool:
+    """Check if ANY bot workflow is already running or queued."""
+    for status in ("in_progress", "queued"):
+        try:
+            result = subprocess.run(
+                ["gh", "run", "list", "--workflow=bot.yml", f"--status={status}",
+                 "--limit=5", "--json=name,status"],
+                capture_output=True, text=True, timeout=15,
+            )
+            if result.returncode == 0:
+                runs = json.loads(result.stdout)
+                if runs:
                     return True
-    except Exception:
-        pass
+        except Exception:
+            pass
     return False
 
 
@@ -62,8 +62,8 @@ def dispatch_bot(match: dict) -> bool:
     """Dispatch the bot workflow via GitHub API."""
     event_ticker = match["event_ticker"]
 
-    if is_bot_already_running(event_ticker):
-        print(f"[INFO] Bot already running for {event_ticker}", file=sys.stderr)
+    if is_bot_already_running():
+        print(f"[INFO] Bot already running or queued — skipping {event_ticker}", file=sys.stderr)
         return False
 
     # Dispatch via gh CLI

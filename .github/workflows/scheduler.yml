@@ -76,14 +76,21 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Dispatching bot for ${{ steps.discover.outputs.best_home }} vs ${{ steps.discover.outputs.best_away }}"
-          gh workflow run bot.yml \
-            --repo Rohan5commit/soccer-trade-bot \
-            -f home="${{ steps.discover.outputs.best_home }}" \
-            -f away="${{ steps.discover.outputs.best_away }}" \
-            -f kickoff="${{ steps.discover.outputs.best_kickoff }}" \
-            -f event_ticker="${{ steps.discover.outputs.best_ticker }}"
-          echo "Bot dispatched successfully"
+          # Check if a bot is already running or queued
+          RUNNING=$(gh run list --workflow=bot.yml --status=in_progress --limit=1 --json=name --jq 'length')
+          QUEUED=$(gh run list --workflow=bot.yml --status=queued --limit=1 --json=name --jq 'length')
+          if [ "$RUNNING" != "0" ] || [ "$QUEUED" != "0" ]; then
+            echo "Bot already running ($RUNNING) or queued ($QUEUED) — skipping dispatch"
+          else
+            echo "Dispatching bot for ${{ steps.discover.outputs.best_home }} vs ${{ steps.discover.outputs.best_away }}"
+            gh workflow run bot.yml \
+              --repo Rohan5commit/soccer-trade-bot \
+              -f home="${{ steps.discover.outputs.best_home }}" \
+              -f away="${{ steps.discover.outputs.best_away }}" \
+              -f kickoff="${{ steps.discover.outputs.best_kickoff }}" \
+              -f event_ticker="${{ steps.discover.outputs.best_ticker }}"
+            echo "Bot dispatched successfully"
+          fi
 
       - name: Summary
         if: always()
