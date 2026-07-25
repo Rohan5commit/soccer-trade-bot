@@ -24,6 +24,9 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
+# Add parent dir to path for imports
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from config import load_config
 from market.kalshi_client import KalshiClient, KalshiMarket
 from model.predict import WinPredictor
