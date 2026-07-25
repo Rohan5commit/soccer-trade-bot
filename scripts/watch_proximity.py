@@ -109,8 +109,9 @@ def main():
     for match in matches:
         minutes_until = match.get("minutes_until", 9999)
 
-        # Match must be starting within 2 hours and not already started
-        if -10 <= minutes_until <= 120:
+        # Match must be starting within 12 hours and not already started
+        # (backup safety net — scheduler handles primary dispatch)
+        if -10 <= minutes_until <= 720:
             print(f"[MATCH] {match['home']} vs {match['away']} "
                   f"in {minutes_until:.0f} min ({match['event_ticker']})",
                   file=sys.stderr)
@@ -123,7 +124,7 @@ def main():
     print(f"dispatched={dispatched_str}")
 
     if not dispatched:
-        print("[INFO] No matches within 2-hour window", file=sys.stderr)
+        print("[INFO] No matches within 12-hour backup window", file=sys.stderr)
 
 
 if __name__ == "__main__":

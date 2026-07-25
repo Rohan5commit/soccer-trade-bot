@@ -34,16 +34,35 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_ENV"
 
-      - name: Discover matches
+      - name: Discover matches + pick best
         id: discover
         env:
           KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
           KALSHI_USE_DEMO: "false"
         run: |
-          python scripts/match_scheduler.py --within-hours 24 --output data/schedule.json
+          python scripts/match_scheduler.py \
+            --within-hours 24 \
+            --output data/schedule.json \
+            --best-output data/best_match.json
           MATCH_COUNT=$(python -c "import json; d=json.load(open('data/schedule.json')); print(d['match_count'])")
           echo "match_count=$MATCH_COUNT" >> $GITHUB_OUTPUT
-          echo "Matches found: $MATCH_COUNT"
+
+          # Extract best match fields
+          if [ -f data/best_match.json ]; then
+            HOME=$(python -c "import json; print(json.load(open('data/best_match.json'))['home'])")
+            AWAY=$(python -c "import json; print(json.load(open('data/best_match.json'))['away'])")
+            KICKOFF=$(python -c "import json; print(json.load(open('data/best_match.json'))['kickoff_utc'])")
+            TICKER=$(python -c "import json; print(json.load(open('data/best_match.json'))['event_ticker'])")
+            SCORE=$(python -c "import json; print(json.load(open('data/best_match.json'))['score'])")
+            echo "best_home=$HOME" >> $GITHUB_OUTPUT
+            echo "best_away=$AWAY" >> $GITHUB_OUTPUT
+            echo "best_kickoff=$KICKOFF" >> $GITHUB_OUTPUT
+            echo "best_ticker=$TICKER" >> $GITHUB_OUTPUT
+            echo "best_score=$SCORE" >> $GITHUB_OUTPUT
+            echo "Found best match: $HOME vs $AWAY (score=$SCORE, kickoff=$KICKOFF)"
+          else
+            echo "No match found to trade today"
+          fi
 
       - name: Store schedule as artifact
         uses: actions/upload-artifact@v4
@@ -52,9 +71,31 @@ jobs:
           path: data/schedule.json
           retention-days: 2
 
+      - name: Dispatch paper trade bot
+        if: steps.discover.outputs.best_ticker != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Dispatching bot for ${{ steps.discover.outputs.best_home }} vs ${{ steps.discover.outputs.best_away }}"
+          gh workflow run bot.yml \
+            --repo Rohan5commit/soccer-trade-bot \
+            -f home="${{ steps.discover.outputs.best_home }}" \
+            -f away="${{ steps.discover.outputs.best_away }}" \
+            -f kickoff="${{ steps.discover.outputs.best_kickoff }}" \
+            -f event_ticker="${{ steps.discover.outputs.best_ticker }}"
+          echo "Bot dispatched successfully"
+
       - name: Summary
         if: always()
         run: |
           echo "## Match Scheduler Results" >> $GITHUB_STEP_SUMMARY
-          echo "- Matches found: ${{ steps.discover.outputs.match_count }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Generated at: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "- Total matches found: ${{ steps.discover.outputs.match_count }}" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ steps.discover.outputs.best_home }}" ]; then
+            echo "- **Best match: ${{ steps.discover.outputs.best_home }} vs ${{ steps.discover.outputs.best_away }}**" >> $GITHUB_STEP_SUMMARY
+            echo "- Score: ${{ steps.discover.outputs.best_score }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Kickoff: ${{ steps.discover.outputs.best_kickoff }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Event: ${{ steps.discover.outputs.best_ticker }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Bot dispatched: YES" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- No match found to trade today" >> $GITHUB_STEP_SUMMARY
+          fi
