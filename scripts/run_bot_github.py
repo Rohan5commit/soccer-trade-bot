@@ -194,7 +194,6 @@ class GitHubBot:
 
                     # Pre-match: sleep until 5 minutes before kickoff
                     if elapsed < -5:
-                        wait_min = abs(elapsed) - 5
                         logger.info(
                             "Pre-match: kickoff in %.0f min. Sleeping 60s...",
                             abs(elapsed),
@@ -370,9 +369,9 @@ class GitHubBot:
         # Place order on Kalshi demo
         result = self.kalshi.place_order(
             ticker=ticker,
-            side="yes",
+            side="bid",
             count=count,
-            price=price,
+            yes_price=price,
         )
 
         trade = {

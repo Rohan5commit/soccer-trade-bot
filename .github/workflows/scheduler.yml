@@ -38,7 +38,6 @@ jobs:
         id: discover
         env:
           KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
-          KALSHI_USE_DEMO: "false"
         run: |
           python scripts/match_scheduler.py \
             --within-hours 24 \

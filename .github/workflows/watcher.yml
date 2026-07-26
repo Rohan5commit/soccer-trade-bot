@@ -20,9 +20,6 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
-        run: pip install -q cloudscraper requests cryptography
-
       - name: Download latest schedule
         uses: dawidd6/action-download-artifact@v6
         with:
@@ -49,7 +46,10 @@ jobs:
           KALSHI_USE_DEMO: "false"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python scripts/watch_proximity.py
+          OUTPUT=$(python scripts/watch_proximity.py 2>&1)
+          echo "$OUTPUT"
+          DISPATCHED=$(echo "$OUTPUT" | grep "^dispatched=" | cut -d= -f2-)
+          echo "dispatched=${DISPATCHED:-none}" >> "$GITHUB_OUTPUT"
 
       - name: Summary
         if: always()
