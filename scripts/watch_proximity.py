@@ -2,42 +2,101 @@
 """Watch proximity: checks if any match is starting soon, dispatches bot.
 
 Called by watcher.yml every 30 minutes. Reads the schedule artifact,
-finds matches within the 2-hour window, and triggers the bot workflow.
+picks the SINGLE best match, and triggers the bot workflow.
+Only dispatches future matches — never re-dispatches past matches.
 """
 
 import json
 import os
+import re
 import subprocess
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Dict, List, Optional
 
 
-def load_schedule() -> list:
-    """Load match schedule from artifact or discover fresh."""
+def load_schedule() -> dict:
+    """Load match schedule from artifact. Returns {generated_at, matches}."""
     schedule_file = Path("data/schedule.json")
 
     if schedule_file.exists():
         try:
-            data = json.loads(schedule_file.read_text())
-            return data.get("matches", [])
+            return json.loads(schedule_file.read_text())
         except Exception as e:
             print(f"[WARN] Failed to load schedule: {e}", file=sys.stderr)
 
-    # Fallback: discover fresh
-    print("[INFO] No schedule file, discovering fresh...", file=sys.stderr)
-    try:
-        result = subprocess.run(
-            [sys.executable, "scripts/match_scheduler.py", "--within-hours", "4"],
-            capture_output=True, text=True, timeout=120,
-        )
-        if result.returncode == 0:
-            return json.loads(result.stdout)
-    except Exception as e:
-        print(f"[ERROR] Fresh discovery failed: {e}", file=sys.stderr)
+    return {}
 
-    return []
+
+def filter_future_matches(matches: List[Dict]) -> List[Dict]:
+    """Only keep matches with positive minutes_until (not yet started).
+
+    Also recalculates minutes_until from current time since schedule may be stale.
+    """
+    now = datetime.now(timezone.utc)
+    future = []
+
+    for m in matches:
+        kickoff_str = m.get("kickoff_utc", "")
+        if not kickoff_str:
+            continue
+
+        try:
+            kickoff = datetime.fromisoformat(kickoff_str.replace("Z", "+00:00"))
+        except Exception:
+            continue
+
+        minutes_until = (kickoff - now).total_seconds() / 60
+
+        # Only future matches (at least 10 min away, max 12 hours)
+        if 10 <= minutes_until <= 720:
+            future.append({**m, "minutes_until": round(minutes_until, 1)})
+
+    return future
+
+
+def _score_match(match: Dict) -> float:
+    """Score a match for the watcher. Returns 0.0-1.0."""
+    minutes_until = match.get("minutes_until", 9999)
+    markets_count = match.get("markets_count", 0)
+
+    # Timing: prefer 2-6 hours out
+    if minutes_until < 30:
+        timing = 0.1
+    elif minutes_until < 60:
+        timing = 0.4
+    elif minutes_until < 120:
+        timing = 0.7
+    elif minutes_until < 240:
+        timing = 1.0
+    elif minutes_until < 360:
+        timing = 0.8
+    else:
+        timing = 0.3
+
+    # Liquidity: more markets = better
+    liquidity = min(markets_count / 10, 1.0) if markets_count > 0 else 0.3
+
+    return timing * 0.6 + liquidity * 0.4
+
+
+def pick_best_match(matches: List[Dict]) -> Optional[Dict]:
+    """Pick the single best match to trade. Returns None if nothing good."""
+    if not matches:
+        return None
+
+    scored = [(m, _score_match(m)) for m in matches]
+    scored.sort(key=lambda x: x[1], reverse=True)
+
+    best, best_score = scored[0]
+    print(
+        f"[INFO] Best match: {best['home']} vs {best['away']} "
+        f"(score={best_score:.2f}, {best['minutes_until']:.0f}min away)",
+        file=sys.stderr,
+    )
+    return best
 
 
 def is_bot_already_running() -> bool:
@@ -60,19 +119,9 @@ def is_bot_already_running() -> bool:
 
 def dispatch_bot(match: dict) -> bool:
     """Dispatch the bot workflow via GitHub API."""
-    event_ticker = match["event_ticker"]
-
     if is_bot_already_running():
-        print(f"[INFO] Bot already running or queued — skipping {event_ticker}", file=sys.stderr)
+        print(f"[INFO] Bot already running or queued — skipping", file=sys.stderr)
         return False
-
-    # Dispatch via gh CLI
-    payload = json.dumps({
-        "home": match["home"],
-        "away": match["away"],
-        "kickoff": match["kickoff_utc"],
-        "event_ticker": event_ticker,
-    })
 
     try:
         result = subprocess.run(
@@ -82,7 +131,7 @@ def dispatch_bot(match: dict) -> bool:
                 "-f", f"home={match['home']}",
                 "-f", f"away={match['away']}",
                 "-f", f"kickoff={match['kickoff_utc']}",
-                "-f", f"event_ticker={event_ticker}",
+                "-f", f"event_ticker={match['event_ticker']}",
             ],
             capture_output=True, text=True, timeout=30,
         )
@@ -101,30 +150,25 @@ def main():
     now = datetime.now(timezone.utc)
     print(f"[INFO] Watcher check at {now.isoformat()}", file=sys.stderr)
 
-    matches = load_schedule()
-    print(f"[INFO] Loaded {len(matches)} matches", file=sys.stderr)
+    schedule_data = load_schedule()
+    raw_matches = schedule_data.get("matches", [])
+    generated_at = schedule_data.get("generated_at", "unknown")
+    print(f"[INFO] Schedule generated at {generated_at}, loaded {len(raw_matches)} matches", file=sys.stderr)
 
-    dispatched = []
+    # Filter to future matches only
+    matches = filter_future_matches(raw_matches)
+    print(f"[INFO] {len(matches)} matches still upcoming (filtered from {len(raw_matches)})", file=sys.stderr)
 
-    for match in matches:
-        minutes_until = match.get("minutes_until", 9999)
+    # Pick best match
+    best = pick_best_match(matches)
 
-        # Match must be starting within 12 hours and not already started
-        # (backup safety net — scheduler handles primary dispatch)
-        if -10 <= minutes_until <= 720:
-            print(f"[MATCH] {match['home']} vs {match['away']} "
-                  f"in {minutes_until:.0f} min ({match['event_ticker']})",
-                  file=sys.stderr)
+    # Dispatch
+    dispatched = "none"
+    if best:
+        if dispatch_bot(best):
+            dispatched = f"{best['home']} vs {best['away']}"
 
-            if dispatch_bot(match):
-                dispatched.append(f"{match['home']} vs {match['away']}")
-
-    # Output for GitHub Step Summary
-    dispatched_str = ", ".join(dispatched) if dispatched else "none"
-    print(f"dispatched={dispatched_str}")
-
-    if not dispatched:
-        print("[INFO] No matches within 12-hour backup window", file=sys.stderr)
+    print(f"dispatched={dispatched}")
 
 
 if __name__ == "__main__":

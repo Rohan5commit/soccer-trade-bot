@@ -159,14 +159,14 @@ class GitHubBot:
             return False
 
         if not self._markets:
-            logger.error("No markets found for %s", self.event_ticker)
+            logger.warning("No markets found for %s — match may be closed or cancelled", self.event_ticker)
             return False
 
         return True
 
     def run(self):
         if not self.initialize():
-            logger.error("Initialization failed")
+            logger.warning("Bot initialization failed — no markets available. Exiting cleanly.")
             return
 
         self._running = True
