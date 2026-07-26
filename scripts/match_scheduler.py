@@ -17,6 +17,8 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+IST = timezone(timedelta(hours=5, minutes=30))
+
 # Add parent dir to path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -63,7 +65,7 @@ def parse_kalshi_event(event: dict, now: datetime) -> Optional[Dict]:
                     year += 1
                 elif month > now.month + 6:
                     year -= 1
-                kickoff = datetime(year, month, day, 18, 0, tzinfo=timezone.utc)
+                kickoff = datetime(year, month, day, 23, 30, tzinfo=IST)
         except Exception:
             pass
 
@@ -84,7 +86,7 @@ def parse_kalshi_event(event: dict, now: datetime) -> Optional[Dict]:
         "away": away,
         "event_ticker": event_ticker,
         "series": series,
-        "kickoff_utc": kickoff.isoformat(),
+        "kickoff_ist": kickoff.isoformat(),
         "minutes_until": round(minutes_until, 1),
         "sub_title": sub_title,
         "markets_count": len(markets),
@@ -97,7 +99,7 @@ def discover_matches() -> List[Dict]:
     Returns sorted list of match dicts, soonest first.
     """
     cfg = load_config()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(IST)
 
     client = KalshiClient(
         api_key=cfg.kalshi_api_key,
@@ -219,7 +221,7 @@ def pick_best_match(matches: List[Dict]) -> Optional[Dict]:
     if not matches:
         return None
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(IST)
     scored = []
 
     # Find max markets_count for normalization
@@ -268,7 +270,7 @@ def pick_best_match(matches: List[Dict]) -> Optional[Dict]:
 def save_schedule(matches: List[Dict], output_path: str) -> None:
     """Save match schedule to JSON file."""
     schedule = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(IST).isoformat(),
         "match_count": len(matches),
         "matches": matches,
     }

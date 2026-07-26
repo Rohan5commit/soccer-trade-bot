@@ -24,6 +24,8 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
+IST = timezone(timedelta(hours=5, minutes=30))
+
 # Add parent dir to path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -109,7 +111,10 @@ class GitHubBot:
         logger.info("GITHUB ACTIONS PAPER BOT")
         logger.info("Match: %s vs %s", self.match_home, self.match_away)
         logger.info("Event: %s", self.event_ticker)
-        logger.info("Kickoff: %s", self.match_kickoff_str)
+        if self.match_kickoff:
+            logger.info("Kickoff: %s IST", self.match_kickoff.astimezone(IST).strftime("%Y-%m-%d %H:%M"))
+        else:
+            logger.info("Kickoff: %s", self.match_kickoff_str)
         logger.info("=" * 60)
 
         # Kalshi client
@@ -182,7 +187,7 @@ class GitHubBot:
 
                 # Check if match is over
                 if self.match_kickoff:
-                    elapsed = (datetime.now(timezone.utc) - self.match_kickoff).total_seconds() / 60
+                    elapsed = (datetime.now(IST) - self.match_kickoff).total_seconds() / 60
                     if elapsed > 120:
                         logger.info("Match likely over (%.0f min elapsed). Stopping.", elapsed)
                         break
@@ -371,7 +376,7 @@ class GitHubBot:
         )
 
         trade = {
-            "time": datetime.now(timezone.utc).isoformat(),
+            "time": datetime.now(IST).isoformat(),
             "match": f"{self.match_home} vs {self.match_away}",
             "event_ticker": self.event_ticker,
             "ticker": ticker,
@@ -393,7 +398,7 @@ class GitHubBot:
     def _print_status(self):
         elapsed = 0
         if self.match_kickoff:
-            elapsed = (datetime.now(timezone.utc) - self.match_kickoff).total_seconds() / 60
+            elapsed = (datetime.now(IST) - self.match_kickoff).total_seconds() / 60
 
         logger.info("--- STATUS (T+%.0f min) ---", elapsed)
         logger.info("  Bankroll: $%.2f | Trades: %d", self._bankroll, len(self._trades))

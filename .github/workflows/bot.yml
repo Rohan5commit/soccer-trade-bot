@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       kickoff:
-        description: 'Kickoff time (ISO 8601 UTC)'
+        description: 'Kickoff time (ISO 8601 IST)'
         required: true
         type: string
       event_ticker:

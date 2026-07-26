@@ -2,7 +2,7 @@ name: Match Scheduler
 
 on:
   schedule:
-    - cron: '0 10 * * *'  # 10:00 UTC daily
+    - cron: '30 4 * * *'  # 10:00 IST daily (04:30 UTC)
   workflow_dispatch:
 
 permissions:
@@ -51,7 +51,7 @@ jobs:
           if [ -f data/best_match.json ]; then
             HOME=$(python -c "import json; print(json.load(open('data/best_match.json'))['home'])")
             AWAY=$(python -c "import json; print(json.load(open('data/best_match.json'))['away'])")
-            KICKOFF=$(python -c "import json; print(json.load(open('data/best_match.json'))['kickoff_utc'])")
+            KICKOFF=$(python -c "import json; print(json.load(open('data/best_match.json'))['kickoff_ist'])")
             TICKER=$(python -c "import json; print(json.load(open('data/best_match.json'))['event_ticker'])")
             SCORE=$(python -c "import json; print(json.load(open('data/best_match.json'))['score'])")
             echo "best_home=$HOME" >> $GITHUB_OUTPUT

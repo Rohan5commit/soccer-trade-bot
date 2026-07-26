@@ -23,6 +23,8 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+IST = timezone(timedelta(hours=5, minutes=30))
+
 import cloudscraper
 
 # Config
@@ -314,9 +316,9 @@ def fetch_kalshi_events() -> List[Dict]:
 def find_best_match(fixtures: List[Dict], kalshi_events: List[Dict]) -> Optional[Dict]:
     """Find the best upcoming match to track.
 
-    Returns dict with keys: fixture_id, home, away, kickoff_utc, league_id, kalshi_score
+    Returns dict with keys: fixture_id, home, away, kickoff_ist, league_id, kalshi_score
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(IST)
     candidates = []
 
     # Track which Kalshi events we've already matched to fixtures
@@ -351,7 +353,7 @@ def find_best_match(fixtures: List[Dict], kalshi_events: List[Dict]) -> Optional
                 "fixture_id": fixture_id,
                 "home": home,
                 "away": away,
-                "kickoff_utc": kickoff.isoformat(),
+                "kickoff_ist": kickoff.isoformat(),
                 "league_id": league_id,
                 "status": status,
                 "minutes_until": minutes_until,
@@ -386,7 +388,7 @@ def find_best_match(fixtures: List[Dict], kalshi_events: List[Dict]) -> Optional
             "fixture_id": fixture_id,
             "home": home,
             "away": away,
-            "kickoff_utc": kickoff.isoformat(),
+            "kickoff_ist": kickoff.isoformat(),
             "league_id": league_id,
             "status": status,
             "minutes_until": minutes_until,
@@ -429,7 +431,7 @@ def find_best_match(fixtures: List[Dict], kalshi_events: List[Dict]) -> Optional
                             year += 1
                         elif month > now.month + 6:
                             year -= 1
-                        kickoff = datetime(year, month, day, 18, 0, tzinfo=timezone.utc)
+                        kickoff = datetime(year, month, day, 23, 30, tzinfo=IST)
                         minutes_until = (kickoff - now).total_seconds() / 60
                         if minutes_until < -10 or minutes_until > 1440:
                             continue
@@ -437,7 +439,7 @@ def find_best_match(fixtures: List[Dict], kalshi_events: List[Dict]) -> Optional
                             "fixture_id": hash(event_ticker) % 1000000,
                             "home": home,
                             "away": away,
-                            "kickoff_utc": kickoff.isoformat(),
+                            "kickoff_ist": kickoff.isoformat(),
                             "league_id": league_id,
                             "status": "NS",
                             "minutes_until": minutes_until,
@@ -476,7 +478,7 @@ def cmd_check():
     logger.info("AUTO-TRADE CHECK")
     logger.info("=" * 60)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(IST)
     today = now.strftime("%Y-%m-%d")
     state = load_state()
 
@@ -535,7 +537,7 @@ def cmd_check():
                                 year += 1
                             elif month > now.month + 6:
                                 year -= 1
-                            kickoff = datetime(year, month, day, 18, 0, tzinfo=timezone.utc)
+                            kickoff = datetime(year, month, day, 23, 30, tzinfo=IST)
                             mins = (kickoff - now).total_seconds() / 60
                             if mins > 0:
                                 all_candidates.append((home, away, mins))
@@ -628,7 +630,7 @@ def cmd_check():
             state["match_active"] = True
 
         state["current_match"] = f"{best['home']} vs {best['away']}"
-        state["match_kickoff"] = best["kickoff_utc"]
+        state["match_kickoff"] = best["kickoff_ist"]
         state["last_check"] = now.isoformat()
         save_state(state)
 
@@ -648,7 +650,7 @@ def cmd_check():
         logger.info("Match is %.1f hours away, waiting...", minutes_until / 60)
         state["match_active"] = False
         state["current_match"] = f"{best['home']} vs {best['away']}"
-        state["match_kickoff"] = best["kickoff_utc"]
+        state["match_kickoff"] = best["kickoff_ist"]
         state["last_check"] = now.isoformat()
         save_state(state)
 
@@ -695,7 +697,7 @@ def cmd_stop():
     state["current_match"] = ""
     state["match_kickoff"] = ""
     state["match_status"] = ""
-    state["last_stop"] = datetime.now(timezone.utc).isoformat()
+    state["last_stop"] = datetime.now(IST).isoformat()
     save_state(state)
     print("Studio and bot stopped")
 

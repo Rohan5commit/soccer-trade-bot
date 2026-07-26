@@ -12,9 +12,11 @@ import re
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
+
+IST = timezone(timedelta(hours=5, minutes=30))
 
 
 def load_schedule() -> dict:
@@ -35,11 +37,11 @@ def filter_future_matches(matches: List[Dict]) -> List[Dict]:
 
     Also recalculates minutes_until from current time since schedule may be stale.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(IST)
     future = []
 
     for m in matches:
-        kickoff_str = m.get("kickoff_utc", "")
+        kickoff_str = m.get("kickoff_ist", "")
         if not kickoff_str:
             continue
 
@@ -130,7 +132,7 @@ def dispatch_bot(match: dict) -> bool:
                 "--repo", os.environ.get("GITHUB_REPOSITORY", "Rohan5commit/soccer-trade-bot"),
                 "-f", f"home={match['home']}",
                 "-f", f"away={match['away']}",
-                "-f", f"kickoff={match['kickoff_utc']}",
+                "-f", f"kickoff={match['kickoff_ist']}",
                 "-f", f"event_ticker={match['event_ticker']}",
             ],
             capture_output=True, text=True, timeout=30,
@@ -147,8 +149,8 @@ def dispatch_bot(match: dict) -> bool:
 
 
 def main():
-    now = datetime.now(timezone.utc)
-    print(f"[INFO] Watcher check at {now.isoformat()}", file=sys.stderr)
+    now = datetime.now(IST)
+    print(f"[INFO] Watcher check at {now.strftime('%Y-%m-%d %H:%M IST')}", file=sys.stderr)
 
     schedule_data = load_schedule()
     raw_matches = schedule_data.get("matches", [])
