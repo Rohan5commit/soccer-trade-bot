@@ -476,8 +476,10 @@ class KalshiClient:
         # Normalize price to dollar string
         if isinstance(yes_price, str):
             price_str = yes_price  # Already "0.4300" format
-        else:
+        elif isinstance(yes_price, (int, float)) and yes_price > 1:
             price_str = f"{yes_price / 100:.4f}"  # Cents → dollars
+        else:
+            price_str = f"{yes_price:.4f}"  # Already dollars
 
         # V2 endpoint: POST /portfolio/events/orders
         order_data = {

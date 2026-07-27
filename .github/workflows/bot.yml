@@ -26,7 +26,7 @@ permissions:
 jobs:
   trade:
     runs-on: ubuntu-latest
-    timeout-minutes: 210  # 3.5 hours max (match + buffer)
+    timeout-minutes: 240  # 4 hours max (90 min wait + 120 min match + 30 min buffer)
     steps:
       - uses: actions/checkout@v4
 

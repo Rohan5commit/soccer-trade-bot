@@ -146,6 +146,7 @@ class GitHubBot:
             confidence_threshold=self.config.confidence_threshold,
         )
         self.kelly = KellySizer(
+            base_kelly=self.config.kelly_fraction,
             max_bet_pct=self.config.max_bet_pct,
             min_bet_usd=self.config.min_bet_usd,
         )

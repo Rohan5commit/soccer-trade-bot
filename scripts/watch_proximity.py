@@ -52,8 +52,9 @@ def filter_future_matches(matches: List[Dict]) -> List[Dict]:
 
         minutes_until = (kickoff - now).total_seconds() / 60
 
-        # Only future matches (at least 10 min away, max 12 hours)
-        if 10 <= minutes_until <= 720:
+        # Only future matches (at least 10 min away, max 90 min)
+        # Bot timeout is 240 min; 90 min wait + 120 min match + 30 min buffer = 240 min
+        if 10 <= minutes_until <= 90:
             future.append({**m, "minutes_until": round(minutes_until, 1)})
 
     return future
