@@ -156,8 +156,8 @@ class GitHubBot:
             for m in markets:
                 self._markets[m.ticker] = m
                 logger.info(
-                    "  Market: %s (yes=$%.2f no=$%.2f vol=%d)",
-                    m.ticker, m.yes_ask, m.no_ask, m.volume,
+                    "  Market: %s (yes=$%.2f no=$%.2f vol=%d) title=%r sub=%r",
+                    m.ticker, m.yes_ask, m.no_ask, m.volume, m.title, m.subtitle,
                 )
         except Exception as e:
             logger.error("Failed to discover markets: %s", e)
@@ -167,7 +167,63 @@ class GitHubBot:
             logger.warning("No markets found for %s — match may be closed or cancelled", self.event_ticker)
             return False
 
+        # Log outcome mapping
+        for t, m in self._markets.items():
+            outcome = self._map_outcome(m)
+            logger.info("  Mapping %s -> %s", t, outcome or "UNKNOWN")
+
         return True
+
+    def _map_outcome(self, market: KalshiMarket) -> Optional[str]:
+        """Map a Kalshi market to home/draw/away outcome.
+
+        Tries ticker suffix first, then market title suffix, then subtitle.
+        Kalshi GAME market titles: "Home vs Away - <outcome>"
+        where outcome is team name or "Tie"/"Draw".
+        """
+        t = market.ticker.upper()
+
+        if t.endswith("-HOME") or t.endswith("-YES"):
+            return "home"
+        if t.endswith("-DRAW"):
+            return "draw"
+        if t.endswith("-AWAY") or t.endswith("-NO"):
+            return "away"
+
+        # Title suffix after last " - " is the outcome label
+        title = market.title
+        suffix = title.rsplit(" - ", 1)[-1].strip().lower() if " - " in title else title.lower()
+        home = self.match_home.lower()
+        away = self.match_away.lower()
+
+        if home and suffix == home:
+            return "home"
+        if away and suffix == away:
+            return "away"
+        if suffix in ("tie", "draw"):
+            return "draw"
+
+        # Subtitle fallback
+        sub = market.subtitle.lower()
+        if home and home in sub:
+            return "home"
+        if away and away in sub:
+            return "away"
+        if "tie" in sub or "draw" in sub:
+            return "draw"
+        if "home" in sub or "1" in sub:
+            return "home"
+        if "away" in sub or "2" in sub:
+            return "away"
+
+        return None
+
+    def _find_ticker_for_outcome(self, outcome: str) -> Optional[str]:
+        """Find the Kalshi ticker for a given outcome."""
+        for t, m in self._markets.items():
+            if self._map_outcome(m) == outcome:
+                return t
+        return None
 
     def run(self):
         if not self.initialize():
@@ -235,11 +291,17 @@ class GitHubBot:
                 resp = self.kalshi._request("GET", f"/markets/{ticker}")
                 if resp and "market" in resp:
                     m = resp["market"]
-                    self._markets[ticker].yes_bid = m.get("yes_bid", market.yes_bid)
-                    self._markets[ticker].yes_ask = m.get("yes_ask", market.yes_ask)
-                    self._markets[ticker].no_bid = m.get("no_bid", market.no_bid)
-                    self._markets[ticker].no_ask = m.get("no_ask", market.no_ask)
-                    self._markets[ticker].volume = m.get("volume", market.volume)
+                    if "yes_ask_dollars" in m:
+                        market.yes_bid = float(m.get("yes_bid_dollars", m.get("yes_bid", 0)))
+                        market.yes_ask = float(m.get("yes_ask_dollars", 1.0))
+                        market.no_bid = float(m.get("no_bid_dollars", 1.0 - market.yes_ask))
+                        market.no_ask = float(m.get("no_ask_dollars", 1.0 - market.yes_bid))
+                    elif "yes_bid" in m:
+                        market.yes_bid = float(m.get("yes_bid", 0)) / 100
+                        market.yes_ask = float(m.get("yes_ask", 100)) / 100
+                        market.no_bid = 1.0 - market.yes_ask
+                        market.no_ask = 1.0 - market.yes_bid
+                    market.volume = m.get("volume", market.volume)
             except Exception as e:
                 logger.debug("Price update failed for %s: %s", ticker, e)
 
@@ -253,25 +315,9 @@ class GitHubBot:
         market_bids = {}
 
         for ticker, market in self._markets.items():
-            # Determine outcome from ticker suffix (e.g., KXMLSGAME-26JUL25NYRBCLT-HOME)
-            ticker_upper = ticker.upper()
-            if ticker_upper.endswith("-HOME") or ticker_upper.endswith("-YES"):
-                outcome = "home"
-            elif ticker_upper.endswith("-DRAW"):
-                outcome = "draw"
-            elif ticker_upper.endswith("-AWAY") or ticker_upper.endswith("-NO"):
-                outcome = "away"
-            else:
-                # Fallback: check subtitle for clues
-                sub = market.subtitle.lower()
-                if "home" in sub or "1" in sub:
-                    outcome = "home"
-                elif "draw" in sub:
-                    outcome = "draw"
-                elif "away" in sub or "2" in sub:
-                    outcome = "away"
-                else:
-                    continue
+            outcome = self._map_outcome(market)
+            if not outcome:
+                continue
 
             if market.yes_ask > 0:
                 market_prices[outcome] = (market.yes_bid + market.yes_ask) / 2
@@ -322,19 +368,7 @@ class GitHubBot:
             if now - self._order_cooldown[outcome] < 30:
                 return
 
-        # Find the matching ticker
-        ticker = None
-        for t, m in self._markets.items():
-            t_upper = t.upper()
-            if outcome == "home" and (t_upper.endswith("-HOME") or t_upper.endswith("-YES")):
-                ticker = t
-                break
-            elif outcome == "draw" and t_upper.endswith("-DRAW"):
-                ticker = t
-                break
-            elif outcome == "away" and (t_upper.endswith("-AWAY") or t_upper.endswith("-NO")):
-                ticker = t
-                break
+        ticker = self._find_ticker_for_outcome(outcome)
 
         if not ticker:
             return

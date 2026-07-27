@@ -1,9 +1,8 @@
 name: Auto Trade - Match Scheduler
 
 on:
-  schedule:
-    # Run every 30 minutes
-    - cron: '*/30 * * * *'
+  # Cron disabled — replaced by scheduler.yml + bot.yml + watcher.yml
+  # Auto-trade was the old Lightning-based lifecycle manager.
   workflow_dispatch:
     inputs:
       action:
