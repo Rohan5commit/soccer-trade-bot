@@ -96,6 +96,7 @@ class GitHubBot:
         # State
         self._running = True
         self._markets: Dict[str, KalshiMarket] = {}
+        self._code_to_outcome: Dict[str, str] = {}
         self._bankroll: float = 0.0
         self._trades: List[dict] = []
         self._poll_count = 0
@@ -168,6 +169,31 @@ class GitHubBot:
             logger.warning("No markets found for %s — match may be closed or cancelled", self.event_ticker)
             return False
 
+        # Build team code → outcome mapping from event ticker
+        # Kalshi GAME tickers: SERIES-YYMDD + TEAM1CODE + TEAM2CODE
+        # Market tickers: EVENTTICKER-TIE / -CODE1 / -CODE2
+        # Home code appears FIRST in the event ticker string.
+        event_upper = self.event_ticker.upper()
+        seen_codes: set = set()
+        for t in self._markets:
+            suffix = t.split("-")[-1].upper()
+            if suffix in ("TIE", "HOME", "AWAY", "YES", "NO", "DRAW"):
+                continue
+            if suffix not in seen_codes:
+                seen_codes.add(suffix)
+
+        code_positions = []
+        for code in seen_codes:
+            pos = event_upper.find(code)
+            if pos >= 0:
+                code_positions.append((code, pos))
+        code_positions.sort(key=lambda x: x[1])
+
+        if len(code_positions) >= 2:
+            self._code_to_outcome[code_positions[0][0]] = "home"
+            self._code_to_outcome[code_positions[1][0]] = "away"
+            logger.info("  Team codes: %s=home, %s=away", code_positions[0][0], code_positions[1][0])
+
         # Log outcome mapping
         for t, m in self._markets.items():
             outcome = self._map_outcome(m)
@@ -190,6 +216,13 @@ class GitHubBot:
             return "draw"
         if t.endswith("-AWAY") or t.endswith("-NO"):
             return "away"
+
+        # Team code fallback: -TIE, -HAC, -AIK, -BRA, etc.
+        suffix = market.ticker.split("-")[-1].upper()
+        if suffix == "TIE":
+            return "draw"
+        if suffix in self._code_to_outcome:
+            return self._code_to_outcome[suffix]
 
         # Title suffix after last " - " is the outcome label
         title = market.title
