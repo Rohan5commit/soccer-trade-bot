@@ -5,8 +5,8 @@ Runs as a single match session:
 1. Receives match info via env vars (from workflow_dispatch)
 2. Loads pre-trained models
 3. Discovers Kalshi markets for this specific match
-4. Polls Kalshi prices every 30s
-5. Runs model predictions + edge detection
+4. Fetches live match data from KickoffAPI (score, clock, xG, cards, etc.)
+5. Runs model predictions on enriched GameState
 6. Places paper trades via Kalshi demo API
 
 Unlike run_paper_trade.py, this does NOT discover matches —
@@ -31,6 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config import load_config
 from market.kalshi_client import KalshiClient, KalshiMarket
+from market.kickoff_api_client import KickoffApiClient, LiveMatchState
 from model.predict import WinPredictor
 from trading.edge_calculator import EdgeCalculator
 from trading.kelly_sizer import KellySizer
@@ -47,6 +48,15 @@ DATA_DIR = Path("data/paper_signals")
 TRADES_LOG = DATA_DIR / "trades_log.jsonl"
 STATE_FILE = DATA_DIR / "current_state.json"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# How often to update live data from KickoffAPI (seconds)
+LIVE_UPDATE_INTERVAL = 30
+# How often to update Kalshi prices (seconds)
+PRICE_UPDATE_INTERVAL = 30
+# Trade cooldown per outcome (seconds)
+TRADE_COOLDOWN = 120
+# Max match duration before auto-stop (minutes)
+MAX_MATCH_MINUTES = 120
 
 
 def load_db() -> dict:
@@ -67,12 +77,18 @@ def log_trade(trade: dict) -> None:
         f.write(json.dumps(trade) + "\n")
 
 
+def _normalize_team_name(name: str) -> str:
+    """Normalize team name for fuzzy matching."""
+    return name.lower().strip().replace(".", "").replace("'", "").replace("-", " ")
+
+
 class GitHubBot:
-    """Simplified paper trader for GitHub Actions (single match)."""
+    """Paper trader for GitHub Actions (single match with live data)."""
 
     def __init__(self):
         self.config = load_config()
         self.kalshi: Optional[KalshiClient] = None
+        self.kickoff: Optional[KickoffApiClient] = None
         self.predictor: Optional[WinPredictor] = None
         self.edge_calc: Optional[EdgeCalculator] = None
         self.kelly: Optional[KellySizer] = None
@@ -101,7 +117,13 @@ class GitHubBot:
         self._trades: List[dict] = []
         self._poll_count = 0
         self._order_cooldown: Dict[str, float] = {}
-        self._last_price_update: float = 0
+        self._last_live_update: float = 0
+
+        # KickoffAPI fixture tracking
+        self._kickoff_fixture_id: Optional[int] = None
+        self._prev_live_state: Optional[LiveMatchState] = None
+
+        # Game state — enriched by KickoffAPI live data
         self._game_state = GameState(
             home_team=self.match_home,
             away_team=self.match_away,
@@ -131,6 +153,21 @@ class GitHubBot:
             return False
         self._bankroll = balance
         logger.info("Kalshi demo balance: $%.2f", balance)
+
+        # KickoffAPI client (for live match data)
+        kickoff_keys = []
+        k1 = os.environ.get("KICKOFF_API_KEY", "")
+        k2 = os.environ.get("KICKOFF_API_KEY_2", "")
+        if k1:
+            kickoff_keys.append(k1)
+        if k2:
+            kickoff_keys.append(k2)
+        if kickoff_keys:
+            self.kickoff = KickoffApiClient(keys=kickoff_keys)
+            logger.info("KickoffAPI client initialized (%d keys, %d remaining)",
+                        len(kickoff_keys), self.kickoff.remaining)
+        else:
+            logger.warning("No KICKOFF_API_KEY — running without live data")
 
         # ML models
         try:
@@ -170,9 +207,6 @@ class GitHubBot:
             return False
 
         # Build team code → outcome mapping from event ticker
-        # Kalshi GAME tickers: SERIES-YYMDD + TEAM1CODE + TEAM2CODE
-        # Market tickers: EVENTTICKER-TIE / -CODE1 / -CODE2
-        # Home code appears FIRST in the event ticker string.
         event_upper = self.event_ticker.upper()
         seen_codes: set = set()
         for t in self._markets:
@@ -199,15 +233,179 @@ class GitHubBot:
             outcome = self._map_outcome(m)
             logger.info("  Mapping %s -> %s", t, outcome or "UNKNOWN")
 
+        # Find KickoffAPI fixture for live data
+        if self.kickoff:
+            self._find_kickoff_fixture()
+
         return True
 
-    def _map_outcome(self, market: KalshiMarket) -> Optional[str]:
-        """Map a Kalshi market to home/draw/away outcome.
+    def _find_kickoff_fixture(self) -> None:
+        """Find KickoffAPI fixture ID by matching team names."""
+        if not self.kickoff:
+            return
 
-        Tries ticker suffix first, then market title suffix, then subtitle.
-        Kalshi GAME market titles: "Home vs Away - <outcome>"
-        where outcome is team name or "Tie"/"Draw".
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        try:
+            fixtures = self.kickoff.get_fixtures_by_date(today)
+            if not fixtures:
+                # Try tomorrow (matches may span midnight)
+                tomorrow = (datetime.now(timezone.utc) + timedelta(days=1)).strftime("%Y-%m-%d")
+                fixtures = self.kickoff.get_fixtures_by_date(tomorrow)
+
+            home_norm = _normalize_team_name(self.match_home)
+            away_norm = _normalize_team_name(self.match_away)
+
+            best_match = None
+            best_score = 0
+
+            for f in fixtures:
+                f_home = _normalize_team_name(f.get("homeTeam", {}).get("name", ""))
+                f_away = _normalize_team_name(f.get("awayTeam", {}).get("name", ""))
+
+                # Check both orderings
+                score1 = 0
+                if home_norm in f_home or f_home in home_norm:
+                    score1 += 1
+                if away_norm in f_away or f_away in away_norm:
+                    score1 += 1
+
+                score2 = 0
+                if home_norm in f_away or f_away in home_norm:
+                    score2 += 1
+                if away_norm in f_home or f_home in away_norm:
+                    score2 += 1
+
+                score = max(score1, score2)
+                if score > best_score:
+                    best_score = score
+                    best_match = f
+
+            if best_match and best_score >= 2:
+                self._kickoff_fixture_id = best_match.get("id")
+                f_home = best_match.get("homeTeam", {}).get("name", "?")
+                f_away = best_match.get("awayTeam", {}).get("name", "?")
+                logger.info("KickoffAPI fixture found: %s vs %s (ID=%d)",
+                            f_home, f_away, self._kickoff_fixture_id)
+            else:
+                logger.warning("KickoffAPI: no matching fixture for %s vs %s (checked %d fixtures)",
+                               self.match_home, self.match_away, len(fixtures))
+        except Exception as e:
+            logger.warning("KickoffAPI fixture discovery failed: %s", e)
+
+    def _fetch_live_state(self) -> bool:
+        """Fetch live match data from KickoffAPI and update GameState.
+
+        Returns True if live data was successfully fetched.
         """
+        if not self.kickoff or not self._kickoff_fixture_id:
+            return False
+
+        now = time.time()
+        if now - self._last_live_update < LIVE_UPDATE_INTERVAL:
+            return True  # Still fresh
+
+        self._last_live_update = now
+
+        try:
+            state = self.kickoff.get_live_match(self._kickoff_fixture_id)
+            if not state:
+                return False
+
+            # Log live state
+            logger.info(
+                "LIVE: %s %d - %d %s | %s %.0f' | events=%d | API=%d remaining",
+                state.home_team, state.home_score, state.away_score, state.away_team,
+                state.status, state.clock_minutes,
+                len(state.events), self.kickoff.remaining,
+            )
+
+            # Update game state from live data
+            prev = self._prev_live_state
+            self._game_state = self._match_state_to_game_state(state)
+            self._prev_live_state = state
+            return True
+
+        except Exception as e:
+            logger.warning("KickoffAPI live update failed: %s", e)
+            return False
+
+    def _match_state_to_game_state(self, ms: LiveMatchState) -> GameState:
+        """Convert KickoffAPI LiveMatchState to GameState for model prediction."""
+        goals_in_10 = self._count_goals_in_window(ms, 10)
+        goals_in_15 = self._count_goals_in_window(ms, 15)
+        cards_in_15 = self._count_cards_in_window(ms, 15)
+        momentum = self._compute_momentum(ms)
+
+        return GameState(
+            match_id=str(ms.fixture_id),
+            home_team=ms.home_team or self.match_home,
+            away_team=ms.away_team or self.match_away,
+            clock_minutes=ms.clock_minutes,
+            stoppage_time=0,
+            is_extra_time=ms.period >= 3,
+            home_score=ms.home_score,
+            away_score=ms.away_score,
+            ocr_reliable=True,
+            consecutive_consistent_reads=10,
+            timestamp=ms.last_update,
+            home_red_cards=ms.home_red_cards,
+            away_red_cards=ms.away_red_cards,
+            home_pressure_score=ms.home_pressure,
+            goals_in_last_10min=goals_in_10,
+            goals_last_15min=goals_in_15,
+            cards_last_15min=cards_in_15,
+            home_shots_on_target=ms.home_stats.shots_on if ms.home_stats else 0,
+            away_shots_on_target=ms.away_stats.shots_on if ms.away_stats else 0,
+            home_xg_running=ms.home_xg_running,
+            away_xg_running=ms.away_xg_running,
+            momentum_shift=momentum,
+            home_elo=1600.0,
+            away_elo=1600.0,
+            home_form_pts=7,
+            away_form_pts=7,
+            h2h_home_winrate=0.45,
+            is_home_game=True,
+            referee_cards_per_game=3.5,
+            home_squad_value_EUR=50_000_000,
+            away_squad_value_EUR=50_000_000,
+            home_injuries_count=0,
+            away_injuries_count=0,
+            home_press_pct=ms.home_pressure,
+            away_press_pct=1.0 - ms.home_pressure,
+            home_xg_last5=ms.home_xg_running,
+            away_xg_last5=ms.away_xg_running,
+            home_xga_last5=ms.away_xg_running,
+            away_xga_last5=ms.home_xg_running,
+            competition_tier=2,
+            match_importance=0.5,
+            days_since_last_match_home=7,
+            days_since_last_match_away=7,
+        )
+
+    def _count_goals_in_window(self, ms: LiveMatchState, window_minutes: int) -> int:
+        count = 0
+        for event in ms.events:
+            if event.event_type == "Goal" and event.minute >= (ms.clock_minutes - window_minutes):
+                count += 1
+        return count
+
+    def _count_cards_in_window(self, ms: LiveMatchState, window_minutes: int) -> int:
+        count = 0
+        for event in ms.events:
+            if event.event_type == "Card" and event.minute >= (ms.clock_minutes - window_minutes):
+                count += 1
+        return count
+
+    def _compute_momentum(self, ms: LiveMatchState) -> float:
+        if not self._prev_live_state:
+            return 0.0
+        prev_xg = self._prev_live_state.home_xg_running + self._prev_live_state.away_xg_running
+        curr_xg = ms.home_xg_running + ms.away_xg_running
+        delta_time = max(ms.clock_minutes - self._prev_live_state.clock_minutes, 1)
+        return (curr_xg - prev_xg) / delta_time
+
+    def _map_outcome(self, market: KalshiMarket) -> Optional[str]:
+        """Map a Kalshi market to home/draw/away outcome."""
         t = market.ticker.upper()
 
         if t.endswith("-HOME") or t.endswith("-YES"):
@@ -217,14 +415,12 @@ class GitHubBot:
         if t.endswith("-AWAY") or t.endswith("-NO"):
             return "away"
 
-        # Team code fallback: -TIE, -HAC, -AIK, -BRA, etc.
         suffix = market.ticker.split("-")[-1].upper()
         if suffix == "TIE":
             return "draw"
         if suffix in self._code_to_outcome:
             return self._code_to_outcome[suffix]
 
-        # Title suffix after last " - " is the outcome label
         title = market.title
         suffix = title.rsplit(" - ", 1)[-1].strip().lower() if " - " in title else title.lower()
         home = self.match_home.lower()
@@ -237,7 +433,6 @@ class GitHubBot:
         if suffix in ("tie", "draw"):
             return "draw"
 
-        # Subtitle fallback
         sub = market.subtitle.lower()
         if home and home in sub:
             return "home"
@@ -253,7 +448,6 @@ class GitHubBot:
         return None
 
     def _find_ticker_for_outcome(self, outcome: str) -> Optional[str]:
-        """Find the Kalshi ticker for a given outcome."""
         for t, m in self._markets.items():
             if self._map_outcome(m) == outcome:
                 return t
@@ -268,17 +462,19 @@ class GitHubBot:
         signal.signal(signal.SIGINT, self._handle_shutdown)
         signal.signal(signal.SIGTERM, self._handle_shutdown)
 
-        logger.info("Starting trading loop (poll every 60s)...")
-        last_price_update = 0
+        logger.info("Starting trading loop...")
+        last_status_time = 0
+        last_price_time = 0
 
         while self._running:
             try:
                 now_ts = time.time()
+                now_ist = datetime.now(IST)
 
                 # Check if match is over
                 if self.match_kickoff:
-                    elapsed = (datetime.now(IST) - self.match_kickoff).total_seconds() / 60
-                    if elapsed > 120:
+                    elapsed = (now_ist - self.match_kickoff).total_seconds() / 60
+                    if elapsed > MAX_MATCH_MINUTES:
                         logger.info("Match likely over (%.0f min elapsed). Stopping.", elapsed)
                         break
 
@@ -291,23 +487,25 @@ class GitHubBot:
                         time.sleep(60)
                         continue
 
-                    # Update game state clock
-                    if elapsed > 0:
+                    # Only update clock if no live data (KickoffAPI overrides this)
+                    if elapsed > 0 and not self._kickoff_fixture_id:
                         self._game_state.clock_minutes = min(elapsed, 90)
 
-                # Update prices (throttled to every 30s)
-                if now_ts - last_price_update >= 30:
+                # Fetch live match data from KickoffAPI
+                self._fetch_live_state()
+
+                # Update prices (throttled)
+                if now_ts - last_price_time >= PRICE_UPDATE_INTERVAL:
                     self._update_prices()
-                    self._last_price_update = now_ts
-                    last_price_update = now_ts
+                    last_price_time = now_ts
 
                     # Check edges after fresh prices
                     self._check_edges()
 
-                # Status every 300 cycles (~5 min)
-                self._poll_count += 1
-                if self._poll_count % 300 == 0:
+                # Status every ~5 min
+                if now_ts - last_status_time >= 300:
                     self._print_status()
+                    last_status_time = now_ts
 
                 time.sleep(1)
 
@@ -343,7 +541,6 @@ class GitHubBot:
         if not self.edge_calc or not self.kelly:
             return
 
-        # Build market prices dict for edge calculator
         market_prices = {}
         market_asks = {}
         market_bids = {}
@@ -352,7 +549,6 @@ class GitHubBot:
             outcome = self._map_outcome(market)
             if not outcome:
                 continue
-
             if market.yes_ask > 0:
                 market_prices[outcome] = (market.yes_bid + market.yes_ask) / 2
                 market_asks[outcome] = market.yes_ask
@@ -361,15 +557,15 @@ class GitHubBot:
         if not market_prices:
             return
 
-        # Get model predictions if available
         if self.predictor:
             try:
                 probs = self.predictor.predict(self._game_state)
                 model_probs = {"home": probs[0], "draw": probs[1], "away": probs[2]}
                 confidence = max(probs)
-                logger.debug(
-                    "Prediction: home=%.3f draw=%.3f away=%.3f (conf=%.3f)",
-                    probs[0], probs[1], probs[2], confidence,
+                logger.info(
+                    "PREDICTION: home=%.1f%% draw=%.1f%% away=%.1f%% (conf=%.1f%%) | clock=%.0f'",
+                    probs[0] * 100, probs[1] * 100, probs[2] * 100,
+                    confidence * 100, self._game_state.clock_minutes,
                 )
             except Exception as e:
                 logger.debug("Prediction failed: %s", e)
@@ -377,7 +573,6 @@ class GitHubBot:
         else:
             return
 
-        # Calculate edge
         analysis = self.edge_calc.calculate(
             model_probs=model_probs,
             market_prices=market_prices,
@@ -388,7 +583,6 @@ class GitHubBot:
         if not analysis.any_tradable:
             return
 
-        # Place trade on best edge
         best = analysis.best_edge
         if best:
             self._place_paper_trade(best, model_probs)
@@ -397,20 +591,17 @@ class GitHubBot:
         outcome = edge_result.outcome
         now = time.time()
 
-        # Cooldown check
         if outcome in self._order_cooldown:
-            if now - self._order_cooldown[outcome] < 30:
+            if now - self._order_cooldown[outcome] < TRADE_COOLDOWN:
                 return
 
         ticker = self._find_ticker_for_outcome(outcome)
-
         if not ticker:
             return
 
         market = self._markets[ticker]
         price = edge_result.market_ask
 
-        # Kelly sizing
         kelly_result = self.kelly.calculate(
             outcome=outcome,
             edge=edge_result.edge,
@@ -424,7 +615,6 @@ class GitHubBot:
 
         bet_usd = kelly_result.bet_usd
         count = max(1, int(bet_usd / price)) if price > 0 else 0
-
         if count <= 0:
             return
 
@@ -434,7 +624,6 @@ class GitHubBot:
             edge_result.model_prob, edge_result.market_prob, edge_result.edge,
         )
 
-        # Place order on Kalshi demo
         result = self.kalshi.place_order(
             ticker=ticker,
             side="bid",
@@ -456,10 +645,11 @@ class GitHubBot:
             "market_prob": edge_result.market_prob,
             "edge": edge_result.edge,
             "result": "submitted" if result else "failed",
+            "clock": self._game_state.clock_minutes,
+            "score": f"{self._game_state.home_score}-{self._game_state.away_score}",
         }
         self._trades.append(trade)
         log_trade(trade)
-
         self._order_cooldown[outcome] = now
 
     def _print_status(self):
@@ -468,8 +658,12 @@ class GitHubBot:
             elapsed = (datetime.now(IST) - self.match_kickoff).total_seconds() / 60
 
         logger.info("--- STATUS (T+%.0f min) ---", elapsed)
-        logger.info("  Bankroll: $%.2f | Trades: %d", self._bankroll, len(self._trades))
-        logger.info("  Markets: %d", len(self._markets))
+        logger.info("  Score: %d-%d | Clock: %.0f' | Trades: %d | Bankroll: $%.2f",
+                     self._game_state.home_score, self._game_state.away_score,
+                     self._game_state.clock_minutes, len(self._trades), self._bankroll)
+        logger.info("  KickoffAPI: fixture=%s remaining=%d",
+                     self._kickoff_fixture_id or "none",
+                     self.kickoff.remaining if self.kickoff else 0)
         for t, m in self._markets.items():
             logger.info("    %s: yes=$%.2f no=$%.2f vol=%d",
                         t, m.yes_ask, m.no_ask, m.volume)
