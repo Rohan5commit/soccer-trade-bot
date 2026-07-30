@@ -52,9 +52,9 @@ def filter_future_matches(matches: List[Dict]) -> List[Dict]:
 
         minutes_until = (kickoff - now).total_seconds() / 60
 
-        # Only future matches (at least 10 min away, max 90 min)
-        # Bot timeout is 240 min; 90 min wait + 120 min match + 30 min buffer = 240 min
-        if 10 <= minutes_until <= 90:
+        # Only future matches (at least 10 min away, max 150 min)
+        # Bot timeout is 240 min; 150 min wait + 90 min match buffer = 240 min
+        if 10 <= minutes_until <= 150:
             future.append({**m, "minutes_until": round(minutes_until, 1)})
 
     return future
@@ -65,16 +65,16 @@ def _score_match(match: Dict) -> float:
     minutes_until = match.get("minutes_until", 9999)
     markets_count = match.get("markets_count", 0)
 
-    # Timing: prefer 2-6 hours out
+    # Timing: prefer 1-3 hours out
     if minutes_until < 30:
         timing = 0.1
     elif minutes_until < 60:
         timing = 0.4
     elif minutes_until < 120:
         timing = 0.7
+    elif minutes_until < 180:
+        timing = 1.0  # Sweet spot
     elif minutes_until < 240:
-        timing = 1.0
-    elif minutes_until < 360:
         timing = 0.8
     else:
         timing = 0.3

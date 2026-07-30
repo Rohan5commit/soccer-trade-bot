@@ -70,27 +70,6 @@ jobs:
           path: data/schedule.json
           retention-days: 2
 
-      - name: Dispatch paper trade bot
-        if: steps.discover.outputs.best_ticker != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Check if a bot is already running or queued
-          RUNNING=$(gh run list --workflow=bot.yml --status=in_progress --limit=1 --json=name --jq 'length')
-          QUEUED=$(gh run list --workflow=bot.yml --status=queued --limit=1 --json=name --jq 'length')
-          if [ "$RUNNING" != "0" ] || [ "$QUEUED" != "0" ]; then
-            echo "Bot already running ($RUNNING) or queued ($QUEUED) — skipping dispatch"
-          else
-            echo "Dispatching bot for ${{ steps.discover.outputs.best_home }} vs ${{ steps.discover.outputs.best_away }}"
-            gh workflow run bot.yml \
-              --repo Rohan5commit/soccer-trade-bot \
-              -f home="${{ steps.discover.outputs.best_home }}" \
-              -f away="${{ steps.discover.outputs.best_away }}" \
-              -f kickoff="${{ steps.discover.outputs.best_kickoff }}" \
-              -f event_ticker="${{ steps.discover.outputs.best_ticker }}"
-            echo "Bot dispatched successfully"
-          fi
-
       - name: Summary
         if: always()
         run: |
@@ -101,7 +80,7 @@ jobs:
             echo "- Score: ${{ steps.discover.outputs.best_score }}" >> $GITHUB_STEP_SUMMARY
             echo "- Kickoff: ${{ steps.discover.outputs.best_kickoff }}" >> $GITHUB_STEP_SUMMARY
             echo "- Event: ${{ steps.discover.outputs.best_ticker }}" >> $GITHUB_STEP_SUMMARY
-            echo "- Bot dispatched: YES" >> $GITHUB_STEP_SUMMARY
+            echo "- Bot dispatch: handled by watcher.yml (proximity-based)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "- No match found to trade today" >> $GITHUB_STEP_SUMMARY
+            echo "- No matches found today" >> $GITHUB_STEP_SUMMARY
           fi
