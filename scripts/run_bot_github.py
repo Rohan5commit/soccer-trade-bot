@@ -549,6 +549,11 @@ class GitHubBot:
         if not self.edge_calc or not self.kelly:
             return
 
+        # Don't predict before match is live — blank GameState produces garbage predictions
+        if self._prev_live_state and not self._prev_live_state.is_live:
+            logger.debug("Match not live yet (status=%s) — skipping prediction", self._prev_live_state.status)
+            return
+
         market_prices = {}
         market_asks = {}
         market_bids = {}
