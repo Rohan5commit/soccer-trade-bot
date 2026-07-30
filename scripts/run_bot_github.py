@@ -78,8 +78,16 @@ def log_trade(trade: dict) -> None:
 
 
 def _normalize_team_name(name: str) -> str:
-    """Normalize team name for fuzzy matching."""
-    return name.lower().strip().replace(".", "").replace("'", "").replace("-", " ")
+    """Normalize team name for fuzzy matching.
+
+    Strips Kalshi suffixes like ': Regulation Time Moneyline' and other noise.
+    """
+    name = name.strip()
+    # Strip everything after ":" or " - " (Kalshi market suffixes)
+    for marker in [":", " - "]:
+        if marker in name:
+            name = name.split(marker, 1)[0].strip()
+    return name.lower().replace(".", "").replace("'", "").replace("-", " ")
 
 
 class GitHubBot:

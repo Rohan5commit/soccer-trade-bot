@@ -42,6 +42,13 @@ def parse_kalshi_event(event: dict, now: datetime) -> Optional[Dict]:
     home = teams[0].strip()
     away = teams[1].strip().split(" winner")[0].strip()
 
+    # Strip Kalshi suffixes like ": Regulation Time Moneyline", ": Extra Time Winner", etc.
+    for suffix_marker in [":", " - "]:
+        if suffix_marker in home:
+            home = home.split(suffix_marker, 1)[0].strip()
+        if suffix_marker in away:
+            away = away.split(suffix_marker, 1)[0].strip()
+
     if not home or not away:
         return None
 
