@@ -31,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config import load_config
 from market.kalshi_client import KalshiClient, KalshiMarket
-from market.kickoff_api_client import KickoffApiClient, LiveMatchState
+from market.api_football_client import APIFootballClient, LiveMatchState
 from model.predict import WinPredictor
 from trading.edge_calculator import EdgeCalculator
 from trading.kelly_sizer import KellySizer
@@ -98,7 +98,7 @@ class GitHubBot:
     def __init__(self):
         self.config = load_config()
         self.kalshi: Optional[KalshiClient] = None
-        self.kickoff: Optional[KickoffApiClient] = None
+        self.api_football: Optional[APIFootballClient] = None
         self.predictor: Optional[WinPredictor] = None
         self.edge_calc: Optional[EdgeCalculator] = None
         self.kelly: Optional[KellySizer] = None
@@ -129,8 +129,8 @@ class GitHubBot:
         self._order_cooldown: Dict[str, float] = {}
         self._last_live_update: float = 0
 
-        # KickoffAPI fixture tracking
-        self._kickoff_fixture_id: Optional[int] = None
+        # API-Football fixture tracking
+        self._api_football_fixture_id: Optional[int] = None
         self._prev_live_state: Optional[LiveMatchState] = None
 
         # Game state — enriched by KickoffAPI live data
@@ -164,20 +164,13 @@ class GitHubBot:
         self._bankroll = balance
         logger.info("Kalshi demo balance: $%.2f", balance)
 
-        # KickoffAPI client (for live match data)
-        kickoff_keys = []
-        k1 = os.environ.get("KICKOFF_API_KEY", "")
-        k2 = os.environ.get("KICKOFF_API_KEY_2", "")
-        if k1:
-            kickoff_keys.append(k1)
-        if k2:
-            kickoff_keys.append(k2)
-        if kickoff_keys:
-            self.kickoff = KickoffApiClient(keys=kickoff_keys)
-            logger.info("KickoffAPI client initialized (%d keys, %d remaining)",
-                        len(kickoff_keys), self.kickoff.remaining)
+        # API-Football client (for live match data)
+        api_key = os.environ.get("API_FOOTBALL_API_KEY", "")
+        if api_key:
+            self.api_football = APIFootballClient(api_key=api_key)
+            logger.info("API-Football client initialized (%d remaining)", self.api_football.remaining)
         else:
-            logger.warning("No KICKOFF_API_KEY — running without live data")
+            logger.warning("No API_FOOTBALL_API_KEY — running without live data")
 
         # ML models
         try:
@@ -243,24 +236,24 @@ class GitHubBot:
             outcome = self._map_outcome(m)
             logger.info("  Mapping %s -> %s", t, outcome or "UNKNOWN")
 
-        # Find KickoffAPI fixture for live data
-        if self.kickoff:
-            self._find_kickoff_fixture()
+        # Find API-Football fixture for live data
+        if self.api_football:
+            self._find_api_football_fixture()
 
         return True
 
-    def _find_kickoff_fixture(self) -> None:
-        """Find KickoffAPI fixture ID by matching team names."""
-        if not self.kickoff:
+    def _find_api_football_fixture(self) -> None:
+        """Find API-Football fixture ID by matching team names."""
+        if not self.api_football:
             return
 
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         try:
-            fixtures = self.kickoff.get_fixtures_by_date(today)
+            fixtures = self.api_football.get_fixtures_by_date(today)
             if not fixtures:
-                # Try tomorrow (matches may span midnight)
+                # Try tomorrow
                 tomorrow = (datetime.now(timezone.utc) + timedelta(days=1)).strftime("%Y-%m-%d")
-                fixtures = self.kickoff.get_fixtures_by_date(tomorrow)
+                fixtures = self.api_football.get_fixtures_by_date(tomorrow)
 
             home_norm = _normalize_team_name(self.match_home)
             away_norm = _normalize_team_name(self.match_away)
@@ -269,8 +262,9 @@ class GitHubBot:
             best_score = 0
 
             for f in fixtures:
-                f_home = _normalize_team_name(f.get("homeTeam", {}).get("name", ""))
-                f_away = _normalize_team_name(f.get("awayTeam", {}).get("name", ""))
+                teams = f.get("teams", {})
+                f_home = _normalize_team_name(teams.get("home", {}).get("name", ""))
+                f_away = _normalize_team_name(teams.get("away", {}).get("name", ""))
 
                 # Check both orderings
                 score1 = 0
@@ -291,31 +285,33 @@ class GitHubBot:
                     best_match = f
 
             if best_match and best_score >= 2:
-                self._kickoff_fixture_id = best_match.get("id")
-                f_home = best_match.get("homeTeam", {}).get("name", "?")
-                f_away = best_match.get("awayTeam", {}).get("name", "?")
-                logger.info("KickoffAPI fixture found: %s vs %s (ID=%d)",
-                            f_home, f_away, self._kickoff_fixture_id)
+                fixture_data = best_match.get("fixture", {})
+                self._api_football_fixture_id = fixture_data.get("id")
+                teams = best_match.get("teams", {})
+                f_home = teams.get("home", {}).get("name", "?")
+                f_away = teams.get("away", {}).get("name", "?")
+                logger.info("API-Football fixture found: %s vs %s (ID=%d)",
+                            f_home, f_away, self._api_football_fixture_id)
             else:
-                logger.warning("KickoffAPI: no matching fixture for %s vs %s (checked %d fixtures)",
+                logger.warning("API-Football: no matching fixture for %s vs %s (checked %d fixtures)",
                                self.match_home, self.match_away, len(fixtures))
         except Exception as e:
-            logger.warning("KickoffAPI fixture discovery failed: %s", e)
+            logger.warning("API-Football fixture discovery failed: %s", e)
 
     def _fetch_live_state(self) -> bool:
-        """Fetch live match data from KickoffAPI and update GameState.
+        """Fetch live match data from API-Football and update GameState.
 
         Returns True if live data was successfully fetched.
         """
-        if not self.kickoff or not self._kickoff_fixture_id:
+        if not self.api_football or not self._api_football_fixture_id:
             return False
 
         now = time.time()
 
         # Proactive rate-limit gating: skip if running low on API calls
-        remaining = self.kickoff.remaining
+        remaining = self.api_football.remaining
         if remaining <= 10:
-            logger.warning("KickoffAPI rate limit critical (%d remaining) — skipping live update", remaining)
+            logger.warning("API-Football rate limit critical (%d remaining) — skipping live update", remaining)
             return False
         elif remaining <= 30:
             # When low, only fetch every other cycle (double the interval)
@@ -325,7 +321,7 @@ class GitHubBot:
             return True  # Still fresh
 
         try:
-            state = self.kickoff.get_live_match(self._kickoff_fixture_id)
+            state = self.api_football.get_live_match(self._api_football_fixture_id)
             if not state:
                 return False
 
@@ -334,7 +330,7 @@ class GitHubBot:
                 "LIVE: %s %d - %d %s | %s %.0f' | events=%d | API=%d remaining",
                 state.home_team, state.home_score, state.away_score, state.away_team,
                 state.status, state.clock_minutes,
-                len(state.events), self.kickoff.remaining,
+                len(state.events), self.api_football.remaining,
             )
 
             # Update game state from live data
@@ -345,7 +341,7 @@ class GitHubBot:
             return True
 
         except Exception as e:
-            logger.warning("KickoffAPI live update failed: %s", e)
+            logger.warning("API-Football live update failed: %s", e)
             self._last_live_update = now  # Back off even on failure
             return False
 
@@ -507,8 +503,8 @@ class GitHubBot:
                         time.sleep(60)
                         continue
 
-                    # Only update clock if no live data (KickoffAPI overrides this)
-                    if elapsed > 0 and not self._kickoff_fixture_id:
+                    # Only update clock if no live data (API-Football overrides this)
+                    if elapsed > 0 and not self._api_football_fixture_id:
                         self._game_state.clock_minutes = min(elapsed, 90)
 
                 # Fetch live match data from KickoffAPI
@@ -686,9 +682,9 @@ class GitHubBot:
         logger.info("  Score: %d-%d | Clock: %.0f' | Trades: %d | Bankroll: $%.2f",
                      self._game_state.home_score, self._game_state.away_score,
                      self._game_state.clock_minutes, len(self._trades), self._bankroll)
-        logger.info("  KickoffAPI: fixture=%s remaining=%d",
-                     self._kickoff_fixture_id or "none",
-                     self.kickoff.remaining if self.kickoff else 0)
+        logger.info("  API-Football: fixture=%s remaining=%d",
+                     self._api_football_fixture_id or "none",
+                     self.api_football.remaining if self.api_football else 0)
         for t, m in self._markets.items():
             logger.info("    %s: yes=$%.2f no=$%.2f vol=%d",
                         t, m.yes_ask, m.no_ask, m.volume)
