@@ -35,7 +35,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install -q cloudscraper requests cryptography numpy scikit-learn xgboost lightgbm catboost
+        run: pip install -q cloudscraper requests cryptography numpy pandas scikit-learn xgboost lightgbm catboost joblib
 
       - name: Download previous trades DB
         uses: dawidd6/action-download-artifact@v6

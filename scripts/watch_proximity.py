@@ -120,10 +120,36 @@ def is_bot_already_running() -> bool:
     return False
 
 
+def was_match_already_dispatched(event_ticker: str) -> bool:
+    """Check if we already dispatched (or completed) a bot run for this event ticker."""
+    try:
+        result = subprocess.run(
+            ["gh", "run", "list", "--workflow=bot.yml", "--limit=10",
+             "--json=name,conclusion,event"],
+            capture_output=True, text=True, timeout=15,
+        )
+        if result.returncode == 0:
+            runs = json.loads(result.stdout)
+            for run in runs:
+                # Check if any recent run matches this event ticker
+                run_name = run.get("name", "")
+                if event_ticker in run_name:
+                    return True
+    except Exception:
+        pass
+    return False
+
+
 def dispatch_bot(match: dict) -> bool:
     """Dispatch the bot workflow via GitHub API."""
     if is_bot_already_running():
         print(f"[INFO] Bot already running or queued — skipping", file=sys.stderr)
+        return False
+
+    # Check if this match was already dispatched
+    event_ticker = match.get("event_ticker", "")
+    if event_ticker and was_match_already_dispatched(event_ticker):
+        print(f"[INFO] Match {event_ticker} already dispatched — skipping", file=sys.stderr)
         return False
 
     try:

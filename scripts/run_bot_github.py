@@ -50,7 +50,9 @@ STATE_FILE = DATA_DIR / "current_state.json"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # How often to update live data from KickoffAPI (seconds)
-LIVE_UPDATE_INTERVAL = 30
+# 60s keeps us within 200 req/day budget: 120min / 60s * 2 calls = ~240 calls
+# With 2 keys (200/day) this is tight; 90s would be safer but 60s is OK with proactive gating
+LIVE_UPDATE_INTERVAL = 60
 # How often to update Kalshi prices (seconds)
 PRICE_UPDATE_INTERVAL = 30
 # Trade cooldown per outcome (seconds)
@@ -309,10 +311,18 @@ class GitHubBot:
             return False
 
         now = time.time()
-        if now - self._last_live_update < LIVE_UPDATE_INTERVAL:
-            return True  # Still fresh
 
-        self._last_live_update = now
+        # Proactive rate-limit gating: skip if running low on API calls
+        remaining = self.kickoff.remaining
+        if remaining <= 10:
+            logger.warning("KickoffAPI rate limit critical (%d remaining) — skipping live update", remaining)
+            return False
+        elif remaining <= 30:
+            # When low, only fetch every other cycle (double the interval)
+            if now - self._last_live_update < LIVE_UPDATE_INTERVAL * 2:
+                return True
+        elif now - self._last_live_update < LIVE_UPDATE_INTERVAL:
+            return True  # Still fresh
 
         try:
             state = self.kickoff.get_live_match(self._kickoff_fixture_id)
@@ -331,10 +341,12 @@ class GitHubBot:
             prev = self._prev_live_state
             self._game_state = self._match_state_to_game_state(state)
             self._prev_live_state = state
+            self._last_live_update = now
             return True
 
         except Exception as e:
             logger.warning("KickoffAPI live update failed: %s", e)
+            self._last_live_update = now  # Back off even on failure
             return False
 
     def _match_state_to_game_state(self, ms: LiveMatchState) -> GameState:

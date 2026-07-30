@@ -2,7 +2,7 @@ name: Match Watcher
 
 on:
   schedule:
-    - cron: '*/30 * * * *'  # Every 30 minutes
+    - cron: '15,45 * * * *'  # Every 30 min, offset from scheduler (runs at :30)
   workflow_dispatch:
 
 permissions:
