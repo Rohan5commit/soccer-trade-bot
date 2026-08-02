@@ -21,17 +21,19 @@ BASE_URL = "https://v3.football.api-sports.io"
 
 # API-Football league IDs for leagues covered by Kalshi
 # Kalshi series ticker → API-Football league_id
+# Verified against API-Football on 2026-08-02
 KALSHI_TO_LEAGUE_ID: Dict[str, int] = {
     # Tier 1: UEFA
     "KXUCLGAME": 2,
+    "KXCHAMPIONSLEAGUEGAME": 2,
     "KXUELGAME": 3,
     "KXUECLGAME": 848,
     "KXUEFAGAME": 848,
     "KXUEFANLGAME": 848,
     # Tier 2: Top 5
     "KXPREMIERLEAGUE": 39,
-    "KXPRIMERALIGAME": 140,
-    "KXSERIEAGAME": 135,
+    "KXSERIEAGAME": 71,
+    "KXPRIMERALIGAME": 94,
     "KXMLSGAME": 253,
     # Tier 3: Strong European
     "KXEREDIVISIEGAME": 88,
@@ -40,22 +42,33 @@ KALSHI_TO_LEAGUE_ID: Dict[str, int] = {
     "KXBRASILEIROBGAME": 72,
     "KXALLSVENSKANGAME": 113,
     "KXSCOTTISHPREMGAME": 179,
-    "KXSLGREECEGAME": 195,
+    "KXSLGREECEGAME": 197,
     "KXSWISSLEAGUEGAME": 207,
+    "KXDENSUPERLIGAGAME": 119,
     # Tier 4: Other
     "KXLIGAMXGAME": 262,
     "KXSAUDIPLGAME": 307,
-    "KXKLEAGUEGAME": 129,
-    "KXISLGAME": 172,
-    "KXCHNSLGAME": 169,
-    "KXTHAIL1GAME": 189,
-    "KXUAEPLGAME": 188,
-    "KXPERLIGA1GAME": 266,
-    "KXDENSUPERLIGAGAME": 119,
-    # Tier 5: Cups
-    "KXUSLGAME": 253,
-    "KXUSOPENCUPGAME": 253,
-    "KXSCOCUPGAME": 179,
+    "KXKLEAGUEGAME": 292,
+    "KXISLGAME": 164,
+    "KXTHAIL1GAME": 296,
+    "KXUAEPLGAME": 1089,
+    "KXPERLIGA1GAME": 281,
+    "KXVENFUTVEGAME": 300,
+    "KXQSTARSGAME": 306,
+    "KXSPBGAME": 475,
+    "KXWIBPLGAME": 110,
+    # Tier 5: Cups & Other
+    "KXTACAPORTGAME": 96,
+    "KXUSLGAME": 244,
+    "KXUSOPENCUPGAME": 257,
+    "KXSCOCUPGAME": 1078,
+    "KXARGNACBGAME": 130,
+    "KXCLUBFGAME": 15,
+    "KXWCGAME": 1,
+    "KXMENWORLDCUP": 1,
+    "KXASEANGAME": 24,
+    # Missing: KXCHNSLGAME (Chinese Super League), KXUSLCUPGAME, KXBRASILEIROGAME (search issue)
+    # Bot still works via team name fuzzy matching for these
 }
 
 
