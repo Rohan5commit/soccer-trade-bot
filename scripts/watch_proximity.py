@@ -52,9 +52,11 @@ def filter_future_matches(matches: List[Dict]) -> List[Dict]:
 
         minutes_until = (kickoff - now).total_seconds() / 60
 
-        # Only future matches (at least 10 min away, max 150 min)
-        # Bot timeout is 240 min; 150 min wait + 90 min match buffer = 240 min
-        if 10 <= minutes_until <= 150:
+        # Only future matches (at least 10 min away, max 90 min)
+        # Bot polls for markets during pre-kickoff wait, but 90 min is enough
+        # for the bot to initialize, find markets, and trade before kickoff.
+        # Bot timeout is 240 min; 90 min wait + 120 min match + 30 min buffer.
+        if 10 <= minutes_until <= 90:
             future.append({**m, "minutes_until": round(minutes_until, 1)})
 
     return future
@@ -121,22 +123,47 @@ def is_bot_already_running() -> bool:
 
 
 def was_match_already_dispatched(event_ticker: str) -> bool:
-    """Check if we already dispatched (or completed) a bot run for this event ticker."""
+    """Check if we already dispatched a bot run for this event ticker.
+
+    Uses the bot-log artifact name: bot.yml saves 'bot-log-{event_ticker}'.
+    If that artifact exists, the bot was already dispatched for this match.
+    """
+    repo = os.environ.get("GITHUB_REPOSITORY", "Rohan5commit/soccer-trade-bot")
+    artifact_name = f"bot-log-{event_ticker}"
+
+    try:
+        result = subprocess.run(
+            [
+                "gh", "api",
+                f"repos/{repo}/actions/artifacts?name={artifact_name}&per_page=1",
+                "--jq", ".total_count",
+            ],
+            capture_output=True, text=True, timeout=15,
+        )
+        if result.returncode == 0:
+            count = int(result.stdout.strip() or "0")
+            if count > 0:
+                return True
+    except Exception:
+        pass
+
+    # Fallback: check recent completed runs for this event ticker in inputs
     try:
         result = subprocess.run(
             ["gh", "run", "list", "--workflow=bot.yml", "--limit=10",
-             "--json=name,conclusion,event"],
+             "--status=completed", "--json=name,conclusion"],
             capture_output=True, text=True, timeout=15,
         )
         if result.returncode == 0:
             runs = json.loads(result.stdout)
             for run in runs:
-                # Check if any recent run matches this event ticker
-                run_name = run.get("name", "")
-                if event_ticker in run_name:
+                name = run.get("name", "")
+                # Bot log artifacts contain the event ticker
+                if event_ticker in name:
                     return True
     except Exception:
         pass
+
     return False
 
 

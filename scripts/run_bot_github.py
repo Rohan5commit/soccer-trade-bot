@@ -122,6 +122,7 @@ class GitHubBot:
         # State
         self._running = True
         self._markets: Dict[str, KalshiMarket] = {}
+        self._markets_ready: bool = False
         self._code_to_outcome: Dict[str, str] = {}
         self._bankroll: float = 0.0
         self._trades: List[dict] = []
@@ -132,6 +133,7 @@ class GitHubBot:
         # API-Football fixture tracking
         self._api_football_fixture_id: Optional[int] = None
         self._prev_live_state: Optional[LiveMatchState] = None
+        self._live_data_received: bool = False
 
         # Game state — enriched by KickoffAPI live data
         self._game_state = GameState(
@@ -140,6 +142,11 @@ class GitHubBot:
         )
 
     def initialize(self) -> bool:
+        """Initialize basics (auth, models, clients). Does NOT discover markets.
+
+        Market discovery is separate so the main loop can poll for markets
+        during pre-kickoff wait (Kalshi opens markets closer to kickoff).
+        """
         logger.info("=" * 60)
         logger.info("GITHUB ACTIONS PAPER BOT")
         logger.info("Match: %s vs %s", self.match_home, self.match_away)
@@ -192,22 +199,37 @@ class GitHubBot:
             min_bet_usd=self.config.min_bet_usd,
         )
 
-        # Discover markets for this specific event
+        # Find API-Football fixture for live data
+        if self.api_football:
+            self._find_api_football_fixture()
+
+        return True
+
+    def _discover_markets(self) -> bool:
+        """Discover Kalshi markets for this event. Returns True if markets found.
+
+        Called from initialize() and from the main loop during pre-kickoff wait.
+        Markets may not be available immediately — Kalshi opens them closer to kickoff.
+        """
+        if self._markets_ready:
+            return True
+
         try:
             markets = self.kalshi.get_event_markets(self.event_ticker)
-            for m in markets:
-                self._markets[m.ticker] = m
-                logger.info(
-                    "  Market: %s (yes=$%.2f no=$%.2f vol=%d) title=%r sub=%r",
-                    m.ticker, m.yes_ask, m.no_ask, m.volume, m.title, m.subtitle,
-                )
         except Exception as e:
-            logger.error("Failed to discover markets: %s", e)
+            logger.warning("Market discovery error: %s", e)
             return False
 
-        if not self._markets:
-            logger.warning("No markets found for %s — match may be closed or cancelled", self.event_ticker)
+        if not markets:
             return False
+
+        # Build market dict
+        for m in markets:
+            self._markets[m.ticker] = m
+            logger.info(
+                "  Market: %s (yes=$%.2f no=$%.2f vol=%d) title=%r sub=%r",
+                m.ticker, m.yes_ask, m.no_ask, m.volume, m.title, m.subtitle,
+            )
 
         # Build team code → outcome mapping from event ticker
         event_upper = self.event_ticker.upper()
@@ -236,10 +258,8 @@ class GitHubBot:
             outcome = self._map_outcome(m)
             logger.info("  Mapping %s -> %s", t, outcome or "UNKNOWN")
 
-        # Find API-Football fixture for live data
-        if self.api_football:
-            self._find_api_football_fixture()
-
+        self._markets_ready = True
+        logger.info("Markets ready: %d markets found for %s", len(self._markets), self.event_ticker)
         return True
 
     def _find_api_football_fixture(self) -> None:
@@ -338,6 +358,9 @@ class GitHubBot:
             self._game_state = self._match_state_to_game_state(state)
             self._prev_live_state = state
             self._last_live_update = now
+            if not self._live_data_received:
+                self._live_data_received = True
+                logger.info("First live data received — predictions enabled")
             return True
 
         except Exception as e:
@@ -471,8 +494,11 @@ class GitHubBot:
 
     def run(self):
         if not self.initialize():
-            logger.warning("Bot initialization failed — no markets available. Exiting cleanly.")
+            logger.warning("Bot initialization failed — could not authenticate. Exiting.")
             return
+
+        # Try market discovery immediately (fast path: markets already open)
+        self._discover_markets()
 
         self._running = True
         signal.signal(signal.SIGINT, self._handle_shutdown)
@@ -481,6 +507,7 @@ class GitHubBot:
         logger.info("Starting trading loop...")
         last_status_time = 0
         last_price_time = 0
+        last_market_poll_time = 0
 
         while self._running:
             try:
@@ -494,24 +521,40 @@ class GitHubBot:
                         logger.info("Match likely over (%.0f min elapsed). Stopping.", elapsed)
                         break
 
-                    # Pre-match: sleep until 5 minutes before kickoff
+                    # Pre-match: poll for markets until they appear
                     if elapsed < -5:
-                        logger.info(
-                            "Pre-match: kickoff in %.0f min. Sleeping 60s...",
-                            abs(elapsed),
-                        )
-                        time.sleep(60)
-                        continue
+                        if not self._markets_ready:
+                            # Poll every 60s for markets (Kalshi opens them closer to kickoff)
+                            if now_ts - last_market_poll_time >= 60:
+                                last_market_poll_time = now_ts
+                                if self._discover_markets():
+                                    logger.info("Markets found! Ready to trade.")
+                                else:
+                                    remaining = abs(elapsed)
+                                    logger.info(
+                                        "Pre-match: kickoff in %.0f min. Markets not open yet. Polling in 60s...",
+                                        remaining,
+                                    )
+                            time.sleep(1)
+                            continue
+                        else:
+                            # Markets ready but still pre-kickoff — sleep until 5 min before
+                            logger.info(
+                                "Pre-match: kickoff in %.0f min. Markets ready. Sleeping 60s...",
+                                abs(elapsed),
+                            )
+                            time.sleep(60)
+                            continue
 
                     # Only update clock if no live data (API-Football overrides this)
                     if elapsed > 0 and not self._api_football_fixture_id:
                         self._game_state.clock_minutes = min(elapsed, 90)
 
-                # Fetch live match data from KickoffAPI
+                # Fetch live match data from API-Football
                 self._fetch_live_state()
 
-                # Update prices (throttled)
-                if now_ts - last_price_time >= PRICE_UPDATE_INTERVAL:
+                # Update prices (throttled) — only if markets are ready
+                if self._markets_ready and now_ts - last_price_time >= PRICE_UPDATE_INTERVAL:
                     self._update_prices()
                     last_price_time = now_ts
 
@@ -557,7 +600,15 @@ class GitHubBot:
         if not self.edge_calc or not self.kelly:
             return
 
-        # Don't predict before match is live — blank GameState produces garbage predictions
+        # Don't predict until we have real live data — blank GameState produces garbage predictions
+        if not self._live_data_received:
+            return
+
+        # Don't predict if markets aren't loaded yet
+        if not self._markets_ready:
+            return
+
+        # Don't predict before match is live
         if self._prev_live_state and not self._prev_live_state.is_live:
             logger.debug("Match not live yet (status=%s) — skipping prediction", self._prev_live_state.status)
             return
@@ -682,7 +733,9 @@ class GitHubBot:
         logger.info("  Score: %d-%d | Clock: %.0f' | Trades: %d | Bankroll: $%.2f",
                      self._game_state.home_score, self._game_state.away_score,
                      self._game_state.clock_minutes, len(self._trades), self._bankroll)
-        logger.info("  API-Football: fixture=%s remaining=%d",
+        logger.info("  Markets: %s | Live data: %s | API-Football: fixture=%s remaining=%d",
+                     "ready" if self._markets_ready else "pending",
+                     "yes" if self._live_data_received else "no",
                      self._api_football_fixture_id or "none",
                      self.api_football.remaining if self.api_football else 0)
         for t, m in self._markets.items():

@@ -159,6 +159,9 @@ class KalshiClient:
             "Content-Type": "application/json",
         }
 
+    # Transient HTTP status codes that warrant retry
+    _RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+
     def _request(
         self,
         method: str,
@@ -167,7 +170,10 @@ class KalshiClient:
         json_data: Optional[Dict] = None,
         base_url: Optional[str] = None,
     ) -> Optional[Dict]:
-        """Make authenticated request to Kalshi API.
+        """Make authenticated request to Kalshi API with automatic retry.
+
+        Retries on transient errors: 429 (rate limit), 500/502/503/504 (server),
+        connection errors, and timeouts. Uses exponential backoff.
 
         Args:
             method: HTTP method.
@@ -181,8 +187,9 @@ class KalshiClient:
         """
         url = f"{base_url or self._price_url}{path}"
         headers = self._sign_request(method, path, base_url=base_url)
+        max_attempts = 4
 
-        for attempt in range(3):
+        for attempt in range(max_attempts):
             try:
                 resp = self._session.request(
                     method=method,
@@ -190,25 +197,58 @@ class KalshiClient:
                     headers=headers,
                     params=params,
                     json=json_data,
-                    timeout=10,
+                    timeout=15,
                 )
+
+                # Success
+                if resp.status_code == 200:
+                    return resp.json()
+
+                # Rate limit: respect Retry-After header
                 if resp.status_code == 429:
-                    retry_after = int(resp.headers.get("Retry-After", 2 ** attempt))
-                    logger.warning("Kalshi 429 rate limited, retry %d/3 in %ds", attempt + 1, retry_after)
+                    retry_after = int(resp.headers.get("Retry-After", 2 ** (attempt + 1)))
+                    logger.warning(
+                        "Kalshi 429 rate limited, retry %d/%d in %ds",
+                        attempt + 1, max_attempts, retry_after,
+                    )
                     time.sleep(retry_after)
                     headers = self._sign_request(method, path, base_url=base_url)
                     continue
-                resp.raise_for_status()
-                return resp.json()
 
-            except requests.exceptions.HTTPError as e:
-                logger.error("Kalshi API error: %s - %s", e.response.status_code, e.response.text[:200])
+                # Transient server errors: retry with backoff
+                if resp.status_code in self._RETRYABLE_STATUS:
+                    backoff = 2 ** (attempt + 1)
+                    logger.warning(
+                        "Kalshi %d error, retry %d/%d in %ds",
+                        resp.status_code, attempt + 1, max_attempts, backoff,
+                    )
+                    time.sleep(backoff)
+                    headers = self._sign_request(method, path, base_url=base_url)
+                    continue
+
+                # Non-retryable error (400, 401, 403, 404, etc.)
+                logger.error(
+                    "Kalshi API error: %s - %s",
+                    resp.status_code, resp.text[:200],
+                )
                 return None
+
+            except (requests.exceptions.ConnectionError,
+                    requests.exceptions.Timeout) as e:
+                backoff = 2 ** (attempt + 1)
+                logger.warning(
+                    "Kalshi connection error (%s), retry %d/%d in %ds",
+                    type(e).__name__, attempt + 1, max_attempts, backoff,
+                )
+                time.sleep(backoff)
+                headers = self._sign_request(method, path, base_url=base_url)
+                continue
+
             except Exception as e:
                 logger.error("Kalshi request failed: %s", e)
                 return None
 
-        logger.error("Kalshi request failed after 3 retries: %s %s", method, path)
+        logger.error("Kalshi request failed after %d attempts: %s %s", max_attempts, method, path)
         return None
 
     # ── Event-based market discovery ──────────────────────────────
@@ -325,8 +365,11 @@ class KalshiClient:
 
         Handles both cents (yes_bid/yes_ask as int) and
         dollar format (yes_ask_dollars as string like "0.5600").
+        Returns None if price data is missing or invalid.
         """
         try:
+            ticker = item.get("ticker", "")
+
             # Handle dollar format: "0.5600" → 0.56
             if "yes_ask_dollars" in item:
                 yes_ask = float(item["yes_ask_dollars"])
@@ -336,10 +379,17 @@ class KalshiClient:
                 yes_bid = float(item.get("yes_bid", 0)) / 100
                 yes_ask = float(item.get("yes_ask", 100)) / 100
             else:
+                logger.debug("Market %s has no price data — skipping", ticker)
+                return None
+
+            # Reject degenerate markets (prices out of 0-1 range)
+            if not (0.0 <= yes_bid <= 1.0 and 0.0 <= yes_ask <= 1.0):
+                logger.warning("Market %s has invalid prices (bid=%.3f ask=%.3f) — skipping",
+                               ticker, yes_bid, yes_ask)
                 return None
 
             return KalshiMarket(
-                ticker=item.get("ticker", ""),
+                ticker=ticker,
                 title=item.get("title", ""),
                 subtitle=item.get("subtitle", ""),
                 event_ticker=item.get("event_ticker", ""),
