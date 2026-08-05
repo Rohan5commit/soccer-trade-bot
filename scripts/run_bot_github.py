@@ -318,13 +318,13 @@ class GitHubBot:
         except Exception as e:
             logger.warning("API-Football fixture discovery failed: %s", e)
 
-    def _fetch_live_state(self) -> bool:
+    def _fetch_live_state(self) -> Optional[str]:
         """Fetch live match data from API-Football and update GameState.
 
-        Returns True if live data was successfully fetched.
+        Returns match status string ("NS", "1H", "2H", "FT", etc.) or None on error.
         """
         if not self.api_football or not self._api_football_fixture_id:
-            return False
+            return None
 
         now = time.time()
 
@@ -332,18 +332,18 @@ class GitHubBot:
         remaining = self.api_football.remaining
         if remaining <= 10:
             logger.warning("API-Football rate limit critical (%d remaining) — skipping live update", remaining)
-            return False
+            return None
         elif remaining <= 30:
             # When low, only fetch every other cycle (double the interval)
             if now - self._last_live_update < LIVE_UPDATE_INTERVAL * 2:
-                return True
+                return self._prev_live_state.status if self._prev_live_state else None
         elif now - self._last_live_update < LIVE_UPDATE_INTERVAL:
-            return True  # Still fresh
+            return self._prev_live_state.status if self._prev_live_state else None
 
         try:
             state = self.api_football.get_live_match(self._api_football_fixture_id)
             if not state:
-                return False
+                return None
 
             # Log live state
             logger.info(
@@ -354,19 +354,18 @@ class GitHubBot:
             )
 
             # Update game state from live data
-            prev = self._prev_live_state
             self._game_state = self._match_state_to_game_state(state)
             self._prev_live_state = state
             self._last_live_update = now
             if not self._live_data_received:
                 self._live_data_received = True
                 logger.info("First live data received — predictions enabled")
-            return True
+            return state.status
 
         except Exception as e:
             logger.warning("API-Football live update failed: %s", e)
             self._last_live_update = now  # Back off even on failure
-            return False
+            return None
 
     def _match_state_to_game_state(self, ms: LiveMatchState) -> GameState:
         """Convert KickoffAPI LiveMatchState to GameState for model prediction."""
@@ -551,7 +550,12 @@ class GitHubBot:
                         self._game_state.clock_minutes = min(elapsed, 90)
 
                 # Fetch live match data from API-Football
-                self._fetch_live_state()
+                match_status = self._fetch_live_state()
+
+                # Stop immediately if match is over (FT, AET, PEN, etc.)
+                if match_status and match_status in ("FT", "AET", "PEN", "AWD", "CANC", "POST"):
+                    logger.info("Match finished (status=%s). Stopping.", match_status)
+                    break
 
                 # Update prices (throttled) — only if markets are ready
                 if self._markets_ready and now_ts - last_price_time >= PRICE_UPDATE_INTERVAL:

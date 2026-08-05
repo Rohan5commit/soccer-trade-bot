@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Match scheduler: discovers upcoming soccer matches from Kalshi + KickoffAPI.
+"""Match scheduler: discovers upcoming soccer matches from Kalshi + API-Football.
 
 Used by GitHub Actions workflows:
   - scheduler.yml: Daily discovery, stores today's matches
@@ -17,6 +17,8 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+import requests
+
 IST = timezone(timedelta(hours=5, minutes=30))
 
 # Add parent dir to path for imports
@@ -26,8 +28,31 @@ from market.kalshi_client import KalshiClient, SOCCER_SERIES
 from config import load_config
 
 
-def parse_kalshi_event(event: dict, now: datetime) -> Optional[Dict]:
+# Kalshi series → API-Football league ID (for kickoff time lookup)
+KALSHI_TO_LEAGUE_ID: Dict[str, int] = {
+    "KXUCLGAME": 2, "KXCHAMPIONSLEAGUEGAME": 2,
+    "KXUELGAME": 3, "KXUECLGAME": 848, "KXUEFAGAME": 848, "KXUEFANLGAME": 848,
+    "KXPREMIERLEAGUE": 39, "KXSERIEAGAME": 71, "KXPRIMERALIGAME": 94,
+    "KXMLSGAME": 253, "KXEREDIVISIEGAME": 88, "KXSUPERLIGGAME": 203,
+    "KXBRASILEIROGAME": 71, "KXBRASILEIROBGAME": 72,
+    "KXALLSVENSKANGAME": 113, "KXSCOTTISHPREMGAME": 179,
+    "KXSLGREECEGAME": 197, "KXSWISSLEAGUEGAME": 207,
+    "KXDENSUPERLIGAGAME": 119, "KXLIGAMXGAME": 262,
+    "KXSAUDIPLGAME": 307, "KXKLEAGUEGAME": 292, "KXISLGAME": 164,
+    "KXTHAIL1GAME": 296, "KXUAEPLGAME": 1089,
+    "KXPERLIGA1GAME": 281, "KXVENFUTVEGAME": 300,
+    "KXQSTARSGAME": 306, "KXSPBGAME": 475, "KXWIBPLGAME": 110,
+    "KXTACAPORTGAME": 96, "KXUSLGAME": 244, "KXUSOPENCUPGAME": 257,
+    "KXSCOCUPGAME": 1078, "KXARGNACBGAME": 130,
+    "KXCLUBFGAME": 15, "KXWCGAME": 1, "KXMENWORLDCUP": 1,
+    "KXASEANGAME": 24,
+}
+
+
+def parse_kalshi_event(event: dict, now: datetime, api_football_fixtures: Dict[str, dict] = None) -> Optional[Dict]:
     """Parse a Kalshi event into a match candidate dict.
+
+    Uses API-Football fixtures to get actual kickoff time (Kalshi only has date).
 
     Returns None if the event is not a valid upcoming match.
     """
@@ -52,7 +77,7 @@ def parse_kalshi_event(event: dict, now: datetime) -> Optional[Dict]:
     if not home or not away:
         return None
 
-    # Parse kickoff from sub_title: "(Jul 23)" → Jul 23
+    # Parse date from sub_title: "(Aug 4)" → Aug 4
     sub_title = event.get("sub_title", "")
     date_match = re.search(r'\((\w{3})\s+(\d{1,2})\)', sub_title)
 
@@ -72,7 +97,16 @@ def parse_kalshi_event(event: dict, now: datetime) -> Optional[Dict]:
                     year += 1
                 elif month > now.month + 6:
                     year -= 1
-                kickoff = datetime(year, month, day, 23, 30, tzinfo=IST)
+
+                # Try to get actual kickoff time from API-Football fixtures
+                if api_football_fixtures:
+                    kickoff = _find_kickoff_from_api_football(
+                        home, away, year, month, day, api_football_fixtures
+                    )
+
+                # Fallback: use 21:00 IST (common European kickoff time)
+                if kickoff is None:
+                    kickoff = datetime(year, month, day, 21, 0, tzinfo=IST)
         except Exception:
             pass
 
@@ -100,13 +134,83 @@ def parse_kalshi_event(event: dict, now: datetime) -> Optional[Dict]:
     }
 
 
+def _find_kickoff_from_api_football(
+    home: str, away: str, year: int, month: int, day: int,
+    fixtures: Dict[str, dict]
+) -> Optional[datetime]:
+    """Find actual kickoff time from API-Football fixtures by matching team names."""
+    target_date = f"{year}-{month:02d}-{day:02d}"
+    home_norm = home.lower().replace(".", "").replace("'", "").replace("-", " ")
+    away_norm = away.lower().replace(".", "").replace("'", "").replace("-", " ")
+
+    for fixture_key, fixture in fixtures.items():
+        fixture_date = fixture.get("date", "")[:10]
+        if fixture_date != target_date:
+            continue
+
+        f_teams = fixture.get("teams", {})
+        f_home = f_teams.get("home", {}).get("name", "").lower()
+        f_away = f_teams.get("away", {}).get("name", "").lower()
+
+        # Check if both team names match (substring match)
+        if (home_norm in f_home or f_home in home_norm) and \
+           (away_norm in f_away or f_away in away_norm):
+            # Parse UTC timestamp and convert to IST
+            fixture_date_str = fixture.get("date", "")
+            try:
+                utc_time = datetime.fromisoformat(fixture_date_str.replace("Z", "+00:00"))
+                return utc_time.astimezone(IST)
+            except Exception:
+                pass
+
+    return None
+
+
+def fetch_api_football_fixtures(api_key: str) -> Dict[str, dict]:
+    """Fetch today's and tomorrow's fixtures from API-Football for kickoff time lookup.
+
+    Returns dict keyed by fixture ID.
+    """
+    if not api_key:
+        return {}
+
+    headers = {"x-apisports-key": api_key}
+    base = "https://v3.football.api-sports.io"
+    fixtures = {}
+
+    for date_offset in [0, 1]:
+        try:
+            date = (datetime.now(timezone.utc) + timedelta(days=date_offset)).strftime("%Y-%m-%d")
+            resp = requests.get(f"{base}/fixtures", params={"date": date}, headers=headers, timeout=15)
+            if resp.status_code == 200:
+                for f in resp.json().get("response", []):
+                    fid = f.get("fixture", {}).get("id")
+                    if fid:
+                        fixtures[fid] = f.get("fixture", {})
+            time.sleep(0.5)
+        except Exception:
+            pass
+
+    return fixtures
+
+
 def discover_matches() -> List[Dict]:
     """Discover all upcoming soccer matches from Kalshi.
+
+    Uses API-Football to get actual kickoff times (Kalshi only has date).
 
     Returns sorted list of match dicts, soonest first.
     """
     cfg = load_config()
     now = datetime.now(IST)
+
+    # Fetch API-Football fixtures for kickoff time lookup
+    api_key = os.environ.get("API_FOOTBALL_API_KEY", "")
+    api_football_fixtures = fetch_api_football_fixtures(api_key)
+    if api_football_fixtures:
+        print(f"[INFO] Loaded {len(api_football_fixtures)} API-Football fixtures for kickoff lookup", file=sys.stderr)
+    else:
+        print("[WARN] No API-Football fixtures — using 21:00 IST default kickoff", file=sys.stderr)
 
     client = KalshiClient(
         api_key=cfg.kalshi_api_key,
@@ -127,7 +231,7 @@ def discover_matches() -> List[Dict]:
                 continue
 
             for event in resp["events"]:
-                match = parse_kalshi_event(event, now)
+                match = parse_kalshi_event(event, now, api_football_fixtures)
                 if match:
                     matches.append(match)
 
