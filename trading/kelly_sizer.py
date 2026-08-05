@@ -49,7 +49,7 @@ class KellySizer:
     def __init__(
         self,
         base_kelly: float = 0.25,
-        max_bet_pct: float = 0.50,
+        max_bet_pct: float = 0.05,
         min_bet_usd: float = 5.0,
         max_exposure_pct: float = 0.05,
         single_bet_mode: bool = True,

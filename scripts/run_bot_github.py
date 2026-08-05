@@ -116,6 +116,8 @@ class GitHubBot:
                 self.match_kickoff = datetime.fromisoformat(
                     self.match_kickoff_str.replace("Z", "+00:00")
                 )
+                if self.match_kickoff.tzinfo is None:
+                    self.match_kickoff = self.match_kickoff.replace(tzinfo=IST)
             except Exception:
                 pass
 
@@ -310,7 +312,7 @@ class GitHubBot:
                 teams = best_match.get("teams", {})
                 f_home = teams.get("home", {}).get("name", "?")
                 f_away = teams.get("away", {}).get("name", "?")
-                logger.info("API-Football fixture found: %s vs %s (ID=%d)",
+                logger.info("API-Football fixture found: %s vs %s (ID=%s)",
                             f_home, f_away, self._api_football_fixture_id)
             else:
                 logger.warning("API-Football: no matching fixture for %s vs %s (checked %d fixtures)",

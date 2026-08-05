@@ -147,36 +147,43 @@ class APIFootballClient:
             return None
 
         url = f"{BASE_URL}/{endpoint}"
-        try:
-            resp = self._session.get(url, params=params, timeout=15)
-            self._request_count += 1
+        for attempt in range(4):
+            try:
+                resp = self._session.get(url, params=params, timeout=15)
+                self._request_count += 1
 
-            # Parse rate limit headers
-            remaining = resp.headers.get("x-ratelimit-requests-remaining")
-            if remaining is not None:
-                self._remaining = int(remaining)
+                # Parse rate limit headers
+                remaining = resp.headers.get("x-ratelimit-requests-remaining")
+                if remaining is not None:
+                    self._remaining = int(remaining)
 
-            if resp.status_code == 429:
-                retry_after = int(resp.headers.get("Retry-After", 60))
-                logger.warning("API-Football 429 — retry after %ds (remaining=%d)",
-                               retry_after, self._remaining)
-                time.sleep(min(retry_after, 60))
-                return self._get(endpoint, params)
+                if resp.status_code == 429:
+                    try:
+                        retry_after = int(resp.headers.get("Retry-After", 60))
+                    except (ValueError, TypeError):
+                        retry_after = 60
+                    logger.warning("API-Football 429 — retry after %ds (remaining=%d, attempt %d/4)",
+                                   retry_after, self._remaining, attempt + 1)
+                    time.sleep(min(retry_after, 60))
+                    continue
 
-            if resp.status_code != 200:
-                logger.error("API-Football %d: %s", resp.status_code, resp.text[:200])
+                if resp.status_code != 200:
+                    logger.error("API-Football %d: %s", resp.status_code, resp.text[:200])
+                    return None
+
+                data = resp.json()
+                if data.get("errors"):
+                    logger.error("API-Football errors: %s", data["errors"])
+                    return None
+
+                return data.get("response", data)
+
+            except requests.RequestException as e:
+                logger.error("API-Football request failed: %s", e)
                 return None
 
-            data = resp.json()
-            if data.get("errors"):
-                logger.error("API-Football errors: %s", data["errors"])
-                return None
-
-            return data.get("response", data)
-
-        except requests.RequestException as e:
-            logger.error("API-Football request failed: %s", e)
-            return None
+        logger.error("API-Football 429 — all 4 attempts exhausted for %s", endpoint)
+        return None
 
     def get_live_match(self, fixture_id: int) -> Optional[LiveMatchState]:
         """Fetch live match state by fixture ID.
@@ -209,7 +216,7 @@ class APIFootballClient:
             state.events = self.get_live_events(fixture_id)
             for event in state.events:
                 fixture_data = fixture.get("fixture", {}) if isinstance(fixture, dict) else {}
-                is_home = event.team_id == fixture_data.get("teams", {}).get("home", {}).get("id", 0)
+                is_home = event.team_id == fixture.get("teams", {}).get("home", {}).get("id", 0)
                 if event.event_type == "Card":
                     if event.detail == "Red Card":
                         if is_home:

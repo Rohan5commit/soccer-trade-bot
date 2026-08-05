@@ -206,7 +206,10 @@ class KalshiClient:
 
                 # Rate limit: respect Retry-After header
                 if resp.status_code == 429:
-                    retry_after = int(resp.headers.get("Retry-After", 2 ** (attempt + 1)))
+                    try:
+                        retry_after = int(resp.headers.get("Retry-After", 2 ** (attempt + 1)))
+                    except (ValueError, TypeError):
+                        retry_after = 60
                     logger.warning(
                         "Kalshi 429 rate limited, retry %d/%d in %ds",
                         attempt + 1, max_attempts, retry_after,

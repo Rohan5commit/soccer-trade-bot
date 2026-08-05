@@ -144,7 +144,8 @@ def _find_kickoff_from_api_football(
     away_norm = away.lower().replace(".", "").replace("'", "").replace("-", " ")
 
     for fixture_key, fixture in fixtures.items():
-        fixture_date = fixture.get("date", "")[:10]
+        inner = fixture.get("fixture", {})
+        fixture_date = inner.get("date", "")[:10]
         if fixture_date != target_date:
             continue
 
@@ -156,7 +157,7 @@ def _find_kickoff_from_api_football(
         if (home_norm in f_home or f_home in home_norm) and \
            (away_norm in f_away or f_away in away_norm):
             # Parse UTC timestamp and convert to IST
-            fixture_date_str = fixture.get("date", "")
+            fixture_date_str = inner.get("date", "")
             try:
                 utc_time = datetime.fromisoformat(fixture_date_str.replace("Z", "+00:00"))
                 return utc_time.astimezone(IST)
@@ -186,7 +187,7 @@ def fetch_api_football_fixtures(api_key: str) -> Dict[str, dict]:
                 for f in resp.json().get("response", []):
                     fid = f.get("fixture", {}).get("id")
                     if fid:
-                        fixtures[fid] = f.get("fixture", {})
+                        fixtures[fid] = f  # Store full response (has teams, league, etc.)
             time.sleep(0.5)
         except Exception:
             pass
