@@ -8,10 +8,8 @@ Only dispatches future matches — never re-dispatches past matches.
 
 import json
 import os
-import re
 import subprocess
 import sys
-import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -67,19 +65,13 @@ def _score_match(match: Dict) -> float:
     minutes_until = match.get("minutes_until", 9999)
     markets_count = match.get("markets_count", 0)
 
-    # Timing: prefer 1-3 hours out
+    # Timing: prefer 30-90 min out (the dispatch window)
     if minutes_until < 30:
-        timing = 0.1
-    elif minutes_until < 60:
-        timing = 0.4
-    elif minutes_until < 120:
-        timing = 0.7
-    elif minutes_until < 180:
-        timing = 1.0  # Sweet spot
-    elif minutes_until < 240:
-        timing = 0.8
-    else:
         timing = 0.3
+    elif minutes_until < 60:
+        timing = 0.7
+    else:
+        timing = 1.0  # Sweet spot: 60-90 min gives bot time to initialize
 
     # Liquidity: more markets = better
     liquidity = min(markets_count / 10, 1.0) if markets_count > 0 else 0.3
@@ -147,19 +139,19 @@ def was_match_already_dispatched(event_ticker: str) -> bool:
     except Exception:
         pass
 
-    # Fallback: check recent completed runs for this event ticker in inputs
+    # Fallback: check recent bot runs for this event ticker in display title
     try:
         result = subprocess.run(
             ["gh", "run", "list", "--workflow=bot.yml", "--limit=10",
-             "--status=completed", "--json=name,conclusion"],
+             "--status=completed", "--json=displayTitle,conclusion"],
             capture_output=True, text=True, timeout=15,
         )
         if result.returncode == 0:
             runs = json.loads(result.stdout)
             for run in runs:
-                name = run.get("name", "")
-                # Bot log artifacts contain the event ticker
-                if event_ticker in name:
+                title = run.get("displayTitle", "")
+                # Bot run titles contain the event ticker (e.g. "Paper Trade Bot - KXUCLGAME-...")
+                if event_ticker in title:
                     return True
     except Exception:
         pass

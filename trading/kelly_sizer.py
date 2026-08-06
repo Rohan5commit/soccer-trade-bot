@@ -40,7 +40,7 @@ class KellySizer:
 
     Args:
         base_kelly: Base fraction of full Kelly (default 0.25).
-        max_bet_pct: Maximum bet as percentage of bankroll (default 0.02).
+        max_bet_pct: Maximum bet as percentage of bankroll (default 0.05).
         min_bet_usd: Minimum bet size in USD (default 5.0).
         max_exposure_pct: Maximum total exposure per match (default 0.05).
         single_bet_mode: If True, only bet on the single best outcome.
