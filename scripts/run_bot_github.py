@@ -67,6 +67,14 @@ PRICE_UPDATE_INTERVAL = 30
 TRADE_COOLDOWN = 120
 # Max match duration before auto-stop (minutes)
 MAX_MATCH_MINUTES = 120
+# Cap on any single probability to prevent extreme predictions
+MAX_PROB_CAP = 0.80
+# Number of consecutive identical predictions before decay kicks in
+DECAY_THRESHOLD = 10
+# How much to reduce confidence per extra identical prediction
+DECAY_RATE = 0.02
+# If clock hasn't advanced in this many minutes after 80', assume FT
+STALE_CLOCK_FT_MINUTES = 30
 
 
 def load_db() -> dict:
@@ -249,6 +257,12 @@ class GitHubBot:
         self._livescore_slug: Optional[str] = None
         self._prev_live_state: Optional[LiveMatchState] = None
         self._live_data_received: bool = False
+
+        # Prediction stability tracking
+        self._last_predicted_outcome: Optional[str] = None
+        self._consecutive_same_outcome: int = 0
+        self._clock_stuck_since: Optional[float] = None
+        self._last_clock_value: float = 0.0
 
         # Game state — enriched by KickoffAPI live data
         self._game_state = GameState(
@@ -478,7 +492,8 @@ class GitHubBot:
             logger.warning("API-Football fixture discovery failed: %s", e)
 
         # LiveScore fallback — find match slug for live data
-        if not self._api_football_fixture_id and self.livescore:
+        # Always try to discover SportScore as fallback, even when API-Football works
+        if self.livescore and not self._livescore_slug:
             self._find_livescore_match()
 
     def _find_livescore_match(self) -> None:
@@ -502,6 +517,7 @@ class GitHubBot:
 
         Returns match status string ("NS", "1H", "2H", "FT", etc.) or None on error.
         Tries API-Football first, falls back to SofaScore if unavailable.
+        Detects clock-stuck and switches to SportScore if API-Football freezes.
         """
         now = time.time()
 
@@ -509,8 +525,11 @@ class GitHubBot:
         if now - self._last_live_update < LIVE_UPDATE_INTERVAL:
             return self._prev_live_state.status if self._prev_live_state else None
 
-        # Source 1: API-Football (preferred)
-        if self.api_football and self._api_football_fixture_id:
+        # Check if API-Football clock is stuck
+        clock_stuck = self._detect_clock_stuck()
+
+        # Source 1: API-Football (preferred) — skip if clock is stuck
+        if self.api_football and self._api_football_fixture_id and not clock_stuck:
             remaining = self.api_football.remaining
             if remaining <= 10:
                 logger.warning("API-Football rate limit critical (%d remaining) — trying SofaScore", remaining)
@@ -526,11 +545,20 @@ class GitHubBot:
                 if state:
                     return state
 
-        # Source 2: LiveScore/SportScore (fallback)
+        # Source 2: LiveScore/SportScore (fallback, or primary when clock stuck)
         if self.livescore and self._livescore_slug:
             state = self._fetch_from_livescore(now)
             if state:
                 return state
+
+        # If both sources failed but we have a previous state, check for stale clock FT
+        if clock_stuck and self._prev_live_state:
+            current_clock = self._prev_live_state.clock_minutes
+            if current_clock >= 80 and self._clock_stuck_since:
+                stuck_min = (now - self._clock_stuck_since) / 60
+                if stuck_min >= STALE_CLOCK_FT_MINUTES:
+                    logger.info("Clock stuck at %d' for %.0f min. Treating as FT.", current_clock, stuck_min)
+                    return "FT"
 
         return self._prev_live_state.status if self._prev_live_state else None
 
@@ -821,6 +849,110 @@ class GitHubBot:
             except Exception as e:
                 logger.debug("Price update failed for %s: %s", ticker, e)
 
+    def _clamp_probabilities(self, probs: tuple) -> tuple:
+        """Clamp extreme probabilities and apply confidence decay.
+
+        The model sometimes outputs 99.9% for a single outcome when the
+        match is 0-0. This is clearly wrong. We:
+        1. Cap any single probability at MAX_PROB_CAP (0.80)
+        2. If the same outcome keeps winning, decay its confidence
+        3. Redistribute excess probability to other outcomes
+        """
+        home, draw, away = probs
+        raw_home, raw_draw, raw_away = home, draw, away
+
+        # Step 1: Cap at MAX_PROB_CAP
+        home = min(home, MAX_PROB_CAP)
+        draw = min(draw, MAX_PROB_CAP)
+        away = min(away, MAX_PROB_CAP)
+
+        # Step 2: Normalize so probabilities sum to 1
+        total = home + draw + away
+        if total > 0:
+            home /= total
+            draw /= total
+            away /= total
+
+        # Step 3: Track prediction stability
+        best_outcome = max(("home", home), ("draw", draw), ("away", away), key=lambda x: x[1])
+        if best_outcome[0] == self._last_predicted_outcome:
+            self._consecutive_same_outcome += 1
+        else:
+            self._last_predicted_outcome = best_outcome[0]
+            self._consecutive_same_outcome = 1
+
+        # Step 4: Apply decay if same outcome persists too long
+        if self._consecutive_same_outcome > DECAY_THRESHOLD:
+            decay = min(0.30, (self._consecutive_same_outcome - DECAY_THRESHOLD) * DECAY_RATE)
+            if best_outcome[0] == "home":
+                home = max(0.30, home - decay)
+            elif best_outcome[0] == "draw":
+                draw = max(0.30, draw - decay)
+            else:
+                away = max(0.30, away - decay)
+
+            # Re-normalize
+            total = home + draw + away
+            if total > 0:
+                home /= total
+                draw /= total
+                away /= total
+
+            if self._consecutive_same_outcome % 10 == 0:
+                logger.info(
+                    "DECAY: same outcome=%s for %d preds, applying %.1f%% decay",
+                    best_outcome[0], self._consecutive_same_outcome, decay * 100,
+                )
+
+        if raw_home != home or raw_draw != draw or raw_away != away:
+            logger.info(
+                "CLAMP: raw=(%.1f,%.1f,%.1f) -> clamped=(%.1f,%.1f,%.1f)",
+                raw_home * 100, raw_draw * 100, raw_away * 100,
+                home * 100, draw * 100, away * 100,
+            )
+
+        return (home, draw, away)
+
+    def _detect_clock_stuck(self) -> bool:
+        """Detect if API-Football clock is stuck. Falls back to SportScore.
+
+        Returns True if clock hasn't advanced in 3+ minutes.
+        """
+        if not self._prev_live_state:
+            return False
+
+        current_clock = self._prev_live_state.clock_minutes
+        now = time.time()
+
+        # Check if clock advanced
+        if current_clock != self._last_clock_value:
+            self._last_clock_value = current_clock
+            self._clock_stuck_since = None
+            return False
+
+        # Clock hasn't changed — track when it got stuck
+        if self._clock_stuck_since is None:
+            self._clock_stuck_since = now
+
+        stuck_duration = now - self._clock_stuck_since
+
+        # If stuck for 3+ minutes, try SportScore
+        if stuck_duration > 180:
+            if self._livescore_slug and stuck_duration < 600:
+                logger.warning(
+                    "API-Football clock stuck for %.0fs at %d'. Trying SportScore fallback...",
+                    stuck_duration, current_clock,
+                )
+                return True
+            elif stuck_duration > STALE_CLOCK_FT_MINUTES * 60 and current_clock >= 80:
+                logger.warning(
+                    "Clock stuck at %d' for >%d min after 80'. Assuming FT.",
+                    current_clock, STALE_CLOCK_FT_MINUTES,
+                )
+                return True
+
+        return False
+
     def _check_edges(self):
         if not self.edge_calc or not self.kelly:
             return
@@ -857,6 +989,14 @@ class GitHubBot:
         if self.predictor:
             try:
                 probs = self.predictor.predict(self._game_state)
+                # Log raw model outputs for diagnosis
+                logger.info(
+                    "RAW MODEL: home=%.1f%% draw=%.1f%% away=%.1f%% | clock=%.0f'",
+                    probs[0] * 100, probs[1] * 100, probs[2] * 100,
+                    self._game_state.clock_minutes,
+                )
+                # Clamp extreme probabilities and apply decay
+                probs = self._clamp_probabilities(probs)
                 model_probs = {"home": probs[0], "draw": probs[1], "away": probs[2]}
                 confidence = max(probs)
                 logger.info(
