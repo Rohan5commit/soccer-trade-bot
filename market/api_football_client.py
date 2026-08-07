@@ -167,6 +167,12 @@ class APIFootballClient:
                     time.sleep(min(retry_after, 60))
                     continue
 
+                if resp.status_code in (500, 502, 503, 504):
+                    logger.warning("API-Football %d server error — retrying (attempt %d/4)",
+                                   resp.status_code, attempt + 1)
+                    time.sleep(5 * (attempt + 1))
+                    continue
+
                 if resp.status_code != 200:
                     logger.error("API-Football %d: %s", resp.status_code, resp.text[:200])
                     return None
@@ -179,7 +185,10 @@ class APIFootballClient:
                 return data.get("response", data)
 
             except requests.RequestException as e:
-                logger.error("API-Football request failed: %s", e)
+                logger.warning("API-Football request failed (attempt %d/4): %s", attempt + 1, e)
+                if attempt < 3:
+                    time.sleep(5 * (attempt + 1))
+                    continue
                 return None
 
         logger.error("API-Football 429 — all 4 attempts exhausted for %s", endpoint)

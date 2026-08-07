@@ -71,6 +71,14 @@ jobs:
           path: data/schedule.json
           retention-days: 2
 
+      - name: Store best match as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: best-match
+          path: data/best_match.json
+          retention-days: 2
+
       - name: Summary
         if: always()
         run: |

@@ -253,7 +253,7 @@ class LiveScoreClient:
             away_score=away_score,
             clock_minutes=clock_minutes,
             status=status_short,
-            is_live=is_live or is_finished,
+            is_live=is_live and not is_finished,
             period=period,
             events=events,
             home_red_cards=home_red,
