@@ -199,7 +199,14 @@ class APIFootballClient:
 
                 data = resp.json()
                 if data.get("errors"):
-                    logger.error("API-Football errors: %s", data["errors"])
+                    logger.warning("API-Football errors: %s (attempt %d/4)", data["errors"], attempt + 1)
+                    # Try switching to secondary key on error (suspended account, etc.)
+                    if self._switch_key():
+                        continue
+                    # If no secondary key or already switched, retry with backoff
+                    if attempt < 3:
+                        time.sleep(3 * (attempt + 1))
+                        continue
                     return None
 
                 return data.get("response", data)
