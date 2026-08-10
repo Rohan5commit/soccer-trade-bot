@@ -167,31 +167,39 @@ def _find_kickoff_from_api_football(
     return None
 
 
-def fetch_api_football_fixtures(api_key: str) -> Dict[str, dict]:
+def fetch_api_football_fixtures(api_key: str, api_key_2: str = "") -> Dict[str, dict]:
     """Fetch today's and tomorrow's fixtures from API-Football for kickoff time lookup.
 
-    Returns dict keyed by fixture ID.
+    Returns dict keyed by fixture ID. Tries api_key first; falls back to api_key_2
+    on error (suspended account, rate limit, etc.).
     """
-    if not api_key:
-        return {}
+    def _try_fetch(key: str) -> Dict[str, dict]:
+        if not key:
+            return {}
+        headers = {"x-apisports-key": key}
+        base = "https://v3.football.api-sports.io"
+        fixtures = {}
+        for date_offset in [0, 1]:
+            try:
+                date = (datetime.now(timezone.utc) + timedelta(days=date_offset)).strftime("%Y-%m-%d")
+                resp = requests.get(f"{base}/fixtures", params={"date": date}, headers=headers, timeout=15)
+                data = resp.json()
+                if resp.status_code == 200 and not data.get("errors"):
+                    for f in data.get("response", []):
+                        fid = f.get("fixture", {}).get("id")
+                        if fid:
+                            fixtures[fid] = f
+                else:
+                    return {}
+                time.sleep(0.5)
+            except Exception:
+                return {}
+        return fixtures
 
-    headers = {"x-apisports-key": api_key}
-    base = "https://v3.football.api-sports.io"
-    fixtures = {}
-
-    for date_offset in [0, 1]:
-        try:
-            date = (datetime.now(timezone.utc) + timedelta(days=date_offset)).strftime("%Y-%m-%d")
-            resp = requests.get(f"{base}/fixtures", params={"date": date}, headers=headers, timeout=15)
-            if resp.status_code == 200:
-                for f in resp.json().get("response", []):
-                    fid = f.get("fixture", {}).get("id")
-                    if fid:
-                        fixtures[fid] = f  # Store full response (has teams, league, etc.)
-            time.sleep(0.5)
-        except Exception:
-            pass
-
+    fixtures = _try_fetch(api_key)
+    if not fixtures and api_key_2:
+        print("[WARN] Primary API-Football key failed, trying secondary", file=sys.stderr)
+        fixtures = _try_fetch(api_key_2)
     return fixtures
 
 
@@ -207,7 +215,8 @@ def discover_matches() -> List[Dict]:
 
     # Fetch API-Football fixtures for kickoff time lookup
     api_key = os.environ.get("API_FOOTBALL_API_KEY", "")
-    api_football_fixtures = fetch_api_football_fixtures(api_key)
+    api_key_2 = os.environ.get("API_FOOTBALL_API_KEY_2", "")
+    api_football_fixtures = fetch_api_football_fixtures(api_key, api_key_2)
     if api_football_fixtures:
         print(f"[INFO] Loaded {len(api_football_fixtures)} API-Football fixtures for kickoff lookup", file=sys.stderr)
     else:
