@@ -125,25 +125,42 @@ class LiveMatchState:
 class APIFootballClient:
     """Client for API-Football live match data.
 
+    Supports dual-key rotation: when the primary key hits rate limit,
+    automatically switches to the secondary key.
+
     Usage:
-        client = APIFootballClient(api_key="your_key")
+        client = APIFootballClient(api_key="key1", api_key_2="key2")
         state = client.get_live_match(fixture_id=12345)
     """
 
-    def __init__(self, api_key: str) -> None:
+    def __init__(self, api_key: str, api_key_2: str = "") -> None:
         self.api_key = api_key
+        self.api_key_2 = api_key_2
         self._request_count = 0
         self._remaining = 100  # Free tier: 100/day
+        self._active_key_index = 0  # 0 = primary, 1 = secondary
         self._session = requests.Session()
         self._session.headers.update({
             "x-apisports-key": api_key,
             "Accept": "application/json",
         })
 
+    def _switch_key(self) -> bool:
+        """Switch to secondary API key if available. Returns True if switched."""
+        if self.api_key_2 and self._active_key_index == 0:
+            self._active_key_index = 1
+            self._session.headers["x-apisports-key"] = self.api_key_2
+            self._remaining = 100  # Reset for new key
+            logger.info("API-Football: switched to secondary key (remaining=%d)", self._remaining)
+            return True
+        return False
+
     def _get(self, endpoint: str, params: Dict = None) -> Optional[Dict]:
-        """Make a GET request to API-Football with rate limiting."""
+        """Make a GET request to API-Football with rate limiting and key rotation."""
         if self._remaining <= 0:
-            logger.error("API-Football daily rate limit exhausted")
+            if self._switch_key():
+                return self._get(endpoint, params)
+            logger.error("API-Football daily rate limit exhausted (both keys)")
             return None
 
         url = f"{BASE_URL}/{endpoint}"
@@ -158,6 +175,9 @@ class APIFootballClient:
                     self._remaining = int(remaining)
 
                 if resp.status_code == 429:
+                    # Try switching to secondary key first
+                    if self._switch_key():
+                        continue
                     try:
                         retry_after = int(resp.headers.get("Retry-After", 60))
                     except (ValueError, TypeError):

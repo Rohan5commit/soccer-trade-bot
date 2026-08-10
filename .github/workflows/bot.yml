@@ -62,6 +62,7 @@ jobs:
           KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
           KALSHI_USE_DEMO: "true"
           API_FOOTBALL_API_KEY: ${{ secrets.API_FOOTBALL_API_KEY }}
+          API_FOOTBALL_API_KEY_2: ${{ secrets.API_FOOTBALL_API_KEY_2 }}
           MATCH_HOME: ${{ inputs.home }}
           MATCH_AWAY: ${{ inputs.away }}
           MATCH_KICKOFF: ${{ inputs.kickoff }}

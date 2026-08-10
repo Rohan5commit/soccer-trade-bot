@@ -300,11 +300,13 @@ class GitHubBot:
         self._bankroll = balance
         logger.info("Kalshi demo balance: $%.2f", balance)
 
-        # API-Football client (for live match data)
+        # API-Football client (for live match data) — supports dual-key rotation
         api_key = os.environ.get("API_FOOTBALL_API_KEY", "")
+        api_key_2 = os.environ.get("API_FOOTBALL_API_KEY_2", "")
         if api_key:
-            self.api_football = APIFootballClient(api_key=api_key)
-            logger.info("API-Football client initialized (%d remaining)", self.api_football.remaining)
+            self.api_football = APIFootballClient(api_key=api_key, api_key_2=api_key_2)
+            logger.info("API-Football client initialized (%d remaining, dual-key=%s)",
+                        self.api_football.remaining, "yes" if api_key_2 else "no")
         else:
             logger.warning("No API_FOOTBALL_API_KEY — running without live data")
 
