@@ -56,18 +56,18 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_ENV"
 
-      - name: Run paper trader
+      - name: Run live trader
         id: trade
         env:
           KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
-          KALSHI_USE_DEMO: "true"
+          KALSHI_USE_DEMO: "false"
           API_FOOTBALL_API_KEY: ${{ secrets.API_FOOTBALL_API_KEY }}
           MATCH_HOME: ${{ inputs.home }}
           MATCH_AWAY: ${{ inputs.away }}
           MATCH_KICKOFF: ${{ inputs.kickoff }}
           MATCH_EVENT_TICKER: ${{ inputs.event_ticker }}
-          PAPER_MODE: "true"
-          DRY_RUN: "true"
+          PAPER_MODE: "false"
+          DRY_RUN: "false"
           MAX_BET_PCT: "0.05"
           KELLY_FRACTION: "0.25"
           EDGE_THRESHOLD: "0.05"
