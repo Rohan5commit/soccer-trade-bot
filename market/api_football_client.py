@@ -247,9 +247,9 @@ class APIFootballClient:
             logger.warning("Unexpected API-Football response format")
             return None
 
-        # Fetch events for live matches (1 extra request)
+        # Parse events from the fixture response (already included — saves 1 request/poll)
         if state.is_live and fixture_id:
-            state.events = self.get_live_events(fixture_id)
+            state.events = self._parse_events(fixture.get("events", []))
             for event in state.events:
                 fixture_data = fixture.get("fixture", {}) if isinstance(fixture, dict) else {}
                 is_home = event.team_id == fixture.get("teams", {}).get("home", {}).get("id", 0)
@@ -288,14 +288,9 @@ class APIFootballClient:
             return []
         return response if isinstance(response, list) else [response]
 
-    def get_live_events(self, fixture_id: int) -> List[APIFootballEvent]:
-        """Fetch match events (goals, cards, subs)."""
-        response = self._get("fixtures/events", {"fixture": fixture_id})
-        if not response:
-            return []
-
+    def _parse_events(self, event_list: List[Dict]) -> List[APIFootballEvent]:
+        """Parse raw event dicts into APIFootballEvent objects."""
         events = []
-        event_list = response if isinstance(response, list) else []
         for e in event_list:
             time_data = e.get("time", {})
             team_data = e.get("team", {})
@@ -313,6 +308,15 @@ class APIFootballClient:
                 comments=e.get("comments"),
             ))
         return events
+
+    def get_live_events(self, fixture_id: int) -> List[APIFootballEvent]:
+        """Fetch match events (goals, cards, subs)."""
+        response = self._get("fixtures/events", {"fixture": fixture_id})
+        if not response:
+            return []
+
+        event_list = response if isinstance(response, list) else []
+        return self._parse_events(event_list)
 
     def get_match_statistics(self, fixture_id: int) -> Tuple[Optional[APIFootballStats], Optional[APIFootballStats]]:
         """Fetch match statistics for both teams."""

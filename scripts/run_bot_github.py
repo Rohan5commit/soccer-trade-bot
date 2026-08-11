@@ -57,10 +57,10 @@ TRADES_LOG = DATA_DIR / "trades_log.jsonl"
 STATE_FILE = DATA_DIR / "current_state.json"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-# How often to update live data from KickoffAPI (seconds)
-# 60s keeps us within 200 req/day budget: 120min / 60s * 2 calls = ~240 calls
-# With 2 keys (200/day) this is tight; 90s would be safer but 60s is OK with proactive gating
-LIVE_UPDATE_INTERVAL = 60
+# How often to update live data from API-Football (seconds)
+# Single key budget: 100 calls/day. Each poll = 1 call (events come from the
+# fixtures response). 120min / 75s = 96 polls + ~4 discovery calls = 100.
+LIVE_UPDATE_INTERVAL = 75
 # How often to update Kalshi prices (seconds)
 PRICE_UPDATE_INTERVAL = 30
 # Trade cooldown per outcome (seconds)
