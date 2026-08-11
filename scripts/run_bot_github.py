@@ -313,10 +313,10 @@ class GitHubBot:
         )
         balance = self.kalshi.get_balance()
         if balance is None:
-            logger.error("Failed to authenticate with Kalshi")
+            logger.error("Failed to authenticate with Kalshi demo")
             return False
         self._bankroll = balance
-        logger.info("Kalshi balance: $%.2f", balance)
+        logger.info("Kalshi demo balance: $%.2f", balance)
 
         # API-Football client (for live match data) — supports dual-key rotation
         api_key = os.environ.get("API_FOOTBALL_API_KEY", "")
