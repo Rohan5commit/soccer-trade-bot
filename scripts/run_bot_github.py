@@ -196,19 +196,37 @@ def _fuzzy_match_score(name1: str, name2: str) -> float:
     """Compute fuzzy match score between two team names using SequenceMatcher.
 
     Returns a score between 0.0 (no match) and 1.0 (exact match).
+    Also compares the primary (first) tokens, since API names often carry
+    suffixes like "SK FK", "FC", etc. ("Vasteras SK FK" vs "Vasteraas").
     """
     from difflib import SequenceMatcher
     n1 = _normalize_team_name(name1)
     n2 = _normalize_team_name(name2)
 
+    def _ratio(a: str, b: str) -> float:
+        return SequenceMatcher(None, a, b).ratio()
+
     # Direct match
-    ratio = SequenceMatcher(None, n1, n2).ratio()
+    ratio = _ratio(n1, n2)
 
     # Also check if any alias matches
-    r1 = SequenceMatcher(None, _resolve_team_alias(name1), n2).ratio()
-    r2 = SequenceMatcher(None, n1, _resolve_team_alias(name2)).ratio()
+    r1 = _ratio(_resolve_team_alias(name1), n2)
+    r2 = _ratio(n1, _resolve_team_alias(name2))
 
-    return max(ratio, r1, r2)
+    best = max(ratio, r1, r2)
+
+    # Compare primary tokens (first word of each name) — helps with
+    # "Vasteraas" vs "Vasteras SK FK" and similar suffix-heavy API names
+    tok1 = n1.split()[0] if n1.split() else n1
+    tok2 = n2.split()[0] if n2.split() else n2
+    token_ratio = _ratio(tok1, tok2)
+    for t in n2.split():
+        if t in ("fc", "sk", "fk", "cf", "afc", "sc", "if", "bk", "ff", "w", "bvo"):
+            continue
+        token_ratio = max(token_ratio, _ratio(tok1, t))
+
+    best = max(best, token_ratio * 0.90)
+    return best
 
 
 class GitHubBot:
@@ -479,7 +497,8 @@ class GitHubBot:
                     best_score = fuzzy_best
                     best_match = f
 
-            if best_match and best_score >= 1.0:
+            # Accept either an exact match (2.0) or a confident fuzzy match (>= 0.80)
+            if best_match and best_score >= 0.80:
                 fixture_data = best_match.get("fixture", {})
                 self._api_football_fixture_id = fixture_data.get("id")
                 teams = best_match.get("teams", {})
@@ -971,6 +990,24 @@ class GitHubBot:
         if self._prev_live_state and not self._prev_live_state.is_live:
             logger.debug("Match not live yet (status=%s) — skipping prediction", self._prev_live_state.status)
             return
+
+        # RISK GUARD: never trade on stale live data.
+        # If the data source (API-Football) is dead/stuck and the fallback
+        # (SportScore) has no match, the clock won't advance — trading on a
+        # frozen GameState produces garbage predictions. Halt instead.
+        if self._clock_stuck_since and self._prev_live_state and self._prev_live_state.is_live:
+            stuck_min = (time.time() - self._clock_stuck_since) / 60
+            api_dead = self.api_football and self.api_football.remaining <= 15
+            no_fallback = not self._livescore_slug
+            if stuck_min >= 5 and (api_dead or no_fallback):
+                logger.warning(
+                    "RISK GUARD: clock stuck at %.0f' for %.0f min with no working fallback "
+                    "(API remaining=%d, LS slug=%s) — halting new trades",
+                    self._prev_live_state.clock_minutes, stuck_min,
+                    self.api_football.remaining if self.api_football else -1,
+                    self._livescore_slug or "none",
+                )
+                return
 
         market_prices = {}
         market_asks = {}

@@ -114,6 +114,44 @@ def is_bot_already_running() -> bool:
     return False
 
 
+def _session_date(dt: datetime) -> str:
+    """Map a datetime to its trading-session date.
+
+    Sessions run from 10:00 IST to the next 10:00 IST (the scheduler
+    generates the daily schedule at ~10:00 IST), so a match at 02:00 IST
+    belongs to the same session as one at 18:00 IST the previous evening.
+    """
+    return (dt - timedelta(hours=10)).strftime("%Y-%m-%d")
+
+
+def was_dispatched_today() -> bool:
+    """Check if a bot was already dispatched today (IST). One match per night."""
+    session = _session_date(datetime.now(IST))
+    try:
+        result = subprocess.run(
+            ["gh", "run", "list", "--workflow=bot.yml", "--limit=30",
+             "--json=createdAt"],
+            capture_output=True, text=True, timeout=15,
+        )
+        if result.returncode == 0:
+            runs = json.loads(result.stdout)
+            for run in runs:
+                created = run.get("createdAt", "")
+                if not created:
+                    continue
+                try:
+                    created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                except Exception:
+                    continue
+                if _session_date(created_dt.astimezone(IST)) == session:
+                    print(f"[INFO] Bot already dispatched this session ({session}) — "
+                          f"one match per night. Skipping.", file=sys.stderr)
+                    return True
+    except Exception:
+        pass
+    return False
+
+
 def was_match_already_dispatched(event_ticker: str) -> bool:
     """Check if we already dispatched a bot run for this event ticker.
 
@@ -163,6 +201,11 @@ def dispatch_bot(match: dict) -> bool:
     """Dispatch the bot workflow via GitHub API."""
     if is_bot_already_running():
         print(f"[INFO] Bot already running or queued — skipping", file=sys.stderr)
+        return False
+
+    # Hard limit: one match per night (single API-Football key = 100 calls/day)
+    if was_dispatched_today():
+        print(f"[INFO] One match per night limit — skipping", file=sys.stderr)
         return False
 
     # Check if this match was already dispatched
