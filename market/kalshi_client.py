@@ -204,6 +204,10 @@ class KalshiClient:
                 if resp.status_code == 200:
                     return resp.json()
 
+                # Created (201) — returned by POST /portfolio/events/orders on successful order
+                if resp.status_code == 201:
+                    return resp.json()
+
                 # Rate limit: respect Retry-After header
                 if resp.status_code == 429:
                     try:
@@ -538,7 +542,7 @@ class KalshiClient:
         order_data = {
             "ticker": ticker,
             "side": side.lower(),  # "bid" or "ask"
-            "count": count,
+            "count": str(count),
             "price": price_str,
             "time_in_force": time_in_force,
             "self_trade_prevention_type": "taker_at_cross",
