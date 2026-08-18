@@ -28,6 +28,14 @@ jobs:
           if_no_artifact_found: warn
           workflow: scheduler.yml
 
+      - name: Download scheduler's best-match pick
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: best-match
+          path: data/
+          if_no_artifact_found: warn
+          workflow: scheduler.yml
+
       - name: Decode Kalshi private key
         env:
           KALSHI_PRIVATE_KEY_B64: ${{ secrets.KALSHI_PRIVATE_KEY_B64 }}

@@ -30,6 +30,24 @@ def load_schedule() -> dict:
     return {}
 
 
+def load_preferred_match() -> Optional[Dict]:
+    """Load the scheduler's designated best match (best_match.json).
+
+    The scheduler ranks all matches and picks ONE as the night's best.
+    The watcher should honor that pick instead of re-scoring on its own.
+    Returns None if no best-match artifact is available.
+    """
+    best_file = Path("data/best_match.json")
+
+    if best_file.exists():
+        try:
+            return json.loads(best_file.read_text())
+        except Exception as e:
+            print(f"[WARN] Failed to load best match: {e}", file=sys.stderr)
+
+    return None
+
+
 def filter_future_matches(matches: List[Dict]) -> List[Dict]:
     """Only keep matches with positive minutes_until (not yet started).
 
@@ -94,6 +112,45 @@ def pick_best_match(matches: List[Dict]) -> Optional[Dict]:
         file=sys.stderr,
     )
     return best
+
+
+def prioritize(preferred: Optional[Dict], matches: List[Dict]) -> Optional[Dict]:
+    """Return the scheduler's preferred match when it's still upcoming.
+
+    Falls back to real-time scoring when there's no preferred match or it
+    is no longer in the future window. Uses the match's event_ticker (or
+    team names) to match against the filtered future matches so we carry
+    the fresh minutes_until value.
+    """
+    if not preferred:
+        return None
+
+    preferred_ticker = preferred.get("event_ticker", "")
+    preferred_home = preferred.get("home", "")
+    preferred_away = preferred.get("away", "")
+
+    for m in matches:
+        if preferred_ticker and m.get("event_ticker") == preferred_ticker:
+            print(
+                f"[INFO] Honoring scheduler pick: {m['home']} vs {m['away']} "
+                f"({m['minutes_until']:.0f}min away)",
+                file=sys.stderr,
+            )
+            return m
+        if m.get("home") == preferred_home and m.get("away") == preferred_away:
+            print(
+                f"[INFO] Honoring scheduler pick: {m['home']} vs {m['away']} "
+                f"({m['minutes_until']:.0f}min away)",
+                file=sys.stderr,
+            )
+            return m
+
+    print(
+        f"[INFO] Scheduler pick ({preferred_home} vs {preferred_away}) not in "
+        f"future window — falling back to real-time scoring",
+        file=sys.stderr,
+    )
+    return None
 
 
 def is_bot_already_running() -> bool:
@@ -250,8 +307,10 @@ def main():
     matches = filter_future_matches(raw_matches)
     print(f"[INFO] {len(matches)} matches still upcoming (filtered from {len(raw_matches)})", file=sys.stderr)
 
-    # Pick best match
-    best = pick_best_match(matches)
+    # Prefer the scheduler's designated best match if it's still upcoming;
+    # fall back to real-time scoring otherwise
+    preferred = load_preferred_match()
+    best = prioritize(preferred, matches) or pick_best_match(matches)
 
     # Dispatch
     dispatched = "none"
