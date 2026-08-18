@@ -1,0 +1,36 @@
+name: Verify Order
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install -q cloudscraper requests cryptography
+
+      - name: Decode Kalshi private key
+        env:
+          KALSHI_PRIVATE_KEY_B64: ${{ secrets.KALSHI_PRIVATE_KEY_B64 }}
+        run: |
+          DECODED=$(echo "$KALSHI_PRIVATE_KEY_B64" | base64 -d)
+          {
+            echo "KALSHI_PRIVATE_KEY<<EOF"
+            echo "$DECODED"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Place test order
+        env:
+          KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
+        run: |
+          python scripts/verify_order.py 2>&1 | tee /tmp/verify.log
+          grep -q "SUCCESS: order accepted" /tmp/verify.log && echo "VERIFY=PASS" >> $GITHUB_ENV || { echo "VERIFY=FAIL"; cat /tmp/verify.log; exit 1; }
