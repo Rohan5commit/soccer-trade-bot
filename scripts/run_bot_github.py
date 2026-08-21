@@ -689,15 +689,17 @@ class GitHubBot:
         We snapshot the score at 90' so we can resolve against regulation result.
         """
         # Track regulation-time score for settlement (Fix 6)
-        # Snapshot at 90' — once clock passes 90', lock the regulation score
-        if not self._regulation_snapshot_taken and ms.clock_minutes >= 90:
+        # Keep updating the snapshot while clock >= 90 so we capture
+        # stoppage-time goals up until the final whistle.
+        if ms.clock_minutes >= 90:
             self._regulation_home_goals = ms.home_score
             self._regulation_away_goals = ms.away_score
-            self._regulation_snapshot_taken = True
-            logger.info(
-                "REGULATION SNAPSHOT at %.0f': %d-%d (settles at this score)",
-                ms.clock_minutes, ms.home_score, ms.away_score,
-            )
+            if not self._regulation_snapshot_taken:
+                self._regulation_snapshot_taken = True
+                logger.info(
+                    "REGULATION SNAPSHOT at %.0f': %d-%d (settles at this score)",
+                    ms.clock_minutes, ms.home_score, ms.away_score,
+                )
 
         goals_in_10 = self._count_goals_in_window(ms, 10)
         goals_in_15 = self._count_goals_in_window(ms, 15)
@@ -918,16 +920,20 @@ class GitHubBot:
                 resp = self.kalshi._request("GET", f"/markets/{ticker}")
                 if resp and "market" in resp:
                     m = resp["market"]
-                    if "yes_ask_dollars" in m:
-                        market.yes_bid = float(m.get("yes_bid_dollars", m.get("yes_bid", 0)))
-                        market.yes_ask = float(m.get("yes_ask_dollars", 1.0))
+                    if "yes_ask_dollars" in m and "yes_bid_dollars" in m:
+                        # Dollar format: both fields present
+                        market.yes_bid = float(m["yes_bid_dollars"])
+                        market.yes_ask = float(m["yes_ask_dollars"])
                         market.no_bid = float(m.get("no_bid_dollars", 1.0 - market.yes_ask))
                         market.no_ask = float(m.get("no_ask_dollars", 1.0 - market.yes_bid))
                     elif "yes_bid" in m:
+                        # Cents format: 56 → 0.56
                         market.yes_bid = float(m.get("yes_bid", 0)) / 100
                         market.yes_ask = float(m.get("yes_ask", 100)) / 100
                         market.no_bid = 1.0 - market.yes_ask
                         market.no_ask = 1.0 - market.yes_bid
+                    else:
+                        continue
                     market.volume = m.get("volume", market.volume)
 
                 # Refresh shadow orderbook depth from production
@@ -1152,6 +1158,9 @@ class GitHubBot:
             if not outcome:
                 continue
             if market.yes_ask > 0:
+                # If multiple markets map to same outcome, keep the one with lowest ask (best price)
+                if outcome in market_asks and market.yes_ask >= market_asks[outcome]:
+                    continue
                 market_prices[outcome] = (market.yes_bid + market.yes_ask) / 2
                 market_asks[outcome] = market.yes_ask
                 market_bids[outcome] = market.yes_bid
@@ -1257,7 +1266,9 @@ class GitHubBot:
             fill_price = ask_price
             count = fill_count
         else:
+            # No shadow book — apply liquidity buffer to avoid over-filling
             fill_price = ask_price
+            count = max(1, int(count * self.config.liquidity_buffer))
 
         # Re-evaluate edge at fill price (may have changed if slippage)
         fee = KalshiClient._calc_fee(fill_price, count)
@@ -1365,28 +1376,29 @@ class GitHubBot:
         total_pnl = 0.0
 
         for trade in self._trades:
-            outcome = trade["outcome"]
-            if outcome == regulation_winner:
-                result = "win"
-            elif (outcome == "draw" and regulation_winner == "draw"):
-                result = "win"
-            else:
-                result = "loss"
+            try:
+                outcome = trade["outcome"]
+                if outcome == regulation_winner:
+                    result = "win"
+                else:
+                    result = "loss"
 
-            pnl = self._resolve_pnl(trade, result)
-            total_pnl += pnl
-            trade["settlement_result"] = result
-            trade["settlement_pnl"] = round(pnl, 4)
-            trade["regulation_score"] = f"{score_home}-{score_away}"
+                pnl = self._resolve_pnl(trade, result)
+                total_pnl += pnl
+                trade["settlement_result"] = result
+                trade["settlement_pnl"] = round(pnl, 4)
+                trade["regulation_score"] = f"{score_home}-{score_away}"
 
-            logger.info(
-                "SETTLE: %s %s x%d @ $%.2f → %s (PnL=$%.2f)",
-                outcome.upper(), trade["ticker"], trade["count"],
-                trade["price"], result.upper(), pnl,
-            )
+                logger.info(
+                    "SETTLE: %s %s x%d @ $%.2f → %s (PnL=$%.2f)",
+                    outcome.upper(), trade["ticker"], trade["count"],
+                    trade["price"], result.upper(), pnl,
+                )
 
-            # Append to persistent ledger
-            self._append_trade_ledger(trade)
+                # Append to persistent ledger
+                self._append_trade_ledger(trade)
+            except Exception as e:
+                logger.error("Failed to settle trade %s: %s", trade.get("ticker", "?"), e)
 
         self._bankroll += total_pnl
         logger.info(
@@ -1403,7 +1415,7 @@ class GitHubBot:
             logger.warning("Failed to write trade ledger: %s", e)
 
     def _save_bankroll_state(self) -> None:
-        """Save bankroll and session metadata to persistent state (Fix 2)."""
+        """Save bankroll and session metadata to persistent state."""
         state = {
             "bankroll": round(self._bankroll, 2),
             "start_of_day": round(self._start_of_day_bankroll, 2),
@@ -1414,12 +1426,11 @@ class GitHubBot:
             "last_match": f"{self.match_home} vs {self.match_away}",
         }
 
-        # Load existing state and append this session
+        # Load existing sessions history (but NOT bankroll — we use the updated value)
         if BANKROLL_FILE.exists():
             try:
                 existing = json.loads(BANKROLL_FILE.read_text())
                 state["sessions"] = existing.get("sessions", [])
-                state["bankroll"] = existing.get("bankroll", self._bankroll)
             except Exception:
                 pass
 

@@ -416,9 +416,12 @@ class KalshiClient:
             ticker = item.get("ticker", "")
 
             # Handle dollar format: "0.5600" → 0.56
-            if "yes_ask_dollars" in item:
+            if "yes_ask_dollars" in item and "yes_bid_dollars" in item:
                 yes_ask = float(item["yes_ask_dollars"])
-                yes_bid = float(item.get("yes_bid_dollars", 1.0 - yes_ask))
+                yes_bid = float(item["yes_bid_dollars"])
+            elif "yes_ask_dollars" in item:
+                yes_ask = float(item["yes_ask_dollars"])
+                yes_bid = yes_ask  # fallback: assume zero spread
             elif "yes_bid" in item:
                 # Cents format: 56 → 0.56
                 yes_bid = float(item.get("yes_bid", 0)) / 100

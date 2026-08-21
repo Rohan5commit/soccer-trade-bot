@@ -130,9 +130,9 @@ class EdgeCalculator:
                     outcome, model_p, execution_price, edge, fee_per_contract, net_edge,
                 )
 
-        # Find best edge (only from outcomes with markets)
+        # Find best edge (only from outcomes with markets) — rank by net edge
         tradable = [e for e in edges.values() if e.has_edge and e.has_market]
-        best = max(tradable, key=lambda e: e.edge) if tradable else None
+        best = max(tradable, key=lambda e: e.net_edge) if tradable else None
 
         return EdgeAnalysis(
             edges=edges,

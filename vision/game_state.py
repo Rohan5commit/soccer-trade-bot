@@ -174,7 +174,7 @@ class GameState:
             "home_red_cards": float(self.home_red_cards),
             "away_red_cards": float(self.away_red_cards),
             "home_pressure_score": self.home_pressure_score,
-            "goals_in_last_10min": float(self.goals_in_window(10)),
+            "goals_in_last_10min": float(self.goals_in_last_10min),
             "home_shots_on_target": float(self.home_shots_on_target),
             "away_shots_on_target": float(self.away_shots_on_target),
             "home_xg_running": self.home_xg_running,
@@ -209,8 +209,8 @@ class GameState:
             "days_since_last_match_home": float(self.days_since_last_match_home),
             "days_since_last_match_away": float(self.days_since_last_match_away),
             # Momentum
-            "goals_last_15min": float(self.goals_in_window(15)),
-            "cards_last_15min": float(self.cards_in_window(15)),
+            "goals_last_15min": float(self.goals_last_15min),
+            "cards_last_15min": float(self.cards_last_15min),
             "score_diff_squared": self.score_diff_squared,
             "momentum_shift": self.momentum_shift,
             # v2 interaction features
