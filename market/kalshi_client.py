@@ -4,13 +4,13 @@ Handles:
 - Market discovery for soccer match winner markets
 - RSA-PSS signed request authentication
 - Order placement and management
-- Dual-mode: production API for prices (real liquidity), demo API for orders
+- Dual-mode: production API for prices (real liquidity), production or demo API for orders
 
 Flow:
 1. GET /events → find soccer game events
 2. GET /markets?event_ticker=... → get markets inside that event
 3. Read yes_ask_dollars → convert to cents for pricing
-4. POST /portfolio/orders → place limit orders on demo
+4. POST /portfolio/events/orders → place limit orders
 """
 from __future__ import annotations
 
@@ -89,13 +89,13 @@ class KalshiClient:
 
     Dual-mode architecture:
     - Price fetching always hits production (real liquidity)
-    - Order placement hits demo (paper trading)
+    - Order placement hits production or demo (configurable)
 
     Args:
         api_key: Kalshi API key ID (e.g., 'dc990621...').
         private_key_pem: RSA private key in PEM format.
         dry_run: If True, log orders without placing them.
-        use_demo: If True, place orders on demo (default True).
+        use_demo: If True, place orders on demo (default False for live trading).
     """
 
     def __init__(
@@ -505,7 +505,7 @@ class KalshiClient:
         count: int,
         time_in_force: str = "immediate_or_cancel",
     ) -> Optional[str]:
-        """Place a limit order on Kalshi demo.
+        """Place a limit order on Kalshi.
 
         - side="bid" → buy YES (you think home team wins)
         - side="ask" → buy NO (you think away team wins)
@@ -586,7 +586,7 @@ class KalshiClient:
         return resp is not None
 
     def get_balance(self) -> Optional[float]:
-        """Get current demo account balance.
+        """Get current account balance.
 
         Returns:
             Balance in dollars, or None on error.
