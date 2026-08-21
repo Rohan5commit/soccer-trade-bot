@@ -21,6 +21,10 @@ data/yolo_soccer/
 data/clip_soccer_data/
 data/paper_signals/
 
+# Persistent state (tracked — must be committed for cross-session continuity)
+!data/state/
+data/state/*.log
+
 # Model artifacts (tracked — retrained models must be committed)
 model/*.pt
 model/*.pth

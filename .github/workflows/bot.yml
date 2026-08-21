@@ -67,12 +67,14 @@ jobs:
           MATCH_AWAY: ${{ inputs.away }}
           MATCH_KICKOFF: ${{ inputs.kickoff }}
           MATCH_EVENT_TICKER: ${{ inputs.event_ticker }}
-          PAPER_MODE: "true"
           DRY_RUN: "false"
           MAX_BET_PCT: "0.05"
           KELLY_FRACTION: "0.25"
           EDGE_THRESHOLD: "0.05"
           CONFIDENCE_THRESHOLD: "0.70"
+          ORDERBOOK_DEPTH: "20"
+          LIQUIDITY_BUFFER: "0.7"
+          LOSS_FLOOR_PCT: "0.08"
         run: |
           python scripts/run_bot_github.py 2>&1 | tee data/bot_output.log
 
@@ -83,6 +85,15 @@ jobs:
           name: paper-trades-db
           path: data/paper_signals/
           retention-days: 30
+
+      - name: Commit persistent state
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/state/
+          git diff --staged --quiet || git commit -m "bot: update bankroll + trade ledger [skip ci]"
+          git push
 
       - name: Save logs
         uses: actions/upload-artifact@v4

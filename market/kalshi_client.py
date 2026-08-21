@@ -18,8 +18,9 @@ import base64
 import datetime
 import json
 import logging
+import math
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 from urllib.parse import urlparse
 
@@ -69,6 +70,8 @@ class KalshiMarket:
     open_interest: int
     status: str
     expiration_time: str
+    rules_primary: str = ""
+    is_regulation_only: bool = False
 
 
 @dataclass
@@ -82,6 +85,68 @@ class KalshiOrderbook:
     no_ask: float
     spread: float
     timestamp: float
+
+
+@dataclass
+class OrderbookLevel:
+    """Single price level in the orderbook."""
+
+    price: float
+    count: int
+
+
+@dataclass
+class ShadowOrderbook:
+    """Local copy of the orderbook that simulates fills.
+
+    Decrements liquidity when orders are placed. Resyncs from
+    production when the real book changes or after a timeout.
+    """
+
+    ticker: str
+    yes_levels: List[OrderbookLevel] = field(default_factory=list)
+    no_levels: List[OrderbookLevel] = field(default_factory=list)
+    last_sync: float = 0.0
+
+    def simulate_fill(self, count: int, price: float, side: str = "yes") -> int:
+        """Simulate filling `count` contracts at `price` or better.
+
+        Walks the orderbook from best price down. Returns number of contracts
+        actually fillable (may be less than `count` if book is thin).
+        """
+        levels = self.yes_levels if side == "yes" else self.no_levels
+        remaining = count
+        filled = 0
+
+        for lvl in levels:
+            if remaining <= 0:
+                break
+            if side == "yes" and lvl.price > price:
+                break
+            if side == "no" and lvl.price > price:
+                break
+            take = min(remaining, lvl.count)
+            filled += take
+            remaining -= take
+            lvl.count -= take
+
+        return filled
+
+    def best_ask(self, side: str = "yes") -> float:
+        """Best ask price from the shadow book."""
+        levels = self.yes_levels if side == "yes" else self.no_levels
+        if not levels:
+            return 0.0
+        return levels[0].price if levels else 0.0
+
+    def total_depth(self, side: str = "yes", max_levels: int = 5) -> int:
+        """Total contracts available across top N levels."""
+        levels = self.yes_levels if side == "yes" else self.no_levels
+        return sum(l.count for l in levels[:max_levels])
+
+    def needs_resync(self, timeout: float = 30.0) -> bool:
+        """Check if book is stale and needs resync from production."""
+        return (time.time() - self.last_sync) > timeout
 
 
 class KalshiClient:
@@ -408,6 +473,9 @@ class KalshiClient:
                 open_interest=item.get("open_interest", 0),
                 status=item.get("status", ""),
                 expiration_time=item.get("expiration_time", ""),
+                rules_primary=item.get("rules_primary", ""),
+                is_regulation_only="regulation time" in item.get("rules_primary", "").lower()
+                    or "90 minutes" in item.get("rules_primary", "").lower(),
             )
         except (ValueError, TypeError) as e:
             logger.warning("Failed to parse market: %s", e)
@@ -494,6 +562,85 @@ class KalshiClient:
         """
         cents = self.get_yes_price_cents(market)
         return cents / 100.0
+
+    @staticmethod
+    def _calc_fee(price: float, count: int) -> float:
+        """Calculate Kalshi taker fee for a given fill.
+
+        fee_per_contract = ceil(0.07 * price * (1 - price) * 100) / 100
+        Total fee = fee_per_contract * count
+
+        Args:
+            price: Fill price (0.0 - 1.0).
+            count: Number of contracts.
+
+        Returns:
+            Total fee in dollars.
+        """
+        fee_per = math.ceil(0.07 * price * (1 - price) * 100) / 100
+        return fee_per * count
+
+    def get_orderbook_depth(self, ticker: str, depth: int = 20) -> Optional[ShadowOrderbook]:
+        """Fetch full orderbook with depth for a market.
+
+        Always reads from production for real liquidity.
+        Returns a ShadowOrderbook that can simulate fills locally.
+
+        Args:
+            ticker: Market ticker.
+            depth: Number of price levels to fetch.
+
+        Returns:
+            ShadowOrderbook or None.
+        """
+        try:
+            resp = self._request(
+                "GET", f"/markets/{ticker}/orderbook",
+                params={"depth": depth},
+                base_url=self._price_url,
+            )
+            if not resp:
+                return None
+
+            orderbook = resp.get("orderbook_fp") or resp.get("orderbook", {})
+            yes_book = orderbook.get("yes_dollars") or orderbook.get("yes", [])
+            no_book = orderbook.get("no_dollars") or orderbook.get("no", [])
+
+            yes_levels = []
+            no_levels = []
+
+            for price_str, count_str in yes_book:
+                try:
+                    yes_levels.append(OrderbookLevel(
+                        price=float(price_str),
+                        count=int(float(count_str)),
+                    ))
+                except (ValueError, TypeError):
+                    continue
+
+            for price_str, count_str in no_book:
+                try:
+                    no_levels.append(OrderbookLevel(
+                        price=float(price_str),
+                        count=int(float(count_str)),
+                    ))
+                except (ValueError, TypeError):
+                    continue
+
+            # Sort ascending by price (best ask first)
+            yes_levels.sort(key=lambda x: x.price)
+            no_levels.sort(key=lambda x: x.price)
+
+            return ShadowOrderbook(
+                ticker=ticker,
+                yes_levels=yes_levels,
+                no_levels=no_levels,
+                last_sync=time.time(),
+            )
+
+        except Exception as e:
+            logger.error("Failed to get orderbook depth for %s: %s", ticker, e)
+            return None
 
     # ── Order placement (always on demo) ─────────────────────────
 

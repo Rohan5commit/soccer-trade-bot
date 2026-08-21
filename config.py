@@ -52,6 +52,11 @@ class Config:
     edge_threshold: float = 0.05
     confidence_threshold: float = 0.70
 
+    # --- Fill simulation ---
+    orderbook_depth: int = 20
+    liquidity_buffer: float = 0.7
+    loss_floor_pct: float = 0.08
+
     # --- OCR parameters ---
     ocr_confidence_threshold: float = 0.70
     score_roi: Optional[Tuple[int, int, int, int]] = None  # (x1, y1, x2, y2) or None

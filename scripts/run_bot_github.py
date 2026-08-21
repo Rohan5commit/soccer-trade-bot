@@ -37,7 +37,7 @@ IST = timezone(timedelta(hours=5, minutes=30))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config import load_config
-from market.kalshi_client import KalshiClient, KalshiMarket
+from market.kalshi_client import KalshiClient, KalshiMarket, ShadowOrderbook
 from market.api_football_client import APIFootballClient, LiveMatchState
 from market.sofascore_client import LiveScoreClient
 from model.predict import WinPredictor
@@ -56,6 +56,13 @@ DATA_DIR = Path("data/paper_signals")
 TRADES_LOG = DATA_DIR / "trades_log.jsonl"
 STATE_FILE = DATA_DIR / "current_state.json"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# Persistent state (committed to repo across sessions)
+STATE_DIR = Path("data/state")
+STATE_DIR.mkdir(parents=True, exist_ok=True)
+BANKROLL_FILE = STATE_DIR / "bankroll.json"
+TRADE_LEDGER = STATE_DIR / "trade_ledger.jsonl"
+CALIBRATION_FILE = STATE_DIR / "calibration_report.json"
 
 # How often to update live data from API-Football (seconds)
 # Single key budget: 100 calls/day. Each poll = 1 call (events come from the
@@ -265,10 +272,22 @@ class GitHubBot:
         self._markets_ready: bool = False
         self._code_to_outcome: Dict[str, str] = {}
         self._bankroll: float = 0.0
+        self._start_of_day_bankroll: float = 0.0
         self._trades: List[dict] = []
         self._poll_count = 0
         self._order_cooldown: Dict[str, float] = {}
         self._last_live_update: float = 0
+
+        # Shadow orderbook (simulates fills against production book)
+        self._shadow_books: Dict[str, ShadowOrderbook] = {}
+
+        # Settlement rules tracking (Fix 6)
+        self._regulation_home_goals: int = 0
+        self._regulation_away_goals: int = 0
+        self._regulation_snapshot_taken: bool = False
+
+        # Calibration data (Fix 7)
+        self._calibration_data: List[dict] = []
 
         # API-Football fixture tracking
         self._api_football_fixture_id: Optional[int] = None
@@ -317,6 +336,18 @@ class GitHubBot:
             return False
         self._bankroll = balance
         logger.info("Kalshi demo balance: $%.2f", balance)
+
+        # Load previous bankroll from persistent state (Fix 2 + Fix 8)
+        if BANKROLL_FILE.exists():
+            try:
+                prev = json.loads(BANKROLL_FILE.read_text())
+                self._start_of_day_bankroll = prev.get("bankroll", balance)
+                logger.info("Loaded previous bankroll: $%.2f (start-of-day: $%.2f)",
+                            prev.get("bankroll", 0), self._start_of_day_bankroll)
+            except Exception:
+                self._start_of_day_bankroll = balance
+        else:
+            self._start_of_day_bankroll = balance
 
         # API-Football client (for live match data) — supports dual-key rotation
         api_key = os.environ.get("API_FOOTBALL_API_KEY", "")
@@ -380,9 +411,16 @@ class GitHubBot:
         for m in markets:
             self._markets[m.ticker] = m
             logger.info(
-                "  Market: %s (yes=$%.2f no=$%.2f vol=%d) title=%r sub=%r",
+                "  Market: %s (yes=$%.2f no=$%.2f vol=%d) title=%r sub=%r reg_only=%s",
                 m.ticker, m.yes_ask, m.no_ask, m.volume, m.title, m.subtitle,
+                m.is_regulation_only,
             )
+            # Fetch orderbook depth for fill simulation
+            depth = self.kalshi.get_orderbook_depth(m.ticker, depth=self.config.orderbook_depth)
+            if depth:
+                self._shadow_books[m.ticker] = depth
+                logger.info("  Shadow book: %s (yes_depth=%d no_depth=%d)",
+                            m.ticker, len(depth.yes_levels), len(depth.no_levels))
 
         # Build team code → outcome mapping from event ticker
         event_upper = self.event_ticker.upper()
@@ -638,7 +676,23 @@ class GitHubBot:
             return None
 
     def _match_state_to_game_state(self, ms: LiveMatchState) -> GameState:
-        """Convert KickoffAPI LiveMatchState to GameState for model prediction."""
+        """Convert KickoffAPI LiveMatchState to GameState for model prediction.
+
+        Also tracks regulation-time score for settlement (Fix 6):
+        Match winner markets settle at 90 min + stoppage time ONLY.
+        We snapshot the score at 90' so we can resolve against regulation result.
+        """
+        # Track regulation-time score for settlement (Fix 6)
+        # Snapshot at 90' — once clock passes 90', lock the regulation score
+        if not self._regulation_snapshot_taken and ms.clock_minutes >= 90:
+            self._regulation_home_goals = ms.home_score
+            self._regulation_away_goals = ms.away_score
+            self._regulation_snapshot_taken = True
+            logger.info(
+                "REGULATION SNAPSHOT at %.0f': %d-%d (settles at this score)",
+                ms.clock_minutes, ms.home_score, ms.away_score,
+            )
+
         goals_in_10 = self._count_goals_in_window(ms, 10)
         goals_in_15 = self._count_goals_in_window(ms, 15)
         cards_in_15 = self._count_cards_in_window(ms, 15)
@@ -825,6 +879,8 @@ class GitHubBot:
                 # Stop immediately if match is over (FT, AET, PEN, etc.)
                 if match_status and match_status in ("FT", "AET", "PEN", "AWD", "CANC", "POST"):
                     logger.info("Match finished (status=%s). Stopping.", match_status)
+                    # Resolve PnL for all open trades (Fix 2 + Fix 6)
+                    self._resolve_session_pnl()
                     break
 
                 # Update prices (throttled) — only if markets are ready
@@ -974,8 +1030,73 @@ class GitHubBot:
 
         return False
 
+    def _adjust_for_regulation(self, score_home: int, score_away: int) -> str:
+        """Determine the regulation-time result for settlement (Fix 6).
+
+        Match winner markets on Kalshi settle at 90 minutes + stoppage time.
+        If the match goes to extra time or penalties, the regulation result
+        (90' snapshot) determines settlement.
+
+        Returns:
+            "home", "draw", or "away" based on regulation-time score.
+        """
+        if score_home > score_away:
+            return "home"
+        elif score_away > score_home:
+            return "away"
+        else:
+            return "draw"
+
+    def _check_loss_floor(self) -> bool:
+        """Check if bankroll has hit the relative loss floor (Fix 8).
+
+        Halts trading if current bankroll is X% below start-of-day bankroll.
+        Returns True if loss floor is breached (should halt trading).
+        """
+        if self._start_of_day_bankroll <= 0:
+            return False
+        loss_pct = (self._start_of_day_bankroll - self._bankroll) / self._start_of_day_bankroll
+        if loss_pct >= self.config.loss_floor_pct:
+            logger.warning(
+                "LOSS FLOOR BREACHED: bankroll $%.2f is %.1f%% below start-of-day $%.2f (floor=%.1f%%)",
+                self._bankroll, loss_pct * 100, self._start_of_day_bankroll,
+                self.config.loss_floor_pct * 100,
+            )
+            return True
+        return False
+
+    def _resolve_pnl(self, trade: dict, result: str) -> float:
+        """Resolve PnL for a single trade at settlement (Fix 2).
+
+        Args:
+            trade: Trade dict with outcome, count, price, fee, regulation_only.
+            result: "win", "loss", or "push".
+
+        Returns:
+            Net PnL in dollars.
+        """
+        count = trade["count"]
+        price = trade["price"]
+        fee = trade.get("fee", 0.0)
+
+        if result == "win":
+            # Win: receive $1 per contract, minus what you paid
+            pnl = count * (1.0 - price) - fee
+        elif result == "loss":
+            # Loss: lose your stake
+            pnl = -(count * price + fee)
+        else:
+            # Push: get stake back minus fee
+            pnl = -fee
+
+        return pnl
+
     def _check_edges(self):
         if not self.edge_calc or not self.kelly:
+            return
+
+        # Loss floor check (Fix 8)
+        if self._check_loss_floor():
             return
 
         # Don't predict until we have real live data — blank GameState produces garbage predictions
@@ -1054,6 +1175,7 @@ class GitHubBot:
             market_prices=market_prices,
             market_asks=market_asks,
             market_bids=market_bids,
+            fee_per_contract=self._fee_per_contract(market_asks),
         )
 
         if not analysis.any_tradable:
@@ -1063,7 +1185,24 @@ class GitHubBot:
         if best:
             self._place_paper_trade(best, model_probs)
 
+    def _fee_per_contract(self, market_asks: dict) -> float:
+        """Compute average fee per contract across outcomes with asks."""
+        if not market_asks:
+            return 0.0
+        fees = []
+        for outcome, ask in market_asks.items():
+            if ask > 0:
+                fees.append(KalshiClient._calc_fee(ask, 1))
+        return sum(fees) / len(fees) if fees else 0.0
+
     def _place_paper_trade(self, edge_result, model_probs: dict):
+        """Place a simulated trade via shadow orderbook.
+
+        Two-phase edge evaluation (Fix 4):
+        1. Initial edge from model vs market ask (already computed)
+        2. Simulate fill against shadow book → get fill_price
+        3. Re-evaluate edge at fill_price; skip if edge evaporated
+        """
         outcome = edge_result.outcome
         now = time.time()
 
@@ -1076,11 +1215,12 @@ class GitHubBot:
             return
 
         market = self._markets[ticker]
-        price = edge_result.market_ask
+        ask_price = edge_result.market_ask
 
+        # Kelly sizing
         kelly_result = self.kelly.calculate(
             outcome=outcome,
-            edge=edge_result.edge,
+            edge=edge_result.net_edge,
             model_prob=edge_result.model_prob,
             market_prob=edge_result.market_prob,
             bankroll=self._bankroll,
@@ -1090,21 +1230,47 @@ class GitHubBot:
             return
 
         bet_usd = kelly_result.bet_usd
-        count = max(1, int(bet_usd / price)) if price > 0 else 0
+        count = max(1, int(bet_usd / ask_price)) if ask_price > 0 else 0
         if count <= 0:
             return
 
+        # ── Phase 2: simulate fill against shadow book ──
+        shadow = self._shadow_books.get(ticker)
+        if shadow and not shadow.needs_resync():
+            fill_count = shadow.simulate_fill(count, ask_price, side="yes")
+            if fill_count <= 0:
+                logger.debug("Shadow book: no liquidity for %s at $%.2f — skipping", ticker, ask_price)
+                return
+            fill_price = ask_price
+            count = fill_count
+        else:
+            fill_price = ask_price
+
+        # Re-evaluate edge at fill price (may have changed if slippage)
+        fee = KalshiClient._calc_fee(fill_price, count)
+        fee_per = fee / count if count > 0 else 0.0
+        net_edge_at_fill = edge_result.model_prob - fill_price - fee_per
+        if net_edge_at_fill < self.config.edge_threshold:
+            logger.debug(
+                "Edge evaporated at fill: model=%.3f fill=%.3f fee=%.4f net=%.3f < threshold=%.3f",
+                edge_result.model_prob, fill_price, fee_per, net_edge_at_fill, self.config.edge_threshold,
+            )
+            return
+
+        # ── BUY-YES only: side="bid" means buying YES on this ticker.
+        # Each outcome has its own ticker (HOME/DRAW/AWAY). Buying YES on
+        # the "away" ticker IS the bet on the away team winning. ──
         logger.info(
-            "PAPER TRADE: BUY %s %s x%d @ $%.2f (model=%.3f market=%.3f edge=+%.3f)",
-            outcome.upper(), ticker, count, price,
-            edge_result.model_prob, edge_result.market_prob, edge_result.edge,
+            "PAPER TRADE: BUY %s %s x%d @ $%.2f (model=%.3f market=%.3f net_edge=+%.3f fee=$%.4f)",
+            outcome.upper(), ticker, count, fill_price,
+            edge_result.model_prob, edge_result.market_prob, net_edge_at_fill, fee,
         )
 
         result = self.kalshi.place_order(
             ticker=ticker,
             side="bid",
             count=count,
-            yes_price=price,
+            yes_price=fill_price,
         )
 
         trade = {
@@ -1115,18 +1281,36 @@ class GitHubBot:
             "outcome": outcome,
             "side": "yes",
             "count": count,
-            "price": price,
+            "price": fill_price,
             "bet_usd": bet_usd,
             "model_prob": edge_result.model_prob,
             "market_prob": edge_result.market_prob,
-            "edge": edge_result.edge,
+            "gross_edge": edge_result.edge,
+            "net_edge": net_edge_at_fill,
+            "fee": fee,
             "result": "submitted" if result else "failed",
             "clock": self._game_state.clock_minutes,
             "score": f"{self._game_state.home_score}-{self._game_state.away_score}",
+            "regulation_only": market.is_regulation_only,
         }
         self._trades.append(trade)
         log_trade(trade)
         self._order_cooldown[outcome] = now
+
+        # Log calibration data for post-match analysis
+        self._calibration_data.append({
+            "time": trade["time"],
+            "ticker": ticker,
+            "outcome": outcome,
+            "fill_price": fill_price,
+            "model_prob": edge_result.model_prob,
+            "market_ask": edge_result.market_ask,
+            "net_edge": net_edge_at_fill,
+            "count": count,
+            "fee": fee,
+            "clock": self._game_state.clock_minutes,
+            "score": f"{self._game_state.home_score}-{self._game_state.away_score}",
+        })
 
     def _print_status(self):
         elapsed = 0
@@ -1149,6 +1333,135 @@ class GitHubBot:
             logger.info("    %s: yes=$%.2f no=$%.2f vol=%d",
                         t, m.yes_ask, m.no_ask, m.volume)
 
+    def _resolve_session_pnl(self):
+        """Resolve PnL for all trades at match end (Fix 2 + Fix 6).
+
+        Uses the regulation-time score snapshot (90') to determine winners.
+        Match winner markets settle at 90 min + stoppage time ONLY.
+        """
+        if not self._trades:
+            return
+
+        # Use regulation snapshot if available, otherwise use final score
+        if self._regulation_snapshot_taken:
+            score_home = self._regulation_home_goals
+            score_away = self._regulation_away_goals
+            logger.info("Resolving trades against REGULATION score: %d-%d", score_home, score_away)
+        elif self._prev_live_state:
+            score_home = self._prev_live_state.home_score
+            score_away = self._prev_live_state.away_score
+            logger.info("Resolving trades against final score: %d-%d (no regulation snapshot)", score_home, score_away)
+        else:
+            logger.warning("No score data available — cannot resolve trades")
+            return
+
+        regulation_winner = self._adjust_for_regulation(score_home, score_away)
+        total_pnl = 0.0
+
+        for trade in self._trades:
+            outcome = trade["outcome"]
+            if outcome == regulation_winner:
+                result = "win"
+            elif (outcome == "draw" and regulation_winner == "draw"):
+                result = "win"
+            else:
+                result = "loss"
+
+            pnl = self._resolve_pnl(trade, result)
+            total_pnl += pnl
+            trade["settlement_result"] = result
+            trade["settlement_pnl"] = round(pnl, 4)
+            trade["regulation_score"] = f"{score_home}-{score_away}"
+
+            logger.info(
+                "SETTLE: %s %s x%d @ $%.2f → %s (PnL=$%.2f)",
+                outcome.upper(), trade["ticker"], trade["count"],
+                trade["price"], result.upper(), pnl,
+            )
+
+            # Append to persistent ledger
+            self._append_trade_ledger(trade)
+
+        self._bankroll += total_pnl
+        logger.info(
+            "Session PnL: $%.2f | New bankroll: $%.2f | Trades: %d",
+            total_pnl, self._bankroll, len(self._trades),
+        )
+
+    def _append_trade_ledger(self, trade: dict) -> None:
+        """Append a resolved trade to the persistent ledger (Fix 2)."""
+        try:
+            with open(TRADE_LEDGER, "a") as f:
+                f.write(json.dumps(trade) + "\n")
+        except Exception as e:
+            logger.warning("Failed to write trade ledger: %s", e)
+
+    def _save_bankroll_state(self) -> None:
+        """Save bankroll and session metadata to persistent state (Fix 2)."""
+        state = {
+            "bankroll": round(self._bankroll, 2),
+            "start_of_day": round(self._start_of_day_bankroll, 2),
+            "session_start": datetime.now(IST).isoformat(),
+            "total_pnl": round(self._bankroll - self._start_of_day_bankroll, 2),
+            "sessions": [],
+            "last_updated": datetime.now(IST).isoformat(),
+            "last_match": f"{self.match_home} vs {self.match_away}",
+        }
+
+        # Load existing state and append this session
+        if BANKROLL_FILE.exists():
+            try:
+                existing = json.loads(BANKROLL_FILE.read_text())
+                state["sessions"] = existing.get("sessions", [])
+                state["bankroll"] = existing.get("bankroll", self._bankroll)
+            except Exception:
+                pass
+
+        state["sessions"].append({
+            "match": f"{self.match_home} vs {self.match_away}",
+            "trades": len(self._trades),
+            "pnl": round(self._bankroll - self._start_of_day_bankroll, 2),
+            "time": datetime.now(IST).isoformat(),
+        })
+
+        # Keep last 30 sessions
+        state["sessions"] = state["sessions"][-30:]
+
+        BANKROLL_FILE.write_text(json.dumps(state, indent=2))
+        logger.info("Bankroll state saved: $%.2f", self._bankroll)
+
+    def _save_calibration_data(self) -> None:
+        """Save calibration data for post-match analysis (Fix 7)."""
+        if not self._calibration_data:
+            return
+
+        report = {
+            "match": f"{self.match_home} vs {self.match_away}",
+            "time": datetime.now(IST).isoformat(),
+            "liquidity_buffer": self.config.liquidity_buffer,
+            "orderbook_depth": self.config.orderbook_depth,
+            "trades": self._calibration_data,
+            "summary": {
+                "total_trades": len(self._calibration_data),
+                "avg_fill_vs_ask": 0.0,
+                "avg_net_edge": 0.0,
+            },
+        }
+
+        # Compute summary stats
+        fills = [t["fill_price"] for t in self._calibration_data]
+        asks = [t["market_ask"] for t in self._calibration_data]
+        edges = [t["net_edge"] for t in self._calibration_data]
+        if fills and asks:
+            report["summary"]["avg_fill_vs_ask"] = round(
+                sum(f - a for f, a in zip(fills, asks)) / len(fills), 4
+            )
+        if edges:
+            report["summary"]["avg_net_edge"] = round(sum(edges) / len(edges), 4)
+
+        CALIBRATION_FILE.write_text(json.dumps(report, indent=2))
+        logger.info("Calibration data saved: %d trades", len(self._calibration_data))
+
     def _handle_shutdown(self, signum, frame):
         logger.info("Shutdown signal received")
         self._running = False
@@ -1157,10 +1470,18 @@ class GitHubBot:
         logger.info("Shutting down...")
         self._print_status()
 
+        # Resolve any remaining trades
+        if self._trades and not any(t.get("settlement_result") for t in self._trades):
+            self._resolve_session_pnl()
+
         db = load_db()
         db["trades"].extend(self._trades)
         db["bankroll"] = self._bankroll
         save_db(db)
+
+        # Persist bankroll and calibration (Fix 2 + Fix 7)
+        self._save_bankroll_state()
+        self._save_calibration_data()
 
         logger.info("Total trades this session: %d", len(self._trades))
         logger.info("Bot finished.")

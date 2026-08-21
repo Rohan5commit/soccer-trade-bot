@@ -26,8 +26,9 @@ class EdgeResult:
     market_prob: float
     market_ask: float  # Price you'd buy at (execution price)
     market_bid: float  # Price you'd sell at
-    edge: float  # model_prob - market_ask (realistic edge for buying)
-    has_edge: bool  # edge > threshold
+    edge: float  # model_prob - market_ask (gross edge)
+    net_edge: float  # edge - fee_per_contract (true edge after fees)
+    has_edge: bool  # net_edge > threshold
     has_market: bool  # Whether this outcome has a tradeable market
 
 
@@ -58,6 +59,7 @@ class EdgeCalculator:
         market_prices: Dict[str, float],
         market_bids: Optional[Dict[str, float]] = None,
         market_asks: Optional[Dict[str, float]] = None,
+        fee_per_contract: float = 0.0,
     ) -> EdgeAnalysis:
         """Calculate edge for all outcomes.
 
@@ -67,6 +69,7 @@ class EdgeCalculator:
                            Draw can be None if no market exists.
             market_bids: Optional bid prices (what you can sell at).
             market_asks: Optional ask prices (what you can buy at).
+            fee_per_contract: Kalshi taker fee per contract at this price.
 
         Returns:
             EdgeAnalysis with edge for each outcome.
@@ -86,6 +89,7 @@ class EdgeCalculator:
                     market_ask=0.0,
                     market_bid=0.0,
                     edge=0.0,
+                    net_edge=0.0,
                     has_edge=False,
                     has_market=False,
                 )
@@ -102,9 +106,11 @@ class EdgeCalculator:
             else:
                 bid_price = market_p
 
-            # Edge = model probability - execution price (what you'd pay)
+            # Gross edge = model probability - execution price
             edge = model_p - execution_price
-            has_edge = edge >= self.edge_threshold and model_p >= self.confidence_threshold
+            # Net edge = gross edge - fee (Kalshi taker fee eats into edge)
+            net_edge = edge - fee_per_contract
+            has_edge = net_edge >= self.edge_threshold and model_p >= self.confidence_threshold
 
             edges[outcome] = EdgeResult(
                 outcome=outcome,
@@ -113,14 +119,15 @@ class EdgeCalculator:
                 market_ask=execution_price,
                 market_bid=bid_price,
                 edge=edge,
+                net_edge=net_edge,
                 has_edge=has_edge,
                 has_market=True,
             )
 
             if has_edge:
                 logger.info(
-                    "Edge found: %s model=%.3f market_ask=%.3f edge=+%.3f",
-                    outcome, model_p, execution_price, edge,
+                    "Edge found: %s model=%.3f market_ask=%.3f gross=+%.3f fee=%.4f net=+%.3f",
+                    outcome, model_p, execution_price, edge, fee_per_contract, net_edge,
                 )
 
         # Find best edge (only from outcomes with markets)
@@ -138,6 +145,7 @@ class EdgeCalculator:
         model_probs: Dict[str, float],
         market_prices: Dict[str, float],
         min_outcomes: int = 1,
+        fee_per_contract: float = 0.0,
     ) -> bool:
         """Quick check if any outcome has significant edge.
 
@@ -145,6 +153,7 @@ class EdgeCalculator:
             model_probs: Model predictions.
             market_prices: Market prices (None values skipped).
             min_outcomes: Minimum number of outcomes with edge required.
+            fee_per_contract: Kalshi taker fee per contract at this price.
 
         Returns:
             True if at least min_outcomes have edge > threshold.
@@ -155,6 +164,7 @@ class EdgeCalculator:
             market_p = market_prices.get(outcome, 0.0)
             if market_p is None or market_p <= 0.0:
                 continue
-            if model_p - market_p >= self.edge_threshold and model_p >= self.confidence_threshold:
+            net_edge = model_p - market_p - fee_per_contract
+            if net_edge >= self.edge_threshold and model_p >= self.confidence_threshold:
                 count += 1
         return count >= min_outcomes
