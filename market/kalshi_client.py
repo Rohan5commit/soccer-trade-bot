@@ -1,22 +1,20 @@
-"""Kalshi REST API client.
+"""Kalshi REST API client (production only).
 
 Handles:
 - Market discovery for soccer match winner markets
 - RSA-PSS signed request authentication
-- Order placement and management
-- Dual-mode: production API for prices (real liquidity), demo API for orders
+- Orderbook depth for local fill simulation
 
 Flow:
 1. GET /events → find soccer game events
 2. GET /markets?event_ticker=... → get markets inside that event
 3. Read yes_ask_dollars → convert to cents for pricing
-4. POST /portfolio/orders → place limit orders on demo
+4. GET /markets/{ticker}/orderbook → fetch depth for shadow book
 """
 from __future__ import annotations
 
 import base64
 import datetime
-import json
 import logging
 import math
 import time
@@ -26,14 +24,12 @@ from urllib.parse import urlparse
 
 import requests
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding, utils
+from cryptography.hazmat.primitives.asymmetric import padding
 
 logger = logging.getLogger(__name__)
 
-# Production: real liquidity, real bid/ask spreads
+# Production API (public market data, requires RSA auth)
 KALSHI_PROD_BASE = "https://api.elections.kalshi.com/trade-api/v2"
-# Demo: paper trading only
-KALSHI_DEMO_BASE = "https://demo-api.kalshi.co/trade-api/v2"
 
 # Known series tickers for soccer
 SOCCER_SERIES = [
@@ -72,19 +68,6 @@ class KalshiMarket:
     expiration_time: str
     rules_primary: str = ""
     is_regulation_only: bool = False
-
-
-@dataclass
-class KalshiOrderbook:
-    """Kalshi orderbook state."""
-
-    ticker: str
-    yes_bid: float
-    yes_ask: float
-    no_bid: float
-    no_ask: float
-    spread: float
-    timestamp: float
 
 
 @dataclass
@@ -150,17 +133,14 @@ class ShadowOrderbook:
 
 
 class KalshiClient:
-    """Kalshi REST API client with RSA-PSS authentication.
+    """Kalshi REST API client — production only.
 
-    Dual-mode architecture:
-    - Price fetching always hits production (real liquidity)
-    - Order placement hits demo (paper trading)
+    Reads market data, prices, and orderbook depth from production.
+    Fill simulation and PnL resolution happen locally (shadow book).
 
     Args:
         api_key: Kalshi API key ID (e.g., 'dc990621...').
         private_key_pem: RSA private key in PEM format.
-        dry_run: If True, log orders without placing them.
-        use_demo: If True, place orders on demo (default True).
     """
 
     def __init__(
@@ -172,12 +152,9 @@ class KalshiClient:
     ) -> None:
         self.api_key = api_key
         self.private_key_pem = private_key_pem
-        self.dry_run = dry_run
-        self.use_demo = use_demo
 
-        # Dual URLs: prices from prod, orders from demo
+        # Production URL for all reads
         self._price_url = KALSHI_PROD_BASE
-        self._trade_url = KALSHI_DEMO_BASE if use_demo else KALSHI_PROD_BASE
 
         self._private_key = None
         self._session = requests.Session()
@@ -267,10 +244,6 @@ class KalshiClient:
 
                 # Success
                 if resp.status_code == 200:
-                    return resp.json()
-
-                # Created (201) — returned by POST /portfolio/events/orders on successful order
-                if resp.status_code == 201:
                     return resp.json()
 
                 # Rate limit: respect Retry-After header
@@ -481,56 +454,7 @@ class KalshiClient:
             logger.warning("Failed to parse market: %s", e)
             return None
 
-    # ── Orderbook ─────────────────────────────────────────────────
-
-    def get_orderbook(self, ticker: str) -> Optional[KalshiOrderbook]:
-        """Get current orderbook for a market.
-
-        Always fetches from production for real liquidity.
-
-        Args:
-            ticker: Market ticker.
-
-        Returns:
-            KalshiOrderbook or None.
-        """
-        try:
-            # When in demo mode, read orderbook from demo too (prod prices can differ)
-            book_url = self._trade_url if self.use_demo else self._price_url
-            resp = self._request(
-                "GET", f"/markets/{ticker}/orderbook",
-                base_url=book_url,
-            )
-            if not resp:
-                return None
-
-            # Try both API response formats
-            orderbook = resp.get("orderbook_fp") or resp.get("orderbook", {})
-            yes_book = orderbook.get("yes_dollars") or orderbook.get("yes", [])
-            no_book = orderbook.get("no_dollars") or orderbook.get("no", [])
-
-            if not yes_book and not no_book:
-                return None
-
-            # Best YES bid: highest price in yes_dollars (sorted ascending by price)
-            yes_bid = float(yes_book[-1][0]) if yes_book else 0.0
-            # Best YES ask: 1 - highest NO bid (buying NO = selling YES)
-            no_bid = float(no_book[-1][0]) if no_book else 0.0
-            yes_ask = 1.0 - no_bid if no_bid > 0 else 1.0
-
-            return KalshiOrderbook(
-                ticker=ticker,
-                yes_bid=yes_bid,
-                yes_ask=yes_ask,
-                no_bid=1.0 - yes_ask,
-                no_ask=1.0 - yes_bid,
-                spread=yes_ask - yes_bid,
-                timestamp=time.time(),
-            )
-
-        except Exception as e:
-            logger.error("Failed to get Kalshi orderbook for %s: %s", ticker, e)
-            return None
+    # ── Orderbook depth ────────────────────────────────────────
 
     def get_yes_price_cents(self, market: Dict) -> int:
         """Extract yes ask price in cents from market dict.
@@ -642,120 +566,29 @@ class KalshiClient:
             logger.error("Failed to get orderbook depth for %s: %s", ticker, e)
             return None
 
-    # ── Order placement (always on demo) ─────────────────────────
+    # ── Legacy stubs (kept for backward compatibility) ──────────
 
-    def place_order(
-        self,
-        ticker: str,
-        side: str,
-        yes_price,
-        count: int,
-        time_in_force: str = "immediate_or_cancel",
-    ) -> Optional[str]:
-        """Place a limit order on Kalshi demo.
+    def get_orderbook(self, ticker: str) -> Optional[Dict]:
+        """Deprecated: use get_orderbook_depth() instead."""
+        logger.warning("get_orderbook() is deprecated — use get_orderbook_depth()")
+        return None
 
-        - side="bid" → buy YES (you think home team wins)
-        - side="ask" → buy NO (you think away team wins)
-        - yes_price: cents (int 1-99) or dollar string ("0.4300")
-        - Endpoint: POST /portfolio/events/orders
-        - Order type: immediate_or_cancel by default (fills or cancels)
-
-        Args:
-            ticker: Market ticker.
-            side: 'bid' or 'ask'.
-            yes_price: Price in cents (int) or dollar string (e.g., "0.4300").
-            count: Number of contracts.
-            time_in_force: 'immediate_or_cancel' (default) or 'good_till_canceled'.
-
-        Returns:
-            Order ID if placed, None otherwise.
-        """
-        if self.dry_run:
-            logger.info(
-                "[DRY RUN] Kalshi order: %s %s @ %s x %d",
-                side, ticker, yes_price, count,
-            )
-            return f"dry_run_{int(time.time())}"
-
-        # Normalize price to dollar string
-        if isinstance(yes_price, str):
-            price_str = yes_price  # Already "0.4300" format
-        elif isinstance(yes_price, (int, float)) and yes_price > 1:
-            price_str = f"{yes_price / 100:.4f}"  # Cents → dollars
-        else:
-            price_str = f"{yes_price:.4f}"  # Already dollars
-
-        # V2 endpoint: POST /portfolio/events/orders
-        order_data = {
-            "ticker": ticker,
-            "side": side.lower(),  # "bid" or "ask"
-            "count": str(count),
-            "price": price_str,
-            "time_in_force": time_in_force,
-            "self_trade_prevention_type": "taker_at_cross",
-        }
-
-        resp = self._request(
-            "POST",
-            "/portfolio/events/orders",
-            json_data=order_data,
-            base_url=self._trade_url,
-        )
-        if resp and "order_id" in resp:
-            order_id = resp["order_id"]
-            fill_count = resp.get("fill_count", "0.00")
-            remaining = resp.get("remaining_count", f"{count:.2f}")
-            logger.info(
-                "Kalshi order placed: %s | filled=%s remaining=%s",
-                order_id, fill_count, remaining,
-            )
-            return order_id
-
+    def place_order(self, ticker: str, side: str, yes_price, count: int, **kwargs) -> Optional[str]:
+        """Deprecated: fill simulation uses shadow orderbook now."""
+        logger.warning("place_order() is deprecated — use shadow orderbook for fills")
         return None
 
     def cancel_order(self, order_id: str) -> bool:
-        """Cancel an open order.
-
-        Args:
-            order_id: Order to cancel.
-
-        Returns:
-            True if cancelled successfully.
-        """
-        if self.dry_run:
-            logger.info("[DRY RUN] Cancel Kalshi order: %s", order_id)
-            return True
-
-        resp = self._request(
-            "DELETE", f"/portfolio/events/orders/{order_id}",
-            base_url=self._trade_url,
-        )
-        return resp is not None
+        """Deprecated: no real orders are placed."""
+        logger.warning("cancel_order() is deprecated — no real orders")
+        return False
 
     def get_balance(self) -> Optional[float]:
-        """Get current demo account balance.
-
-        Returns:
-            Balance in dollars, or None on error.
-        """
-        resp = self._request(
-            "GET", "/portfolio/balance",
-            base_url=self._trade_url,
-        )
-        if resp:
-            return float(resp.get("balance", 0)) / 100
+        """Deprecated: bankroll comes from persistent state."""
+        logger.warning("get_balance() is deprecated — use data/state/bankroll.json")
         return None
 
     def get_positions(self) -> List[Dict]:
-        """Get current open positions.
-
-        Returns:
-            List of position dicts.
-        """
-        resp = self._request(
-            "GET", "/portfolio/positions",
-            base_url=self._trade_url,
-        )
-        if resp:
-            return resp.get("market_positions", [])
+        """Deprecated: positions tracked locally."""
+        logger.warning("get_positions() is deprecated")
         return []

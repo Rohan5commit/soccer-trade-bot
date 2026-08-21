@@ -166,15 +166,10 @@ class PaperTrader:
         self.kalshi = KalshiClient(
             api_key=self.config.kalshi_api_key,
             private_key_pem=self.config.kalshi_private_key,
-            dry_run=self.config.dry_run,
-            use_demo=self.config.kalshi_use_demo,
         )
 
-        balance = self.kalshi.get_balance()
-        if balance is None:
-            logger.error("Failed to authenticate with Kalshi demo")
-            return False
-        self._bankroll = balance
+        # Bankroll from config or default
+        self._bankroll = 0.0
         logger.info("Kalshi demo balance: $%.2f", balance)
 
         # ML model

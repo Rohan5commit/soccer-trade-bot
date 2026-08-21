@@ -225,7 +225,6 @@ def discover_matches() -> List[Dict]:
     client = KalshiClient(
         api_key=cfg.kalshi_api_key,
         private_key_pem=cfg.kalshi_private_key,
-        use_demo=False,  # Use production for discovery (read-only)
     )
 
     matches = []

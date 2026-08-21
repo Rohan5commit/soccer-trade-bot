@@ -7,7 +7,7 @@ Runs as a single match session:
 3. Discovers Kalshi markets for this specific match
 4. Fetches live match data from API-Football (primary) or SofaScore (fallback)
 5. Runs model predictions on enriched GameState
-6. Places paper trades via Kalshi demo API
+6. Simulates trades via shadow orderbook (production prices, local fills)
 
 Unlike run_paper_trade.py, this does NOT discover matches —
 it runs a single match passed in by the watcher workflow.
@@ -323,31 +323,37 @@ class GitHubBot:
             logger.info("Kickoff: %s", self.match_kickoff_str)
         logger.info("=" * 60)
 
-        # Kalshi client
+        # Kalshi client (production only — reads prices + orderbook depth)
         self.kalshi = KalshiClient(
             api_key=self.config.kalshi_api_key,
             private_key_pem=self.config.kalshi_private_key,
-            dry_run=self.config.dry_run,
-            use_demo=self.config.kalshi_use_demo,
         )
-        balance = self.kalshi.get_balance()
-        if balance is None:
-            logger.error("Failed to authenticate with Kalshi demo")
-            return False
-        self._bankroll = balance
-        logger.info("Kalshi demo balance: $%.2f", balance)
 
-        # Load previous bankroll from persistent state (Fix 2 + Fix 8)
+        # Quick production connectivity check
+        try:
+            test = self.kalshi._request("GET", "/events", params={"limit": 1, "status": "open"})
+            if test is None:
+                logger.error("Cannot reach Kalshi production — check API key + private key")
+                return False
+            logger.info("Kalshi production reachable")
+        except Exception as e:
+            logger.error("Kalshi production check failed: %s", e)
+            return False
+
+        # Bankroll from persistent state (no demo API needed)
         if BANKROLL_FILE.exists():
             try:
                 prev = json.loads(BANKROLL_FILE.read_text())
-                self._start_of_day_bankroll = prev.get("bankroll", balance)
-                logger.info("Loaded previous bankroll: $%.2f (start-of-day: $%.2f)",
-                            prev.get("bankroll", 0), self._start_of_day_bankroll)
+                self._bankroll = prev.get("bankroll", 0.0)
+                self._start_of_day_bankroll = self._bankroll
+                logger.info("Loaded bankroll from state: $%.2f", self._bankroll)
             except Exception:
-                self._start_of_day_bankroll = balance
+                self._bankroll = 0.0
+                self._start_of_day_bankroll = 0.0
         else:
-            self._start_of_day_bankroll = balance
+            self._bankroll = 0.0
+            self._start_of_day_bankroll = 0.0
+        logger.info("Starting bankroll: $%.2f", self._bankroll)
 
         # API-Football client (for live match data) — supports dual-key rotation
         api_key = os.environ.get("API_FOOTBALL_API_KEY", "")
@@ -923,6 +929,13 @@ class GitHubBot:
                         market.no_bid = 1.0 - market.yes_ask
                         market.no_ask = 1.0 - market.yes_bid
                     market.volume = m.get("volume", market.volume)
+
+                # Refresh shadow orderbook depth from production
+                shadow = self._shadow_books.get(ticker)
+                if shadow and shadow.needs_resync():
+                    depth = self.kalshi.get_orderbook_depth(ticker, depth=self.config.orderbook_depth)
+                    if depth:
+                        self._shadow_books[ticker] = depth
             except Exception as e:
                 logger.debug("Price update failed for %s: %s", ticker, e)
 
@@ -1261,16 +1274,9 @@ class GitHubBot:
         # Each outcome has its own ticker (HOME/DRAW/AWAY). Buying YES on
         # the "away" ticker IS the bet on the away team winning. ──
         logger.info(
-            "PAPER TRADE: BUY %s %s x%d @ $%.2f (model=%.3f market=%.3f net_edge=+%.3f fee=$%.4f)",
+            "SIMULATED TRADE: BUY %s %s x%d @ $%.2f (model=%.3f market=%.3f net_edge=+%.3f fee=$%.4f)",
             outcome.upper(), ticker, count, fill_price,
             edge_result.model_prob, edge_result.market_prob, net_edge_at_fill, fee,
-        )
-
-        result = self.kalshi.place_order(
-            ticker=ticker,
-            side="bid",
-            count=count,
-            yes_price=fill_price,
         )
 
         trade = {
@@ -1288,7 +1294,7 @@ class GitHubBot:
             "gross_edge": edge_result.edge,
             "net_edge": net_edge_at_fill,
             "fee": fee,
-            "result": "submitted" if result else "failed",
+            "result": "simulated",
             "clock": self._game_state.clock_minutes,
             "score": f"{self._game_state.home_score}-{self._game_state.away_score}",
             "regulation_only": market.is_regulation_only,

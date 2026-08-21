@@ -104,8 +104,6 @@ class SoccerTradeBot:
             self.kalshi = KalshiClient(
                 api_key=self.config.kalshi_api_key,
                 private_key_pem=self.config.kalshi_private_key,
-                dry_run=self.config.dry_run,
-                use_demo=self.config.kalshi_use_demo,
             )
 
         self.market_selector = MarketSelector(

@@ -275,8 +275,6 @@ def fetch_kalshi_events() -> List[Dict]:
         client = KalshiClient(
             api_key=KALSHI_API_KEY,
             private_key_pem=KALSHI_PRIVATE_KEY,
-            dry_run=True,
-            use_demo=True,
         )
     except Exception as e:
         logger.warning("Failed to init KalshiClient: %s", e)

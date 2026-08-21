@@ -51,7 +51,6 @@ jobs:
         id: check
         env:
           KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
-          KALSHI_USE_DEMO: "false"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           OUTPUT=$(python scripts/watch_proximity.py 2>&1)
