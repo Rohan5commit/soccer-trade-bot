@@ -1,4 +1,4 @@
-name: Live Trade Bot
+name: Paper Trade Bot
 
 on:
   workflow_dispatch:
@@ -61,12 +61,13 @@ jobs:
         id: trade
         env:
           KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
-          KALSHI_USE_DEMO: "false"
+          KALSHI_USE_DEMO: "true"
           API_FOOTBALL_API_KEY: ${{ secrets.API_FOOTBALL_API_KEY }}
           MATCH_HOME: ${{ inputs.home }}
           MATCH_AWAY: ${{ inputs.away }}
           MATCH_KICKOFF: ${{ inputs.kickoff }}
           MATCH_EVENT_TICKER: ${{ inputs.event_ticker }}
+          PAPER_MODE: "true"
           DRY_RUN: "false"
           MAX_BET_PCT: "0.05"
           KELLY_FRACTION: "0.25"
@@ -94,7 +95,7 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          echo "## Live Trade Bot Results" >> $GITHUB_STEP_SUMMARY
+          echo "## Paper Trade Bot Results" >> $GITHUB_STEP_SUMMARY
           echo "- Match: ${{ inputs.home }} vs ${{ inputs.away }}" >> $GITHUB_STEP_SUMMARY
           echo "- Event: ${{ inputs.event_ticker }}" >> $GITHUB_STEP_SUMMARY
           echo "- Kickoff: ${{ inputs.kickoff }}" >> $GITHUB_STEP_SUMMARY

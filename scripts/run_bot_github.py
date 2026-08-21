@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Live trade bot for GitHub Actions.
+"""Paper trade bot for GitHub Actions.
 
 Runs as a single match session:
 1. Receives match info via env vars (from workflow_dispatch)
@@ -7,7 +7,7 @@ Runs as a single match session:
 3. Discovers Kalshi markets for this specific match
 4. Fetches live match data from API-Football (primary) or SofaScore (fallback)
 5. Runs model predictions on enriched GameState
-6. Places real orders on Kalshi production
+6. Places paper trades via Kalshi demo API
 
 Unlike run_paper_trade.py, this does NOT discover matches —
 it runs a single match passed in by the watcher workflow.
@@ -265,8 +265,6 @@ class GitHubBot:
         self._markets_ready: bool = False
         self._code_to_outcome: Dict[str, str] = {}
         self._bankroll: float = 0.0
-        self._initial_bankroll: float = 0.0
-        self._halt_trading: bool = False
         self._trades: List[dict] = []
         self._poll_count = 0
         self._order_cooldown: Dict[str, float] = {}
@@ -297,7 +295,7 @@ class GitHubBot:
         during pre-kickoff wait (Kalshi opens markets closer to kickoff).
         """
         logger.info("=" * 60)
-        logger.info("GITHUB ACTIONS LIVE BOT")
+        logger.info("GITHUB ACTIONS PAPER BOT")
         logger.info("Match: %s vs %s", self.match_home, self.match_away)
         logger.info("Event: %s", self.event_ticker)
         if self.match_kickoff:
@@ -315,11 +313,10 @@ class GitHubBot:
         )
         balance = self.kalshi.get_balance()
         if balance is None:
-            logger.error("Failed to authenticate with Kalshi")
+            logger.error("Failed to authenticate with Kalshi demo")
             return False
         self._bankroll = balance
-        self._initial_bankroll = balance
-        logger.info("Kalshi balance: $%.2f", balance)
+        logger.info("Kalshi demo balance: $%.2f", balance)
 
         # API-Football client (for live match data) — supports dual-key rotation
         api_key = os.environ.get("API_FOOTBALL_API_KEY", "")
@@ -1012,18 +1009,6 @@ class GitHubBot:
                 )
                 return
 
-        # DAILY LOSS FLOOR: halt if bankroll drops below hard stop ($1,250 = ~7.6% drawdown)
-        if self._bankroll < 1250.0 and not self._halt_trading:
-            self._halt_trading = True
-            loss = self._initial_bankroll - self._bankroll
-            logger.warning(
-                "DAILY LOSS FLOOR: bankroll $%.2f is below $1,250 (lost $%.2f from $%.2f) — halting all trades",
-                self._bankroll, loss, self._initial_bankroll,
-            )
-            return
-        if self._halt_trading:
-            return
-
         market_prices = {}
         market_asks = {}
         market_bids = {}
@@ -1178,11 +1163,6 @@ class GitHubBot:
         save_db(db)
 
         logger.info("Total trades this session: %d", len(self._trades))
-        logger.info("Starting balance: $%.2f | Ending balance: $%.2f | Delta: $%.2f",
-                     self._initial_bankroll, self._bankroll,
-                     self._bankroll - self._initial_bankroll)
-        if self._halt_trading:
-            logger.warning("Trading was halted by daily loss floor ($1,250)")
         logger.info("Bot finished.")
 
 
