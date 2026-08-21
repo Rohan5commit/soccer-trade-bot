@@ -185,7 +185,7 @@ class SignalEngine:
             if edge_analysis.any_tradable and edge_analysis.best_edge:
                 best = edge_analysis.best_edge
                 bets = self.kelly_sizer.calculate_all(
-                    edges={k: v.edge for k, v in edge_analysis.edges.items()},
+                    edges={k: v.net_edge for k, v in edge_analysis.edges.items()},
                     market_probs=market_prices,
                     bankroll=self.bankroll,
                     model_probs=model_probs,
@@ -217,7 +217,7 @@ class SignalEngine:
                                 price=order.price,
                                 size_usd=bet.bet_usd,
                                 edge=bet.edge,
-                                kelly_fraction=bet.quarter_kelly,
+                                kelly_fraction=bet.fractional_kelly,
                                 order_id=order.order_id,
                                 status=order.status,
                                 dry_run=self.dry_run,

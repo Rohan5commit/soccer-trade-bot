@@ -99,10 +99,13 @@ sys.path.insert(0, '.')
 from dotenv import load_dotenv
 load_dotenv('.env')
 from market.kalshi_client import KalshiClient
-k = KalshiClient(api_key=os.environ['KALSHI_API_KEY'],
-                  private_key_pem=os.environ['KALSHI_PRIVATE_KEY'], dry_run=False)
-bal = k.get_balance()
-print(f'BALANCE={bal}')
+k = KalshiClient(api_key=os.environ.get('KALSHI_API_KEY', ''),
+                  private_key_pem=os.environ.get('KALSHI_PRIVATE_KEY', ''))
+resp = k._request("GET", "/events", params={"limit": 1, "status": "open"})
+if resp:
+    print('BALANCE=1')
+else:
+    print('BALANCE=0')
 """],
             capture_output=True, text=True, timeout=30,
             cwd=str(BOT_DIR)

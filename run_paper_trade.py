@@ -866,23 +866,36 @@ class PaperTrader:
                 logger.debug("Failed to scan event %s: %s", event_ticker, e)
 
     def _update_prices(self) -> None:
-        """Update prices for all active markets."""
+        """Update prices for all active markets from production."""
         for ticker, market in list(self._active_markets.items()):
-            book = self.kalshi.get_orderbook(ticker)
-            if book:
-                market.yes_bid = book.yes_bid
-                market.yes_ask = book.yes_ask
-                market.no_bid = book.no_bid
-                market.no_ask = book.no_ask
+            try:
+                resp = self.kalshi._request("GET", f"/markets/{ticker}")
+                if resp and "market" in resp:
+                    m = resp["market"]
+                    if "yes_ask_dollars" in m and "yes_bid_dollars" in m:
+                        market.yes_bid = float(m["yes_bid_dollars"])
+                        market.yes_ask = float(m["yes_ask_dollars"])
+                        market.no_bid = float(m.get("no_bid_dollars", 1.0 - market.yes_ask))
+                        market.no_ask = float(m.get("no_ask_dollars", 1.0 - market.yes_bid))
+                    elif "yes_bid" in m:
+                        market.yes_bid = float(m.get("yes_bid", 0)) / 100
+                        market.yes_ask = float(m.get("yes_ask", 100)) / 100
+                        market.no_bid = 1.0 - market.yes_ask
+                        market.no_ask = 1.0 - market.yes_bid
+                    else:
+                        continue
+                    market.volume = m.get("volume", market.volume)
 
-                mid = (book.yes_bid + book.yes_ask) / 2 if book.yes_ask > 0 else 0
-                market.last_odds = {
-                    "yes_mid": mid,
-                    "yes_bid": book.yes_bid,
-                    "yes_ask": book.yes_ask,
-                    "no_bid": book.no_bid,
-                    "no_ask": book.no_ask,
-                }
+                    mid = (market.yes_bid + market.yes_ask) / 2 if market.yes_ask > 0 else 0
+                    market.last_odds = {
+                        "yes_mid": mid,
+                        "yes_bid": market.yes_bid,
+                        "yes_ask": market.yes_ask,
+                        "no_bid": market.no_bid,
+                        "no_ask": market.no_ask,
+                    }
+            except Exception as e:
+                logger.debug("Price update failed for %s: %s", ticker, e)
 
     def _adjust_for_regulation(self, probs: tuple) -> tuple:
         """Adjust model probabilities for regulation-time-only markets.
@@ -948,11 +961,6 @@ class PaperTrader:
         # Skip if clock > final_minutes_skip
         if self._game_state.clock_minutes > (90 - self.config.final_minutes_skip):
             return
-
-        # Refresh balance once per edge check
-        fresh_balance = self.kalshi.get_balance()
-        if fresh_balance:
-            self._bankroll = fresh_balance
 
         now = time.time()
 
@@ -1196,8 +1204,6 @@ class PaperTrader:
 
     def _shutdown(self) -> None:
         logger.info("Shutting down paper trader...")
-        if self.kalshi:
-            self.kalshi.cancel_all_orders()
         self._print_status()
         logger.info("Paper trading stopped")
 

@@ -595,3 +595,8 @@ class KalshiClient:
         """Deprecated: positions tracked locally."""
         logger.warning("get_positions() is deprecated")
         return []
+
+    def cancel_all_orders(self) -> int:
+        """Deprecated: no real orders are placed."""
+        logger.warning("cancel_all_orders() is deprecated — no real orders")
+        return 0
