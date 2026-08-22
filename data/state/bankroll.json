@@ -1,0 +1,16 @@
+{
+  "bankroll": 0.0,
+  "start_of_day": 0.0,
+  "session_start": "2026-08-22T15:30:00.476501+05:30",
+  "total_pnl": 0.0,
+  "sessions": [
+    {
+      "match": "Corum vs Kasimpasa",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-08-22T15:30:00.476542+05:30"
+    }
+  ],
+  "last_updated": "2026-08-22T15:30:00.476514+05:30",
+  "last_match": "Corum vs Kasimpasa"
+}
