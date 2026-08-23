@@ -483,10 +483,18 @@ class GitHubBot:
             best_match = None
             best_score = 0.0
 
+            YOUTH_KEYWORDS = {"u19", "u21", "u23", "reserve", "youth", "amateur"}
+
             for f in fixtures:
                 teams = f.get("teams", {})
                 f_home = teams.get("home", {}).get("name", "")
                 f_away = teams.get("away", {}).get("name", "")
+
+                # Skip youth/reserve/U23 fixtures — we only want senior teams
+                f_home_lower = f_home.lower()
+                f_away_lower = f_away.lower()
+                if any(kw in f_home_lower or kw in f_away_lower for kw in YOUTH_KEYWORDS):
+                    continue
 
                 # Strategy 1: Exact substring match (fast)
                 score1 = 0
@@ -844,6 +852,7 @@ class GitHubBot:
             try:
                 now_ts = time.time()
                 now_ist = datetime.now(IST)
+                elapsed = 0.0
 
                 # Check if match is over
                 if self.match_kickoff:
@@ -889,6 +898,21 @@ class GitHubBot:
                     logger.info("Match finished (status=%s). Stopping.", match_status)
                     # Resolve PnL for all open trades (Fix 2 + Fix 6)
                     self._resolve_session_pnl()
+                    break
+
+                # RISK GUARD: if match never started (clock stuck at 0' for 30+ min
+                # after kickoff with no goals), abort to avoid wasting compute.
+                if (elapsed > 5 and self._prev_live_state
+                        and not self._prev_live_state.is_live
+                        and self._prev_live_state.clock_minutes == 0
+                        and self._game_state.home_score == 0
+                        and self._game_state.away_score == 0
+                        and elapsed > 30):
+                    logger.warning(
+                        "Match never started (clock=0' for %.0f min after kickoff, "
+                        "status=%s). Aborting.", elapsed, self._prev_live_state.status,
+                    )
+                    self._save_bankroll_state()
                     break
 
                 # Update prices (throttled) — only if markets are ready
@@ -1124,6 +1148,10 @@ class GitHubBot:
 
         # Don't predict if markets aren't loaded yet
         if not self._markets_ready:
+            return
+
+        # Don't predict if bankroll too low to place any bet
+        if self._bankroll < self.config.min_bet_usd:
             return
 
         # Don't predict before match is live

@@ -59,21 +59,35 @@ def filter_future_matches(matches: List[Dict]) -> List[Dict]:
     for m in matches:
         kickoff_str = m.get("kickoff_ist", "")
         if not kickoff_str:
+            print(f"[INFO]   filtered: {m.get('home', '?')} vs {m.get('away', '?')} — no kickoff time", file=sys.stderr)
             continue
 
         try:
             kickoff = datetime.fromisoformat(kickoff_str.replace("Z", "+00:00"))
         except Exception:
+            print(f"[INFO]   filtered: {m.get('home', '?')} vs {m.get('away', '?')} — bad kickoff format", file=sys.stderr)
             continue
 
         minutes_until = (kickoff - now).total_seconds() / 60
 
-        # Only future matches (at least 10 min away, max 90 min)
-        # Bot polls for markets during pre-kickoff wait, but 90 min is enough
-        # for the bot to initialize, find markets, and trade before kickoff.
-        # Bot timeout is 240 min; 90 min wait + 120 min match + 30 min buffer.
-        if 10 <= minutes_until <= 90:
-            future.append({**m, "minutes_until": round(minutes_until, 1)})
+        # Only future matches (at least 10 min away, max 180 min)
+        # Bot polls for markets during pre-kickoff wait. 180 min gives bot
+        # time to initialize, find markets, and trade before kickoff.
+        # Bot timeout is 240 min; 180 min wait + 120 min match + 30 min buffer.
+        if minutes_until < 10:
+            print(f"[INFO]   filtered: {m['home']} vs {m['away']} — too close ({minutes_until:.0f}min)", file=sys.stderr)
+            continue
+        if minutes_until > 180:
+            print(f"[INFO]   filtered: {m['home']} vs {m['away']} — too far ({minutes_until:.0f}min)", file=sys.stderr)
+            continue
+
+        # Must have at least 1 Kalshi market (disqualify illiquid matches)
+        markets_count = m.get("markets_count", 0)
+        if markets_count == 0:
+            print(f"[INFO]   filtered: {m['home']} vs {m['away']} — no markets", file=sys.stderr)
+            continue
+
+        future.append({**m, "minutes_until": round(minutes_until, 1)})
 
     return future
 
@@ -307,6 +321,14 @@ def main():
     matches = filter_future_matches(raw_matches)
     print(f"[INFO] {len(matches)} matches still upcoming (filtered from {len(raw_matches)})", file=sys.stderr)
 
+    # Log each upcoming match for debugging
+    for m in matches:
+        print(
+            f"[INFO]   upcoming: {m['home']} vs {m['away']} "
+            f"(markets={m.get('markets_count', '?')}, kickoff_in={m.get('minutes_until', '?')}min)",
+            file=sys.stderr,
+        )
+
     # Prefer the scheduler's designated best match if it's still upcoming;
     # fall back to real-time scoring otherwise
     preferred = load_preferred_match()
@@ -317,6 +339,8 @@ def main():
     if best:
         if dispatch_bot(best):
             dispatched = f"{best['home']} vs {best['away']}"
+    else:
+        print("[INFO] No suitable match found for dispatch", file=sys.stderr)
 
     print(f"dispatched={dispatched}")
 

@@ -119,8 +119,8 @@ def parse_kalshi_event(event: dict, now: datetime, api_football_fixtures: Dict[s
     if minutes_until < -10 or minutes_until > 1440:
         return None
 
-    # Extract markets from event
-    markets = event.get("markets", [])
+    # Markets count will be populated by discover_matches() via separate API call
+    # (Kalshi /events endpoint doesn't include market details)
 
     return {
         "home": home,
@@ -130,7 +130,7 @@ def parse_kalshi_event(event: dict, now: datetime, api_football_fixtures: Dict[s
         "kickoff_ist": kickoff.isoformat(),
         "minutes_until": round(minutes_until, 1),
         "sub_title": sub_title,
-        "markets_count": len(markets),
+        "markets_count": 0,
     }
 
 
@@ -242,7 +242,17 @@ def discover_matches() -> List[Dict]:
             for event in resp["events"]:
                 match = parse_kalshi_event(event, now, api_football_fixtures)
                 if match:
+                    # Fetch actual market count (Kalshi /events doesn't include markets)
+                    try:
+                        markets_resp = client._request(
+                            "GET", "/markets",
+                            params={"event_ticker": match["event_ticker"], "limit": 50},
+                        )
+                        match["markets_count"] = len(markets_resp.get("markets", [])) if markets_resp else 0
+                    except Exception:
+                        match["markets_count"] = 0
                     matches.append(match)
+                    time.sleep(0.1)
 
             # Rate limit: 1 req/sec
             time.sleep(0.5)
@@ -354,8 +364,12 @@ def pick_best_match(matches: List[Dict]) -> Optional[Dict]:
         if minutes_until < 30:
             continue
 
-        # Liquidity score: more markets = more liquidity
+        # Skip matches with no Kalshi markets (illiquid)
         markets_count = match.get("markets_count", 0)
+        if markets_count == 0:
+            continue
+
+        # Liquidity score: more markets = more liquidity
         liquidity_score = min(markets_count / max(max_markets, 1), 1.0)
 
         # League tier score

@@ -1,6 +1,6 @@
 {
-  "bankroll": 0.0,
-  "start_of_day": 0.0,
+  "bankroll": 500.00,
+  "start_of_day": 500.00,
   "session_start": "2026-08-23T17:59:35.369438+05:30",
   "total_pnl": 0.0,
   "sessions": [
