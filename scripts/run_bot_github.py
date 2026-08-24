@@ -601,22 +601,24 @@ class GitHubBot:
         # Check if API-Football clock is stuck
         clock_stuck = self._detect_clock_stuck()
 
-        # Source 1: API-Football (preferred) — skip if clock is stuck
+        # Source 1: API-Football (preferred) — skip if clock is stuck or suspended
         if self.api_football and self._api_football_fixture_id and not clock_stuck:
-            remaining = self.api_football.remaining
-            if remaining <= 10:
-                logger.warning("API-Football rate limit critical (%d remaining) — trying SofaScore", remaining)
-            elif remaining <= 30:
-                # When low, only fetch every other cycle
-                if now - self._last_live_update < LIVE_UPDATE_INTERVAL * 2:
-                    return self._prev_live_state.status if self._prev_live_state else None
-                state = self._fetch_from_api_football(now)
-                if state:
-                    return state
+            if self.api_football.is_suspended:
+                logger.debug("API-Football suspended — using SportScore only")
             else:
-                state = self._fetch_from_api_football(now)
-                if state:
-                    return state
+                remaining = self.api_football.remaining
+                if remaining <= 10:
+                    logger.warning("API-Football rate limit critical (%d remaining) — trying SofaScore", remaining)
+                elif remaining <= 30:
+                    if now - self._last_live_update < LIVE_UPDATE_INTERVAL * 2:
+                        return self._prev_live_state.status if self._prev_live_state else None
+                    state = self._fetch_from_api_football(now)
+                    if state:
+                        return state
+                else:
+                    state = self._fetch_from_api_football(now)
+                    if state:
+                        return state
 
         # Source 2: LiveScore/SportScore (fallback, or primary when clock stuck)
         if self.livescore and self._livescore_slug:
@@ -911,6 +913,16 @@ class GitHubBot:
                     logger.warning(
                         "Match never started (clock=0' for %.0f min after kickoff, "
                         "status=%s). Aborting.", elapsed, self._prev_live_state.status,
+                    )
+                    self._save_bankroll_state()
+                    break
+
+                # RISK GUARD 2: if NO live data received at all after 30 min,
+                # abort (API-Football dead + SportScore unavailable).
+                if elapsed > 30 and not self._live_data_received:
+                    logger.warning(
+                        "No live data received after %.0f min post-kickoff. "
+                        "Both API-Football and SportScore unavailable. Aborting.", elapsed,
                     )
                     self._save_bankroll_state()
                     break

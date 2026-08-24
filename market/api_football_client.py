@@ -139,6 +139,7 @@ class APIFootballClient:
         self._request_count = 0
         self._remaining = 100  # Free tier: 100/day
         self._active_key_index = 0  # 0 = primary, 1 = secondary
+        self._suspended = False  # True when API key is suspended (permanent)
         self._session = requests.Session()
         self._session.headers.update({
             "x-apisports-key": api_key,
@@ -155,8 +156,16 @@ class APIFootballClient:
             return True
         return False
 
+    @property
+    def is_suspended(self) -> bool:
+        """Return True if API key is suspended (permanent failure)."""
+        return self._suspended
+
     def _get(self, endpoint: str, params: Dict = None) -> Optional[Dict]:
         """Make a GET request to API-Football with rate limiting and key rotation."""
+        if self._suspended:
+            return None
+
         if self._remaining <= 0:
             if self._switch_key():
                 return self._get(endpoint, params)
@@ -199,8 +208,14 @@ class APIFootballClient:
 
                 data = resp.json()
                 if data.get("errors"):
-                    logger.warning("API-Football errors: %s (attempt %d/4)", data["errors"], attempt + 1)
-                    # Try switching to secondary key on error (suspended account, etc.)
+                    errors = data["errors"]
+                    # Detect permanent suspension — stop all retries
+                    if isinstance(errors, dict) and "suspended" in str(errors).lower():
+                        logger.error("API-Football key SUSPENDED — giving up immediately. Errors: %s", errors)
+                        self._suspended = True
+                        return None
+                    logger.warning("API-Football errors: %s (attempt %d/4)", errors, attempt + 1)
+                    # Try switching to secondary key on error
                     if self._switch_key():
                         continue
                     # If no secondary key or already switched, retry with backoff
