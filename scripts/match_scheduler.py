@@ -25,6 +25,7 @@ IST = timezone(timedelta(hours=5, minutes=30))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from market.kalshi_client import KalshiClient, SOCCER_SERIES
+from market.bsd_client import BSDClient, KALSHI_TO_BSD_LEAGUE
 from config import load_config
 
 
@@ -49,7 +50,8 @@ KALSHI_TO_LEAGUE_ID: Dict[str, int] = {
 }
 
 
-def parse_kalshi_event(event: dict, now: datetime, api_football_fixtures: Dict[str, dict] = None) -> Optional[Dict]:
+def parse_kalshi_event(event: dict, now: datetime, api_football_fixtures: Dict[str, dict] = None,
+                       bsd_fixtures: Dict[str, dict] = None) -> Optional[Dict]:
     """Parse a Kalshi event into a match candidate dict.
 
     Uses API-Football fixtures to get actual kickoff time (Kalshi only has date).
@@ -98,8 +100,12 @@ def parse_kalshi_event(event: dict, now: datetime, api_football_fixtures: Dict[s
                 elif month > now.month + 6:
                     year -= 1
 
-                # Try to get actual kickoff time from API-Football fixtures
-                if api_football_fixtures:
+                # Try to get actual kickoff time from BSD fixtures first
+                if bsd_fixtures:
+                    kickoff = _find_kickoff_from_bsd(home, away, bsd_fixtures)
+
+                # Fall back to API-Football fixtures
+                if kickoff is None and api_football_fixtures:
                     kickoff = _find_kickoff_from_api_football(
                         home, away, year, month, day, api_football_fixtures
                     )
@@ -203,24 +209,81 @@ def fetch_api_football_fixtures(api_key: str, api_key_2: str = "") -> Dict[str, 
     return fixtures
 
 
+def fetch_bsd_fixtures() -> Dict[str, dict]:
+    """Fetch upcoming fixtures from BSD API for kickoff time lookup.
+
+    Returns dict keyed by (home_team, away_team) for fast lookup.
+    BSD covers 83+ leagues — replaces API-Football for kickoff lookup.
+    """
+    bsd_key = os.environ.get("BSD_API_KEY", "")
+    if not bsd_key:
+        return {}
+
+    client = BSDClient(api_key=bsd_key)
+    fixtures = {}
+
+    # Fetch upcoming events for all BSD-covered leagues
+    from market.bsd_client import KALSHI_TO_BSD_LEAGUE
+    for league_ids in KALSHI_TO_BSD_LEAGUE.values():
+        for league_id in league_ids:
+            try:
+                events = client.get_upcoming_events(league_id=league_id, limit=20)
+                for event in events:
+                    home = event.get("home_team", "")
+                    away = event.get("away_team", "")
+                    if home and away:
+                        key = (home.lower(), away.lower())
+                        fixtures[key] = event
+            except Exception:
+                continue
+
+    return fixtures
+
+
+def _find_kickoff_from_bsd(
+    home: str, away: str, bsd_fixtures: Dict[str, dict]
+) -> Optional[datetime]:
+    """Find actual kickoff time from BSD fixtures by matching team names."""
+    home_norm = home.lower().replace(".", "").replace("'", "").replace("-", " ")
+    away_norm = away.lower().replace(".", "").replace("'", "").replace("-", " ")
+
+    for (f_home, f_away), event in bsd_fixtures.items():
+        if (home_norm in f_home or f_home in home_norm) and \
+           (away_norm in f_away or f_away in away_norm):
+            event_date = event.get("event_date", "")
+            try:
+                utc_time = datetime.fromisoformat(event_date.replace("Z", "+00:00"))
+                return utc_time.astimezone(IST)
+            except Exception:
+                pass
+
+    return None
+
+
 def discover_matches() -> List[Dict]:
     """Discover all upcoming soccer matches from Kalshi.
 
-    Uses API-Football to get actual kickoff times (Kalshi only has date).
-
+    Uses BSD API (primary) or API-Football (fallback) for actual kickoff times.
     Returns sorted list of match dicts, soonest first.
     """
     cfg = load_config()
     now = datetime.now(IST)
 
-    # Fetch API-Football fixtures for kickoff time lookup
-    api_key = os.environ.get("API_FOOTBALL_API_KEY", "")
-    api_key_2 = os.environ.get("API_FOOTBALL_API_KEY_2", "")
-    api_football_fixtures = fetch_api_football_fixtures(api_key, api_key_2)
-    if api_football_fixtures:
-        print(f"[INFO] Loaded {len(api_football_fixtures)} API-Football fixtures for kickoff lookup", file=sys.stderr)
-    else:
-        print("[WARN] No API-Football fixtures — using 21:00 IST default kickoff", file=sys.stderr)
+    # Try BSD fixtures first (free, no quota, 83+ leagues)
+    bsd_fixtures = fetch_bsd_fixtures()
+    if bsd_fixtures:
+        print(f"[INFO] Loaded {len(bsd_fixtures)} BSD fixtures for kickoff lookup", file=sys.stderr)
+
+    # Fall back to API-Football if BSD unavailable
+    api_football_fixtures = {}
+    if not bsd_fixtures:
+        api_key = os.environ.get("API_FOOTBALL_API_KEY", "")
+        api_key_2 = os.environ.get("API_FOOTBALL_API_KEY_2", "")
+        api_football_fixtures = fetch_api_football_fixtures(api_key, api_key_2)
+        if api_football_fixtures:
+            print(f"[INFO] Loaded {len(api_football_fixtures)} API-Football fixtures for kickoff lookup", file=sys.stderr)
+        else:
+            print("[WARN] No fixtures from BSD or API-Football — using 21:00 IST default kickoff", file=sys.stderr)
 
     client = KalshiClient(
         api_key=cfg.kalshi_api_key,
@@ -240,7 +303,7 @@ def discover_matches() -> List[Dict]:
                 continue
 
             for event in resp["events"]:
-                match = parse_kalshi_event(event, now, api_football_fixtures)
+                match = parse_kalshi_event(event, now, api_football_fixtures, bsd_fixtures)
                 if match:
                     # Fetch actual market count (Kalshi /events doesn't include markets)
                     try:
@@ -338,12 +401,30 @@ def _score_timing(minutes_until: float) -> float:
         return 0.2  # Too far out — might not be worth waiting
 
 
-# Leagues covered by football-data.org free tier (we can get live data for these)
+# Leagues covered by BSD API (primary live data source — free, no quota, 83+ leagues)
+# Replaces football-data.org as the free data source filter
 FD_COVERED_SERIES = {
-    "KXPREMIERLEAGUE", "KXSERIEAGAME", "KXPRIMERALIGAME",
-    "KXEREDIVISIEGAME", "KXSCOTTISHPREMGAME",
+    # Tier 1: UEFA
     "KXUCLGAME", "KXCHAMPIONSLEAGUEGAME",
-    "KXUELGAME", "KXUECLGAME", "KXUEFAGAME",
+    "KXUELGAME", "KXUECLGAME", "KXUEFAGAME", "KXUEFANLGAME",
+    # Tier 2: Top 5
+    "KXPREMIERLEAGUE", "KXSERIEAGAME", "KXPRIMERALIGAME",
+    "KXMLSGAME", "KXEREDIVISIEGAME", "KXSUPERLIGGAME",
+    "KXBRASILEIROGAME", "KXBRASILEIROBGAME",
+    # Tier 3: Strong European
+    "KXALLSVENSKANGAME", "KXSCOTTISHPREMGAME",
+    "KXSLGREECEGAME", "KXSWISSLEAGUEGAME",
+    "KXDENSUPERLIGAGAME", "KXLIGAMXGAME",
+    "KXSAUDIPLGAME", "KXKLEAGUEGAME",
+    # Tier 4: Other
+    "KXCHNSLGAME", "KXISLGAME",
+    "KXPERLIGA1GAME", "KXVENFUTVEGAME",
+    "KXQSTARSGAME", "KXSPBGAME", "KXWIBPLGAME",
+    # Tier 5: Cups & Other
+    "KXTACAPORTGAME", "KXUSLGAME", "KXUSOPENCUPGAME",
+    "KXSCOCUPGAME", "KXARGNACBGAME",
+    "KXCLUBFGAME", "KXWCGAME", "KXMENWORLDCUP",
+    "KXASEANGAME",
 }
 
 

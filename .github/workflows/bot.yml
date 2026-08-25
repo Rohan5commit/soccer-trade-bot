@@ -62,6 +62,7 @@ jobs:
         env:
           KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
           API_FOOTBALL_API_KEY: ${{ secrets.API_FOOTBALL_API_KEY }}
+          BSD_API_KEY: ${{ secrets.BSD_API_KEY }}
           MATCH_HOME: ${{ inputs.home }}
           MATCH_AWAY: ${{ inputs.away }}
           MATCH_KICKOFF: ${{ inputs.kickoff }}

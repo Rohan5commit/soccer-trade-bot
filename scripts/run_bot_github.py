@@ -40,6 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config import load_config
 from market.kalshi_client import KalshiClient, KalshiMarket, ShadowOrderbook
 from market.api_football_client import APIFootballClient, LiveMatchState
+from market.bsd_client import BSDClient
 from market.espn_client import ESPNClient
 from market.football_data_client import FootballDataClient
 from market.sofascore_client import LiveScoreClient
@@ -67,10 +68,10 @@ BANKROLL_FILE = STATE_DIR / "bankroll.json"
 TRADE_LEDGER = STATE_DIR / "trade_ledger.jsonl"
 CALIBRATION_FILE = STATE_DIR / "calibration_report.json"
 
-# How often to update live data from API-Football (seconds)
-# Single key budget: 100 calls/day. Each poll = 1 call (events come from the
-# fixtures response). 120min / 75s = 96 polls + ~4 discovery calls = 100.
-LIVE_UPDATE_INTERVAL = 75
+# How often to update live data from API sources (seconds)
+# BSD: no quota, poll every 30s for responsive predictions
+# API-Football: 100 calls/day budget — use 75s intervals
+LIVE_UPDATE_INTERVAL = 30
 # How often to update Kalshi prices (seconds)
 PRICE_UPDATE_INTERVAL = 30
 # Trade cooldown per outcome (seconds)
@@ -246,6 +247,7 @@ class GitHubBot:
         self.config = load_config()
         self.kalshi: Optional[KalshiClient] = None
         self.api_football: Optional[APIFootballClient] = None
+        self.bsd: Optional[BSDClient] = None
         self.livescore: Optional[LiveScoreClient] = None
         self.predictor: Optional[WinPredictor] = None
         self.edge_calc: Optional[EdgeCalculator] = None
@@ -294,6 +296,7 @@ class GitHubBot:
 
         # API-Football fixture tracking
         self._api_football_fixture_id: Optional[int] = None
+        self._bsd_event_id: Optional[int] = None
         self._espn_event_id: Optional[str] = None
         self._espn_league: Optional[str] = None
         self._fd_match_id: Optional[int] = None
@@ -367,10 +370,21 @@ class GitHubBot:
         api_key_2 = os.environ.get("API_FOOTBALL_API_KEY_2", "")
         if api_key:
             self.api_football = APIFootballClient(api_key=api_key, api_key_2=api_key_2)
-            logger.info("API-Football client initialized (%d remaining, dual-key=%s)",
-                        self.api_football.remaining, "yes" if api_key_2 else "no")
+            if self.api_football.is_suspended:
+                logger.warning("API-Football key suspended — will skip to next source")
+            else:
+                logger.info("API-Football client initialized (%d remaining, dual-key=%s)",
+                            self.api_football.remaining, "yes" if api_key_2 else "no")
         else:
-            logger.warning("No API_FOOTBALL_API_KEY — running without live data")
+            logger.info("No API_FOOTBALL_API_KEY — will use other sources")
+
+        # BSD client (primary live data source — free, no quota, 83+ leagues)
+        bsd_key = os.environ.get("BSD_API_KEY", "")
+        if bsd_key:
+            self.bsd = BSDClient(api_key=bsd_key)
+            logger.info("BSD client initialized (primary live source)")
+        else:
+            logger.info("No BSD_API_KEY — will use other sources")
 
         # SofaScore client (fallback for live match data)
         self.livescore = LiveScoreClient()
@@ -408,8 +422,12 @@ class GitHubBot:
         )
 
         # Find API-Football fixture for live data
-        if self.api_football:
+        if self.api_football and not self.api_football.is_suspended:
             self._find_api_football_fixture()
+
+        # Find BSD event for live data (primary source)
+        if self.bsd and not self._bsd_event_id:
+            self._find_bsd_event()
 
         return True
 
@@ -630,6 +648,26 @@ class GitHubBot:
         except Exception as e:
             logger.warning("ESPN fixture discovery failed: %s", e)
 
+    def _find_bsd_event(self) -> None:
+        """Find BSD event ID by matching team names. Free, no quota."""
+        if not self.bsd:
+            return
+
+        try:
+            event = self.bsd.find_event_by_kalshi_teams(
+                self.match_home, self.match_away, self.event_ticker.split("-")[0]
+            )
+            if event:
+                self._bsd_event_id = event.get("id")
+                logger.info("BSD event found: %s vs %s (event_id=%s, league=%s)",
+                            self.match_home, self.match_away, self._bsd_event_id,
+                            event.get("league_name", "?"))
+            else:
+                logger.info("BSD: no matching event for %s vs %s — will search at match time",
+                            self.match_home, self.match_away)
+        except Exception as e:
+            logger.warning("BSD event discovery failed: %s", e)
+
     def _find_livescore_match(self) -> None:
         """Find SportScore match slug for this match (fallback when API-Football fails)."""
         if not self.livescore:
@@ -650,7 +688,7 @@ class GitHubBot:
         """Fetch live match data from multiple sources.
 
         Returns match status string ("NS", "1H", "2H", "FT", etc.) or None on error.
-        Source priority: football-data.org → ESPN → API-Football → SportScore.
+        Source priority: BSD → football-data.org → ESPN → API-Football → SportScore.
         """
         now = time.time()
 
@@ -661,7 +699,13 @@ class GitHubBot:
         # Check if API-Football clock is stuck
         clock_stuck = self._detect_clock_stuck()
 
-        # Source 1: football-data.org (free tier — covers major European leagues)
+        # Source 1: BSD API (primary — free, no quota, 83+ leagues, works everywhere)
+        if self.bsd:
+            state = self._fetch_from_bsd(now)
+            if state:
+                return state
+
+        # Source 2: football-data.org (free tier — covers major European leagues)
         if self.fd and self._fd_match_id:
             state = self._fetch_from_football_data(now)
             if state:
@@ -708,6 +752,49 @@ class GitHubBot:
                     return "FT"
 
         return self._prev_live_state.status if self._prev_live_state else None
+
+    def _fetch_from_bsd(self, now: float) -> Optional[str]:
+        """Fetch live state from BSD API (primary source). Returns status or None."""
+        try:
+            # If we don't have an event ID yet, try to find it
+            if not self._bsd_event_id:
+                self._find_bsd_event()
+                if not self._bsd_event_id:
+                    return None
+
+            state = self.bsd.get_live_match(self._bsd_event_id)
+            if not state:
+                # Try finding by team names (match may have started since we last looked)
+                series = self.event_ticker.split("-")[0] if self.event_ticker else ""
+                state = self.bsd.get_live_match_by_teams(
+                    self.match_home, self.match_away, series
+                )
+                if state:
+                    self._bsd_event_id = state.fixture_id
+                    logger.info("BSD: found match by team names (event_id=%d)", self._bsd_event_id)
+
+            if not state:
+                return None
+
+            logger.info(
+                "LIVE [BSD]: %s %d - %d %s | %s %.0f' | events=%d",
+                state.home_team, state.home_score, state.away_score, state.away_team,
+                state.status, state.clock_minutes,
+                len(state.events),
+            )
+
+            self._game_state = self._match_state_to_game_state(state)
+            self._prev_live_state = state
+            self._last_live_update = now
+            if not self._live_data_received:
+                self._live_data_received = True
+                logger.info("First live data received (BSD) — predictions enabled")
+            return state.status
+
+        except Exception as e:
+            logger.warning("BSD live update failed: %s", e)
+            self._last_live_update = now
+            return None
 
     def _fetch_from_football_data(self, now: float) -> Optional[str]:
         """Fetch live state from football-data.org. Returns status or None."""

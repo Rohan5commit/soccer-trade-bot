@@ -39,6 +39,7 @@ jobs:
         env:
           KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
           API_FOOTBALL_API_KEY: ${{ secrets.API_FOOTBALL_API_KEY }}
+          BSD_API_KEY: ${{ secrets.BSD_API_KEY }}
         run: |
           python scripts/match_scheduler.py \
             --within-hours 24 \
