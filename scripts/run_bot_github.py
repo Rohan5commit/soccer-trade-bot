@@ -13,10 +13,11 @@ Unlike run_paper_trade.py, this does NOT discover matches —
 it runs a single match passed in by the watcher workflow.
 
 Data sources (in order of preference):
-1. API-Football (api-sports.io) — 100 req/day free tier, requires API key
-2. SofaScore (sofascore.com) — public API, no key needed, broader coverage
+1. ESPN (site.api.espn.com) — free, no key, reliable, covers major leagues
+2. API-Football (api-sports.io) — 100 req/day free tier, requires API key
+3. SportScore (sportscore.com) — public API, no key needed, broader coverage
 
-Fail-safe: Bot never trades without live data. If both sources fail,
+Fail-safe: Bot never trades without live data. If all sources fail,
 predictions are skipped until data becomes available.
 """
 from __future__ import annotations
@@ -39,6 +40,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config import load_config
 from market.kalshi_client import KalshiClient, KalshiMarket, ShadowOrderbook
 from market.api_football_client import APIFootballClient, LiveMatchState
+from market.espn_client import ESPNClient
+from market.football_data_client import FootballDataClient
 from market.sofascore_client import LiveScoreClient
 from model.predict import WinPredictor
 from trading.edge_calculator import EdgeCalculator
@@ -291,6 +294,10 @@ class GitHubBot:
 
         # API-Football fixture tracking
         self._api_football_fixture_id: Optional[int] = None
+        self._espn_event_id: Optional[str] = None
+        self._espn_league: Optional[str] = None
+        self._fd_match_id: Optional[int] = None
+        self._fd_competition: Optional[str] = None
         self._livescore_slug: Optional[str] = None
         self._prev_live_state: Optional[LiveMatchState] = None
         self._live_data_received: bool = False
@@ -368,6 +375,17 @@ class GitHubBot:
         # SofaScore client (fallback for live match data)
         self.livescore = LiveScoreClient()
         logger.info("LiveScore client initialized (SportScore fallback)")
+
+        # ESPN client (primary live data source — free, no key, reliable)
+        self.espn = ESPNClient()
+        logger.info("ESPN client initialized (primary live source)")
+
+        # football-data.org client (free tier — covers major European leagues)
+        self.fd = FootballDataClient()
+        if self.fd.is_available:
+            logger.info("football-data.org client initialized (free tier)")
+        else:
+            logger.info("football-data.org client initialized (no API key — limited access)")
 
         # ML models
         try:
@@ -564,10 +582,53 @@ class GitHubBot:
         except Exception as e:
             logger.warning("API-Football fixture discovery failed: %s", e)
 
+        # ESPN fixture discovery — find event ID for live data (free, no key)
+        if self.espn and not self._espn_event_id:
+            self._find_espn_fixture()
+
+        # football-data.org fixture discovery — free tier covers major European leagues
+        if self.fd and not self._fd_match_id:
+            self._find_fd_fixture()
+
         # LiveScore fallback — find match slug for live data
         # Always try to discover SportScore as fallback, even when API-Football works
         if self.livescore and not self._livescore_slug:
             self._find_livescore_match()
+
+    def _find_fd_fixture(self) -> None:
+        """Find football-data.org match ID by team names. Free, covers major leagues."""
+        if not self.fd:
+            return
+
+        try:
+            result = self.fd.find_match_id(self.match_home, self.match_away)
+            if result:
+                self._fd_match_id = result["match_id"]
+                self._fd_competition = result["competition"]
+                logger.info("football-data.org fixture found: %s vs %s (ID=%s, league=%s)",
+                            result["home"], result["away"], self._fd_match_id,
+                            result["league_name"])
+            else:
+                logger.warning("football-data.org: no matching fixture for %s vs %s",
+                               self.match_home, self.match_away)
+        except Exception as e:
+            logger.warning("football-data.org fixture discovery failed: %s", e)
+
+    def _find_espn_fixture(self) -> None:
+        """Find ESPN event ID by matching team names. Free, no API key."""
+        if not self.espn:
+            return
+
+        try:
+            event_id = self.espn.find_event_id(self.match_home, self.match_away)
+            if event_id:
+                self._espn_event_id = event_id
+                logger.info("ESPN fixture found: %s vs %s (event_id=%s)",
+                            self.match_home, self.match_away, event_id)
+            else:
+                logger.warning("ESPN: no matching fixture for %s vs %s", self.match_home, self.match_away)
+        except Exception as e:
+            logger.warning("ESPN fixture discovery failed: %s", e)
 
     def _find_livescore_match(self) -> None:
         """Find SportScore match slug for this match (fallback when API-Football fails)."""
@@ -586,11 +647,10 @@ class GitHubBot:
             logger.warning("LiveScore event discovery failed: %s", e)
 
     def _fetch_live_state(self) -> Optional[str]:
-        """Fetch live match data from API-Football or SofaScore fallback.
+        """Fetch live match data from multiple sources.
 
         Returns match status string ("NS", "1H", "2H", "FT", etc.) or None on error.
-        Tries API-Football first, falls back to SofaScore if unavailable.
-        Detects clock-stuck and switches to SportScore if API-Football freezes.
+        Source priority: football-data.org → ESPN → API-Football → SportScore.
         """
         now = time.time()
 
@@ -601,14 +661,26 @@ class GitHubBot:
         # Check if API-Football clock is stuck
         clock_stuck = self._detect_clock_stuck()
 
-        # Source 1: API-Football (preferred) — skip if clock is stuck or suspended
+        # Source 1: football-data.org (free tier — covers major European leagues)
+        if self.fd and self._fd_match_id:
+            state = self._fetch_from_football_data(now)
+            if state:
+                return state
+
+        # Source 2: ESPN (free, no key, but blocked from datacenter IPs)
+        if self.espn and self._espn_event_id:
+            state = self._fetch_from_espn(now)
+            if state:
+                return state
+
+        # Source 3: API-Football (fallback) — skip if clock is stuck or suspended
         if self.api_football and self._api_football_fixture_id and not clock_stuck:
             if self.api_football.is_suspended:
-                logger.debug("API-Football suspended — using SportScore only")
+                logger.debug("API-Football suspended — skipping")
             else:
                 remaining = self.api_football.remaining
                 if remaining <= 10:
-                    logger.warning("API-Football rate limit critical (%d remaining) — trying SofaScore", remaining)
+                    logger.warning("API-Football rate limit critical (%d remaining)", remaining)
                 elif remaining <= 30:
                     if now - self._last_live_update < LIVE_UPDATE_INTERVAL * 2:
                         return self._prev_live_state.status if self._prev_live_state else None
@@ -620,13 +692,13 @@ class GitHubBot:
                     if state:
                         return state
 
-        # Source 2: LiveScore/SportScore (fallback, or primary when clock stuck)
+        # Source 4: SportScore (last resort)
         if self.livescore and self._livescore_slug:
             state = self._fetch_from_livescore(now)
             if state:
                 return state
 
-        # If both sources failed but we have a previous state, check for stale clock FT
+        # If all sources failed but we have a previous state, check for stale clock FT
         if clock_stuck and self._prev_live_state:
             current_clock = self._prev_live_state.clock_minutes
             if current_clock >= 80 and self._clock_stuck_since:
@@ -636,6 +708,60 @@ class GitHubBot:
                     return "FT"
 
         return self._prev_live_state.status if self._prev_live_state else None
+
+    def _fetch_from_football_data(self, now: float) -> Optional[str]:
+        """Fetch live state from football-data.org. Returns status or None."""
+        try:
+            state = self.fd.get_live_match(self._fd_match_id)
+            if not state:
+                return None
+
+            logger.info(
+                "LIVE [football-data.org]: %s %d - %d %s | %s %.0f' | events=%d",
+                state.home_team, state.home_score, state.away_score, state.away_team,
+                state.status, state.clock_minutes,
+                len(state.events),
+            )
+
+            self._game_state = self._match_state_to_game_state(state)
+            self._prev_live_state = state
+            self._last_live_update = now
+            if not self._live_data_received:
+                self._live_data_received = True
+                logger.info("First live data received (football-data.org) — predictions enabled")
+            return state.status
+
+        except Exception as e:
+            logger.warning("football-data.org live update failed: %s", e)
+            self._last_live_update = now
+            return None
+
+    def _fetch_from_espn(self, now: float) -> Optional[str]:
+        """Fetch live state from ESPN (primary source). Returns status or None."""
+        try:
+            state = self.espn.get_live_match(self._espn_event_id)
+            if not state:
+                return None
+
+            logger.info(
+                "LIVE [ESPN]: %s %d - %d %s | %s %.0f' | events=%d",
+                state.home_team, state.home_score, state.away_score, state.away_team,
+                state.status, state.clock_minutes,
+                len(state.events),
+            )
+
+            self._game_state = self._match_state_to_game_state(state)
+            self._prev_live_state = state
+            self._last_live_update = now
+            if not self._live_data_received:
+                self._live_data_received = True
+                logger.info("First live data received (ESPN) — predictions enabled")
+            return state.status
+
+        except Exception as e:
+            logger.warning("ESPN live update failed: %s", e)
+            self._last_live_update = now
+            return None
 
     def _fetch_from_api_football(self, now: float) -> Optional[str]:
         """Fetch live state from API-Football. Returns status or None."""
@@ -1378,12 +1504,16 @@ class GitHubBot:
         logger.info("  Score: %d-%d | Clock: %.0f' | Trades: %d | Bankroll: $%.2f",
                      self._game_state.home_score, self._game_state.away_score,
                      self._game_state.clock_minutes, len(self._trades), self._bankroll)
-        source = "API-Football" if self._api_football_fixture_id else (
-            "SportScore" if self._livescore_slug else "none")
-        logger.info("  Markets: %s | Live data: %s | Source: %s (API=%s, LS=%s)",
+        source = "football-data.org" if self._fd_match_id else (
+            "ESPN" if self._espn_event_id else (
+            "API-Football" if self._api_football_fixture_id else (
+            "SportScore" if self._livescore_slug else "none")))
+        logger.info("  Markets: %s | Live data: %s | Source: %s (FD=%s, ESPN=%s, API=%s, SS=%s)",
                      "ready" if self._markets_ready else "pending",
                      "yes" if self._live_data_received else "no",
                      source,
+                     self._fd_match_id or "none",
+                     self._espn_event_id or "none",
                      self._api_football_fixture_id or "none",
                      self._livescore_slug or "none")
         for t, m in self._markets.items():

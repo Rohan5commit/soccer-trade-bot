@@ -338,6 +338,15 @@ def _score_timing(minutes_until: float) -> float:
         return 0.2  # Too far out — might not be worth waiting
 
 
+# Leagues covered by football-data.org free tier (we can get live data for these)
+FD_COVERED_SERIES = {
+    "KXPREMIERLEAGUE", "KXSERIEAGAME", "KXPRIMERALIGAME",
+    "KXEREDIVISIEGAME", "KXSCOTTISHPREMGAME",
+    "KXUCLGAME", "KXCHAMPIONSLEAGUEGAME",
+    "KXUELGAME", "KXUECLGAME", "KXUEFAGAME",
+}
+
+
 def pick_best_match(matches: List[Dict]) -> Optional[Dict]:
     """Pick the single best match to trade today.
 
@@ -345,6 +354,8 @@ def pick_best_match(matches: List[Dict]) -> Optional[Dict]:
       - Liquidity (40%): markets_count (more markets = tighter spreads)
       - League tier (30%): higher tier = better data quality
       - Timing (30%): sweet spot ~3 hours from now
+
+    Only picks matches in leagues with free live data coverage (football-data.org).
 
     Returns the best match dict with 'score' field added, or None.
     """
@@ -367,6 +378,11 @@ def pick_best_match(matches: List[Dict]) -> Optional[Dict]:
         # Skip matches with no Kalshi markets (illiquid)
         markets_count = match.get("markets_count", 0)
         if markets_count == 0:
+            continue
+
+        # Skip matches in leagues without free live data coverage
+        series = match.get("series", "")
+        if series not in FD_COVERED_SERIES:
             continue
 
         # Liquidity score: more markets = more liquidity

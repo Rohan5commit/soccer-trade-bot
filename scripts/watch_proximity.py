@@ -116,7 +116,14 @@ def pick_best_match(matches: List[Dict]) -> Optional[Dict]:
     if not matches:
         return None
 
-    scored = [(m, _score_match(m)) for m in matches]
+    # Filter to leagues with free live data coverage
+    from match_scheduler import FD_COVERED_SERIES
+    covered = [m for m in matches if m.get("series", "") in FD_COVERED_SERIES]
+    if not covered:
+        print("[INFO] No matches in leagues with free live data coverage", file=sys.stderr)
+        return None
+
+    scored = [(m, _score_match(m)) for m in covered]
     scored.sort(key=lambda x: x[1], reverse=True)
 
     best, best_score = scored[0]
