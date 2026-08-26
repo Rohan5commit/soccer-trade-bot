@@ -69,13 +69,13 @@ TRADE_LEDGER = STATE_DIR / "trade_ledger.jsonl"
 CALIBRATION_FILE = STATE_DIR / "calibration_report.json"
 
 # How often to update live data from API sources (seconds)
-# BSD: no quota, poll every 30s for responsive predictions
+# BSD: no quota, poll every 10s for responsive predictions
 # API-Football: 100 calls/day budget — use 75s intervals
-LIVE_UPDATE_INTERVAL = 30
+LIVE_UPDATE_INTERVAL = 10
 # How often to update Kalshi prices (seconds)
-PRICE_UPDATE_INTERVAL = 30
+PRICE_UPDATE_INTERVAL = 15
 # Trade cooldown per outcome (seconds)
-TRADE_COOLDOWN = 120
+TRADE_COOLDOWN = 90
 # Max match duration before auto-stop (minutes)
 MAX_MATCH_MINUTES = 120
 # Cap on any single probability to prevent extreme predictions

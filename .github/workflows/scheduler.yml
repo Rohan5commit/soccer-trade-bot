@@ -3,6 +3,7 @@ name: Match Scheduler
 on:
   schedule:
     - cron: '30 4 * * *'  # 10:00 IST daily (04:30 UTC)
+    - cron: '30 10 * * *' # 16:00 IST daily (10:30 UTC) — catch evening matches
   workflow_dispatch:
 
 permissions:

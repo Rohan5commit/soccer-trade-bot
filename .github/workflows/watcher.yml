@@ -2,7 +2,7 @@ name: Match Watcher
 
 on:
   schedule:
-    - cron: '15,45 * * * *'  # Every 30 min at :15 and :45
+    - cron: '*/10 * * * *'  # Every 10 minutes (BSD has no rate limit)
   workflow_dispatch:
 
 permissions:
