@@ -912,17 +912,16 @@ class GitHubBot:
         We snapshot the score at 90' so we can resolve against regulation result.
         """
         # Track regulation-time score for settlement (Fix 6)
-        # Keep updating the snapshot while clock >= 90 so we capture
-        # stoppage-time goals up until the final whistle.
-        if ms.clock_minutes >= 90:
+        # Capture snapshot at 90'+ and FREEZE — extra-time goals must not overwrite it.
+        # Only update while clock >= 90 AND before snapshot is taken (stoppage time goals count).
+        if ms.clock_minutes >= 90 and not self._regulation_snapshot_taken:
             self._regulation_home_goals = ms.home_score
             self._regulation_away_goals = ms.away_score
-            if not self._regulation_snapshot_taken:
-                self._regulation_snapshot_taken = True
-                logger.info(
-                    "REGULATION SNAPSHOT at %.0f': %d-%d (settles at this score)",
-                    ms.clock_minutes, ms.home_score, ms.away_score,
-                )
+            self._regulation_snapshot_taken = True
+            logger.info(
+                "REGULATION SNAPSHOT at %.0f': %d-%d (settles at this score)",
+                ms.clock_minutes, ms.home_score, ms.away_score,
+            )
 
         goals_in_10 = self._count_goals_in_window(ms, 10)
         goals_in_15 = self._count_goals_in_window(ms, 15)
@@ -1101,8 +1100,8 @@ class GitHubBot:
                             time.sleep(60)
                             continue
 
-                    # Only update clock if no live data (API-Football overrides this)
-                    if elapsed > 0 and not self._api_football_fixture_id:
+                    # Only update clock if no live data received yet
+                    if elapsed > 0 and not self._live_data_received:
                         self._game_state.clock_minutes = min(elapsed, 90)
 
                 # Fetch live match data (API-Football primary, SofaScore fallback)
@@ -1127,17 +1126,15 @@ class GitHubBot:
                         "Match never started (clock=0' for %.0f min after kickoff, "
                         "status=%s). Aborting.", elapsed, self._prev_live_state.status,
                     )
-                    self._save_bankroll_state()
                     break
 
                 # RISK GUARD 2: if NO live data received at all after 30 min,
-                # abort (API-Football dead + SportScore unavailable).
+                # abort (all live data sources unavailable).
                 if elapsed > 30 and not self._live_data_received:
                     logger.warning(
                         "No live data received after %.0f min post-kickoff. "
-                        "Both API-Football and SportScore unavailable. Aborting.", elapsed,
+                        "All live data sources unavailable. Aborting.", elapsed,
                     )
-                    self._save_bankroll_state()
                     break
 
                 # Update prices (throttled) — only if markets are ready
@@ -1259,11 +1256,16 @@ class GitHubBot:
         return (home, draw, away)
 
     def _detect_clock_stuck(self) -> bool:
-        """Detect if API-Football clock is stuck. Falls back to SportScore.
+        """Detect if live data clock is stuck. Falls back to SportScore.
 
         Returns True if clock hasn't advanced in 3+ minutes.
+        Skips detection during halftime, NS, and other non-live states.
         """
         if not self._prev_live_state:
+            return False
+
+        # Skip clock-stuck detection during halftime, not started, or other non-play states
+        if self._prev_live_state.status in ("HT", "NS", "PST", "CANC", "AWD"):
             return False
 
         current_clock = self._prev_live_state.clock_minutes
@@ -1591,14 +1593,16 @@ class GitHubBot:
         logger.info("  Score: %d-%d | Clock: %.0f' | Trades: %d | Bankroll: $%.2f",
                      self._game_state.home_score, self._game_state.away_score,
                      self._game_state.clock_minutes, len(self._trades), self._bankroll)
-        source = "football-data.org" if self._fd_match_id else (
+        source = "BSD" if self._bsd_event_id else (
+            "football-data.org" if self._fd_match_id else (
             "ESPN" if self._espn_event_id else (
             "API-Football" if self._api_football_fixture_id else (
-            "SportScore" if self._livescore_slug else "none")))
-        logger.info("  Markets: %s | Live data: %s | Source: %s (FD=%s, ESPN=%s, API=%s, SS=%s)",
+            "SportScore" if self._livescore_slug else "none"))))
+        logger.info("  Markets: %s | Live data: %s | Source: %s (BSD=%s, FD=%s, ESPN=%s, API=%s, SS=%s)",
                      "ready" if self._markets_ready else "pending",
                      "yes" if self._live_data_received else "no",
                      source,
+                     self._bsd_event_id or "none",
                      self._fd_match_id or "none",
                      self._espn_event_id or "none",
                      self._api_football_fixture_id or "none",

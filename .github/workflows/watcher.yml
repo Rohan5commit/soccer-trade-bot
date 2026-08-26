@@ -20,6 +20,9 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install dependencies
+        run: pip install -q requests cryptography
+
       - name: Download latest schedule
         uses: dawidd6/action-download-artifact@v6
         with:

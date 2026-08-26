@@ -232,7 +232,9 @@ def fetch_bsd_fixtures() -> Dict[str, dict]:
                     home = event.get("home_team", "")
                     away = event.get("away_team", "")
                     if home and away:
-                        key = (home.lower(), away.lower())
+                        # Normalize keys to match lookup normalization
+                        key = (home.lower().replace(".", "").replace("'", "").replace("-", " "),
+                               away.lower().replace(".", "").replace("'", "").replace("-", " "))
                         fixtures[key] = event
             except Exception:
                 continue

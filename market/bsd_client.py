@@ -22,13 +22,13 @@ logger = logging.getLogger(__name__)
 BASE_URL = "https://sports.bzzoiro.com/api/v2"
 
 # BSD league IDs → Kalshi series tickers
+# Note: BSD league 5 (Bundesliga) is NOT mapped — Kalshi has no Bundesliga series
 BSD_TO_KALSHI_SERIES: Dict[int, str] = {
     11: "KXSUPERLIGGAME",    # Trendyol Super Lig (Turkey)
     1: "KXPREMIERLEAGUE",    # Premier League (England)
     4: "KXSERIEAGAME",       # Serie A (Italy)
     3: "KXPRIMERALIGAME",    # La Liga (Spain)
-    5: "KXBRASILEIROGAME",   # Bundesliga (Germany)
-    6: "KXMLSGAME",          # Ligue 1 (France)
+    6: "KXMLSGAME",          # Ligue 1 (France) — note: Kalshi uses MLS for Ligue 1
     10: "KXEREDIVISIEGAME",  # Eredivisie (Netherlands)
     7: "KXUCLGAME",          # Champions League (Europe)
     8: "KXUELGAME",          # Europa League (Europe)
@@ -83,6 +83,8 @@ class LiveMatchState:
     is_live: bool
     period: int  # 1=first half, 2=second half, 3=extra time
     events: List[BSDEvent] = field(default_factory=list)
+    home_stats: object = None  # Compatible with APIFootballStats (always None for BSD)
+    away_stats: object = None
     home_xg_running: float = 0.0
     away_xg_running: float = 0.0
     home_pressure: float = 0.5
@@ -113,6 +115,9 @@ STATUS_MAP = {
     "ET": "ET",
     "penalties": "P",
     "P": "P",
+    "suspended": "SUSP",
+    "delayed": "DELAYED",
+    "interrupted": "INT",
 }
 
 PERIOD_MAP = {
@@ -337,7 +342,9 @@ class BSDClient:
         # Map period
         period = PERIOD_MAP.get(period_raw, 0)
 
-        is_live = status_raw in ("inprogress",) or status_raw in PERIOD_MAP
+        is_live = status_raw in ("inprogress", "1st_half", "2nd_half",
+                                  "halftime", "HT", "extra_time_1st_half",
+                                  "extra_time_2nd_half", "penalties")
 
         # Get events (goals, cards, etc.)
         events = []
