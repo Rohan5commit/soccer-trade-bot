@@ -1,8 +1,8 @@
 {
-  "bankroll": 500.0,
+  "bankroll": 471.2,
   "start_of_day": 500.0,
-  "session_start": "2026-08-26T21:30:00.370596+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-08-28T01:22:22.262428+05:30",
+  "total_pnl": -28.8,
   "sessions": [
     {
       "match": "Corum vs Kasimpasa",
@@ -21,8 +21,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-08-26T21:30:00.370696+05:30"
+    },
+    {
+      "match": "CSKA Sofia vs OFI Crete",
+      "trades": 56,
+      "pnl": -28.8,
+      "time": "2026-08-28T01:22:22.262493+05:30"
     }
   ],
-  "last_updated": "2026-08-26T21:30:00.370611+05:30",
-  "last_match": "AEK Athens vs Levski Sofia"
+  "last_updated": "2026-08-28T01:22:22.262438+05:30",
+  "last_match": "CSKA Sofia vs OFI Crete"
 }
