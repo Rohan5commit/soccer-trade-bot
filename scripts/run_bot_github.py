@@ -760,6 +760,7 @@ class GitHubBot:
             if not self._bsd_event_id:
                 self._find_bsd_event()
                 if not self._bsd_event_id:
+                    self._last_live_update = now
                     return None
 
             state = self.bsd.get_live_match(self._bsd_event_id)
@@ -774,6 +775,7 @@ class GitHubBot:
                     logger.info("BSD: found match by team names (event_id=%d)", self._bsd_event_id)
 
             if not state:
+                self._last_live_update = now
                 return None
 
             logger.info(
@@ -793,7 +795,7 @@ class GitHubBot:
 
         except Exception as e:
             logger.warning("BSD live update failed: %s", e)
-            self._last_live_update = now
+            self._last_live_update = now - 8  # retry in 2s, not 10s
             return None
 
     def _fetch_from_football_data(self, now: float) -> Optional[str]:
@@ -820,7 +822,7 @@ class GitHubBot:
 
         except Exception as e:
             logger.warning("football-data.org live update failed: %s", e)
-            self._last_live_update = now
+            self._last_live_update = now - 8
             return None
 
     def _fetch_from_espn(self, now: float) -> Optional[str]:
@@ -847,7 +849,7 @@ class GitHubBot:
 
         except Exception as e:
             logger.warning("ESPN live update failed: %s", e)
-            self._last_live_update = now
+            self._last_live_update = now - 8
             return None
 
     def _fetch_from_api_football(self, now: float) -> Optional[str]:
@@ -874,7 +876,7 @@ class GitHubBot:
 
         except Exception as e:
             logger.warning("API-Football live update failed: %s", e)
-            self._last_live_update = now
+            self._last_live_update = now - 8
             return None
 
     def _fetch_from_livescore(self, now: float) -> Optional[str]:
@@ -901,7 +903,7 @@ class GitHubBot:
 
         except Exception as e:
             logger.warning("SportScore live update failed: %s", e)
-            self._last_live_update = now
+            self._last_live_update = now - 8
             return None
 
     def _match_state_to_game_state(self, ms: LiveMatchState) -> GameState:

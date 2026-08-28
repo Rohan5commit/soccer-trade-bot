@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+import unicodedata
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
@@ -111,6 +112,7 @@ STATUS_MAP = {
     "afterextratime": "FT",
     "afterpenalties": "FT",
     "extra_time_1st_half": "ET",
+    "extra_time_halftime": "ET",
     "extra_time_2nd_half": "ET",
     "ET": "ET",
     "penalties": "P",
@@ -204,7 +206,7 @@ class BSDClient:
 
     def get_live_events(self) -> List[Dict]:
         """Get all currently live events."""
-        data = self._get("events/live/", ttl=30)
+        data = self._get("events/live/", ttl=5)
         if not data:
             return []
         return data.get("events", [])
@@ -230,14 +232,14 @@ class BSDClient:
 
     def get_event(self, event_id: int) -> Optional[Dict]:
         """Get a single event by ID."""
-        data = self._get(f"events/{event_id}/", ttl=30)
+        data = self._get(f"events/{event_id}/", ttl=5)
         if not data or "error" in data:
             return None
         return data
 
     def get_odds(self, event_id: int) -> Optional[Dict]:
         """Get odds for a specific event."""
-        data = self._get(f"events/{event_id}/odds/", ttl=30)
+        data = self._get(f"events/{event_id}/odds/", ttl=5)
         if not data or "error" in data:
             return None
         return data.get("odds", {})
@@ -353,7 +355,19 @@ class BSDClient:
         """Convert BSD event to LiveMatchState."""
         status_raw = event.get("status", "notstarted")
         period_raw = event.get("period", "")
-        minute = event.get("current_minute") or 0.0
+        minute_raw = event.get("current_minute") or 0.0
+        # Handle "45+2" style strings
+        if isinstance(minute_raw, str):
+            try:
+                if "+" in minute_raw:
+                    base, extra = minute_raw.split("+", 1)
+                    minute = float(base) + float(extra)
+                else:
+                    minute = float(minute_raw)
+            except Exception:
+                minute = 0.0
+        else:
+            minute = float(minute_raw) if minute_raw is not None else 0.0
 
         # Map status
         status = STATUS_MAP.get(status_raw, "NS")
@@ -364,7 +378,7 @@ class BSDClient:
                 status = "2H"
             elif period_raw in ("halftime", "HT"):
                 status = "HT"
-            elif period_raw in ("extra_time_1st_half", "ET1", "extra_time_2nd_half", "ET2"):
+            elif period_raw in ("extra_time_1st_half", "ET1", "extra_time_halftime", "extra_time_2nd_half", "ET2"):
                 status = "ET"
             elif period_raw in ("penalties", "P"):
                 status = "P"
@@ -378,7 +392,9 @@ class BSDClient:
 
         is_live = status_raw in ("inprogress", "1st_half", "2nd_half",
                                   "halftime", "HT", "extra_time_1st_half",
-                                  "extra_time_2nd_half", "penalties")
+                                  "extra_time_halftime", "extra_time_2nd_half",
+                                  "penalties", "ET", "P", "1T", "2T", "ET1", "ET2",
+                                  "afterextratime", "afterpenalties")
 
         # Get events (goals, cards, etc.)
         events = []
@@ -415,18 +431,10 @@ class BSDClient:
                 name = name[len(remove):].strip()
             if name.endswith(" " + remove):
                 name = name[:-len(remove)].strip()
-        # Remove diacritics
-        replacements = {
-            "é": "e", "è": "e", "ê": "e", "ë": "e",
-            "á": "a", "à": "a", "â": "a", "ä": "a",
-            "ó": "o", "ò": "o", "ô": "o", "ö": "o",
-            "ú": "u", "ù": "u", "û": "u", "ü": "u",
-            "í": "i", "ì": "i", "î": "i", "ï": "i",
-            "ş": "s", "ğ": "g", "ç": "c",
-            "ı": "i",
-        }
-        for orig, repl in replacements.items():
-            name = name.replace(orig, repl)
+        # Strip diacritics via NFKD (handles é, ñ, ş, ğ, ı, etc.)
+        name = "".join(c for c in unicodedata.normalize("NFKD", name) if not unicodedata.combining(c))
+        # Turkish dotless i
+        name = name.replace("ı", "i")
         # Remove non-alphanumeric
         name = "".join(c for c in name if c.isalnum())
         return name
@@ -436,11 +444,19 @@ class BSDClient:
         event_home = self._normalize_team(event.get("home_team", ""))
         event_away = self._normalize_team(event.get("away_team", ""))
 
+        # Guard against empty normalization (e.g. "FC" -> "")
+        if not home_norm or not away_norm or not event_home or not event_away:
+            return False
+        if len(home_norm) < 3 or len(away_norm) < 3 or len(event_home) < 3 or len(event_away) < 3:
+            # For very short names, require exact match only
+            return (event_home == home_norm and event_away == away_norm) or \
+                   (event_home == away_norm and event_away == home_norm)
+
         # Exact match
         if event_home == home_norm and event_away == away_norm:
             return True
 
-        # Substring match
+        # Substring match (both need reasonable length)
         if (home_norm in event_home or event_home in home_norm) and \
            (away_norm in event_away or event_away in away_norm):
             return True

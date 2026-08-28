@@ -22,11 +22,21 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 from urllib.parse import urlparse
 
+import unicodedata
+
 import requests
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_search_str(s: str) -> str:
+    """Normalize team/event strings for comparison: lower, strip diacritics."""
+    s = s.lower().strip()
+    # Strip diacritics via NFKD
+    s = "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
+    return s
 
 # Production API (public market data, requires RSA auth)
 KALSHI_PROD_BASE = "https://api.elections.kalshi.com/trade-api/v2"
@@ -394,10 +404,11 @@ class KalshiClient:
             event_ticker = event.get("event_ticker", "")
             event_title = event.get("title", "").lower()
 
-            # Check if both teams are mentioned in event title
+            # Check if both teams are mentioned in event title (diacritics-insensitive)
+            norm_title = _normalize_search_str(event_title)
             if (
-                team_home.lower() in event_title
-                and team_away.lower() in event_title
+                _normalize_search_str(team_home) in norm_title
+                and _normalize_search_str(team_away) in norm_title
             ):
                 # Get markets inside this event
                 markets = self.get_event_markets(event_ticker)
@@ -450,8 +461,10 @@ class KalshiClient:
                 status=item.get("status", ""),
                 expiration_time=item.get("expiration_time", ""),
                 rules_primary=item.get("rules_primary", ""),
-                is_regulation_only="regulation time" in item.get("rules_primary", "").lower()
-                    or "90 minutes" in item.get("rules_primary", "").lower(),
+                is_regulation_only=any(
+                    kw in item.get("rules_primary", "").lower()
+                    for kw in ("regulation time", "regular time", "90 minutes", "90 min")
+                ),
             )
         except (ValueError, TypeError) as e:
             logger.warning("Failed to parse market: %s", e)
@@ -536,23 +549,31 @@ class KalshiClient:
             yes_levels = []
             no_levels = []
 
-            for price_str, count_str in yes_book:
-                try:
-                    yes_levels.append(OrderbookLevel(
-                        price=float(price_str),
-                        count=int(float(count_str)),
-                    ))
-                except (ValueError, TypeError):
-                    continue
+            def _parse_levels(book_data):
+                levels = []
+                for entry in book_data:
+                    try:
+                        # Handle both tuple [price, count] and dict {price, count}
+                        if isinstance(entry, dict):
+                            price_raw = entry.get("price", entry.get("price_dollars", 0))
+                            count_raw = entry.get("count", entry.get("quantity", 0))
+                        else:
+                            price_raw, count_raw = entry
+                        price = float(price_raw)
+                        # Handle cents vs dollars: 55 → 0.55
+                        if price > 1.0:
+                            price = price / 100.0
+                        count = int(float(count_raw))
+                        if 0 < price < 1.0:
+                            levels.append(OrderbookLevel(price=price, count=count))
+                        elif price == 0.0 or price == 1.0:
+                            levels.append(OrderbookLevel(price=price, count=count))
+                    except (ValueError, TypeError, IndexError):
+                        continue
+                return levels
 
-            for price_str, count_str in no_book:
-                try:
-                    no_levels.append(OrderbookLevel(
-                        price=float(price_str),
-                        count=int(float(count_str)),
-                    ))
-                except (ValueError, TypeError):
-                    continue
+            yes_levels = _parse_levels(yes_book)
+            no_levels = _parse_levels(no_book)
 
             # Sort ascending by price (best ask first)
             yes_levels.sort(key=lambda x: x.price)

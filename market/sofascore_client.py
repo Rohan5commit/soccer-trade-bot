@@ -8,6 +8,7 @@ Attribution: "Powered by SportScore" link required.
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 import time
@@ -144,11 +145,14 @@ class LiveScoreClient:
 
         # Parse status
         status_text = details.get("status", "")
-        is_live = status_text == "inprogress"
+        is_live = status_text in ("inprogress", "halftime")
         is_finished = status_text == "finished"
+        is_halftime = status_text == "halftime"
 
         if is_finished:
             status_short = "FT"
+        elif is_halftime:
+            status_short = "HT"
         elif is_live:
             # Determine half from status_text or time
             time_str = details.get("time", "")
@@ -246,7 +250,7 @@ class LiveScoreClient:
                         away_yellow += 1
 
         return LiveMatchState(
-            fixture_id=hash(slug) % (2**31),
+            fixture_id=int(hashlib.md5(slug.encode()).hexdigest(), 16) % (2**31),
             home_team=home_team,
             away_team=away_team,
             home_score=home_score,
