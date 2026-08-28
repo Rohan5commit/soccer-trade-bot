@@ -222,12 +222,20 @@ def fetch_bsd_fixtures() -> Dict[str, dict]:
     client = BSDClient(api_key=bsd_key)
     fixtures = {}
 
-    # Fetch upcoming events for all BSD-covered leagues
+    # Fetch upcoming events for all BSD-covered leagues (date-filtered to near term)
+    from datetime import timedelta
+    now_utc = datetime.now(timezone.utc)
+    date_from = (now_utc - timedelta(days=1)).strftime("%Y-%m-%d")
+    date_to = (now_utc + timedelta(days=7)).strftime("%Y-%m-%d")
+
     from market.bsd_client import KALSHI_TO_BSD_LEAGUE
     for league_ids in KALSHI_TO_BSD_LEAGUE.values():
         for league_id in league_ids:
             try:
-                events = client.get_upcoming_events(league_id=league_id, limit=20)
+                events = client.get_upcoming_events(
+                    league_id=league_id, limit=50,
+                    date_from=date_from, date_to=date_to,
+                )
                 for event in events:
                     home = event.get("home_team", "")
                     away = event.get("away_team", "")

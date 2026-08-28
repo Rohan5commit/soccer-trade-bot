@@ -135,6 +135,8 @@ PERIOD_MAP = {
     "ET2": 4,
     "penalties": 5,
     "P": 5,
+    "FT": 5,
+    "finished": 5,
 }
 
 
@@ -207,12 +209,21 @@ class BSDClient:
             return []
         return data.get("events", [])
 
-    def get_upcoming_events(self, league_id: int = None, limit: int = 50) -> List[Dict]:
-        """Get upcoming events, optionally filtered by league."""
+    def get_upcoming_events(
+        self, league_id: int = None, limit: int = 50,
+        date_from: str = None, date_to: str = None,
+    ) -> List[Dict]:
+        """Get upcoming events, optionally filtered by league and date range."""
         params = {"limit": limit, "status": "notstarted"}
         if league_id:
             params["league_id"] = league_id
-        data = self._get("events/", params=params, ttl=300)
+        if date_from:
+            params["date_from"] = date_from
+        if date_to:
+            params["date_to"] = date_to
+        # Cache TTL: shorter when filtering by date (volatile), longer otherwise
+        ttl = 60 if (date_from or date_to) else 300
+        data = self._get("events/", params=params, ttl=ttl)
         if not data:
             return []
         return data.get("results", [])
@@ -238,25 +249,36 @@ class BSDClient:
             return []
         return data.get("results", [])
 
+    def _date_window(self, days_ahead: int = 7, days_behind: int = 1) -> tuple:
+        """Return (date_from, date_to) strings for near-term event search."""
+        from datetime import datetime, timedelta, timezone
+        now = datetime.now(timezone.utc)
+        date_from = (now - timedelta(days=days_behind)).strftime("%Y-%m-%d")
+        date_to = (now + timedelta(days=days_ahead)).strftime("%Y-%m-%d")
+        return date_from, date_to
+
     def find_event_by_teams(
         self, home: str, away: str, league_id: int = None
     ) -> Optional[Dict]:
         """Find an event by team names (fuzzy match).
 
-        Searches live events first, then upcoming.
+        Searches live events first, then upcoming (date-filtered to ±7 days).
         """
         home_norm = self._normalize_team(home)
         away_norm = self._normalize_team(away)
+        date_from, date_to = self._date_window()
 
         # Search live events first
         for event in self.get_live_events():
             if self._teams_match(event, home_norm, away_norm):
                 return event
 
-        # Search upcoming events
+        # Search upcoming events (date-filtered so we don't match 2027 fixtures)
         search_leagues = [league_id] if league_id else ALL_BSD_LEAGUE_IDS
         for lid in search_leagues:
-            for event in self.get_upcoming_events(league_id=lid):
+            for event in self.get_upcoming_events(
+                league_id=lid, date_from=date_from, date_to=date_to
+            ):
                 if self._teams_match(event, home_norm, away_norm):
                     return event
 
@@ -268,8 +290,10 @@ class BSDClient:
         """Find an event by Kalshi team names and series.
 
         Maps Kalshi series → BSD league IDs, then searches.
+        Date-filtered to avoid matching far-future fixtures (e.g. May 2027).
         """
         league_ids = KALSHI_TO_BSD_LEAGUE.get(kalshi_series, ALL_BSD_LEAGUE_IDS)
+        date_from, date_to = self._date_window()
 
         # Search live events first
         for event in self.get_live_events():
@@ -279,9 +303,11 @@ class BSDClient:
                                      self._normalize_team(kalshi_away)):
                     return event
 
-        # Search upcoming events
+        # Search upcoming events (date-filtered)
         for lid in league_ids:
-            for event in self.get_upcoming_events(league_id=lid):
+            for event in self.get_upcoming_events(
+                league_id=lid, date_from=date_from, date_to=date_to
+            ):
                 if self._teams_match(event, self._normalize_team(kalshi_home),
                                      self._normalize_team(kalshi_away)):
                     return event
@@ -291,8 +317,16 @@ class BSDClient:
     def get_live_match(self, event_id: int) -> Optional[LiveMatchState]:
         """Get live match state for a specific event.
 
+        Prefers the /events/live/ endpoint (accurate live status) over
+        the single-event endpoint (which may be stale/cached).
+
         Returns LiveMatchState compatible with run_bot_github.py.
         """
+        # Prefer live endpoint — it has accurate status/period/minute
+        for evt in self.get_live_events():
+            if evt.get("id") == event_id:
+                return self._event_to_live_state(evt)
+
         event = self.get_event(event_id)
         if not event:
             return None
