@@ -1,8 +1,8 @@
 {
-  "bankroll": 1366.72,
-  "start_of_day": 471.2,
-  "session_start": "2026-08-29T19:23:30.393481+05:30",
-  "total_pnl": 895.52,
+  "bankroll": -627.59,
+  "start_of_day": 1366.72,
+  "session_start": "2026-08-30T17:40:39.251535+05:30",
+  "total_pnl": -1994.31,
   "sessions": [
     {
       "match": "Corum vs Kasimpasa",
@@ -39,8 +39,14 @@
       "trades": 66,
       "pnl": 895.52,
       "time": "2026-08-29T19:23:30.393583+05:30"
+    },
+    {
+      "match": "Utrecht vs Eindhoven",
+      "trades": 52,
+      "pnl": -1994.31,
+      "time": "2026-08-30T17:40:39.251616+05:30"
     }
   ],
-  "last_updated": "2026-08-29T19:23:30.393495+05:30",
-  "last_match": "Henan vs Chongqing Tonglianglong FC"
+  "last_updated": "2026-08-30T17:40:39.251546+05:30",
+  "last_match": "Utrecht vs Eindhoven"
 }
