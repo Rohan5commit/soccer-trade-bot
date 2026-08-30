@@ -27,7 +27,10 @@ permissions:
 jobs:
   trade:
     runs-on: ubuntu-latest
-    timeout-minutes: 240  # 4 hours max (90 min wait + 120 min match + 30 min buffer)
+    timeout-minutes: 300  # 5 hours max (180 min wait + 120 min match + buffer, watcher may dispatch 180m early)
+    concurrency:
+      group: paper-trade-bot
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 
@@ -62,6 +65,7 @@ jobs:
         env:
           KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
           API_FOOTBALL_API_KEY: ${{ secrets.API_FOOTBALL_API_KEY }}
+          API_FOOTBALL_API_KEY_2: ${{ secrets.API_FOOTBALL_API_KEY_2 }}
           BSD_API_KEY: ${{ secrets.BSD_API_KEY }}
           MATCH_HOME: ${{ inputs.home }}
           MATCH_AWAY: ${{ inputs.away }}
@@ -75,6 +79,8 @@ jobs:
           LIQUIDITY_BUFFER: "0.7"
           LOSS_FLOOR_PCT: "0.08"
         run: |
+          set -o pipefail
+          mkdir -p data
           python scripts/run_bot_github.py 2>&1 | tee data/bot_output.log
 
       - name: Save trades DB
@@ -90,9 +96,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase --autostash || true
           git add data/state/
           git diff --staged --quiet || git commit -m "bot: update bankroll + trade ledger [skip ci]"
-          git push
+          git push || (git pull --rebase --autostash && git push)
 
       - name: Save logs
         uses: actions/upload-artifact@v4

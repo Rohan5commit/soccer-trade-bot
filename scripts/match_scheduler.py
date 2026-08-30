@@ -33,7 +33,7 @@ from config import load_config
 KALSHI_TO_LEAGUE_ID: Dict[str, int] = {
     "KXUCLGAME": 2, "KXCHAMPIONSLEAGUEGAME": 2,
     "KXUELGAME": 3, "KXUECLGAME": 848, "KXUEFAGAME": 848, "KXUEFANLGAME": 848,
-    "KXPREMIERLEAGUE": 39, "KXSERIEAGAME": 71, "KXPRIMERALIGAME": 94,
+    "KXPREMIERLEAGUE": 39, "KXSERIEAGAME": 135, "KXPRIMERALIGAME": 140,
     "KXMLSGAME": 253, "KXEREDIVISIEGAME": 88, "KXSUPERLIGGAME": 203,
     "KXBRASILEIROGAME": 71, "KXBRASILEIROBGAME": 72,
     "KXALLSVENSKANGAME": 113, "KXSCOTTISHPREMGAME": 179,
@@ -196,10 +196,13 @@ def fetch_api_football_fixtures(api_key: str, api_key_2: str = "") -> Dict[str, 
                         if fid:
                             fixtures[fid] = f
                 else:
-                    return {}
+                    # Don't discard earlier date's fixtures on later-date failure
+                    print(f"[WARN] API-Football fixtures for {date} failed: {data.get('errors', resp.status_code)}", file=sys.stderr)
+                    continue
                 time.sleep(0.5)
-            except Exception:
-                return {}
+            except Exception as e:
+                print(f"[WARN] API-Football fetch for date offset {date_offset} failed: {e}", file=sys.stderr)
+                continue
         return fixtures
 
     fixtures = _try_fetch(api_key)
@@ -345,6 +348,7 @@ def discover_matches() -> List[Dict]:
 LEAGUE_TIERS = {
     # Tier 1: UEFA Champions League
     "KXUCLGAME": 1.0,
+    "KXCHAMPIONSLEAGUEGAME": 1.0,
     "KXUELGAME": 1.0,
     "KXUECLGAME": 1.0,
     "KXUEFAGAME": 1.0,
@@ -391,7 +395,10 @@ LEAGUE_TIERS = {
 
 
 def _score_timing(minutes_until: float) -> float:
-    """Score timing: peak at ~3 hours out (180 min), falls off before/after.
+    """Score timing: peak at 1-3 hours out (60-180 min, watcher window).
+
+    Aligned with watcher filter 10-180 so scheduler pick is dispatchable
+    immediately without 60min delay.
 
     Returns 0.0-1.0.
     """
@@ -401,11 +408,11 @@ def _score_timing(minutes_until: float) -> float:
         return 0.4
     elif minutes_until < 120:
         return 0.7
+    elif minutes_until < 180:
+        return 1.0  # Sweet spot: 1-3 hours, inside watcher 10-180
     elif minutes_until < 240:
-        return 1.0  # Sweet spot: 2-4 hours
-    elif minutes_until < 360:
         return 0.8
-    elif minutes_until < 480:
+    elif minutes_until < 360:
         return 0.5
     else:
         return 0.2  # Too far out — might not be worth waiting
@@ -466,18 +473,18 @@ def pick_best_match(matches: List[Dict]) -> Optional[Dict]:
         if minutes_until < 30:
             continue
 
-        # Skip matches with no Kalshi markets (illiquid)
+        # Liquidity score: more markets = more liquidity (0 markets → 0.1, bot will poll)
         markets_count = match.get("markets_count", 0)
-        if markets_count == 0:
-            continue
 
         # Skip matches in leagues without free live data coverage
         series = match.get("series", "")
         if series not in FD_COVERED_SERIES:
             continue
 
-        # Liquidity score: more markets = more liquidity
-        liquidity_score = min(markets_count / max(max_markets, 1), 1.0)
+        if markets_count == 0:
+            liquidity_score = 0.1  # Keep match — markets may open later, bot polls
+        else:
+            liquidity_score = min(markets_count / max(max_markets, 1), 1.0)
 
         # League tier score
         series = match.get("series", "")
@@ -516,15 +523,21 @@ def save_schedule(matches: List[Dict], output_path: str) -> None:
         "matches": matches,
     }
 
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    Path(output_path).write_text(json.dumps(schedule, indent=2))
+    p = Path(output_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(".tmp")
+    tmp.write_text(json.dumps(schedule, indent=2))
+    tmp.replace(p)
     print(f"[INFO] Saved {len(matches)} matches to {output_path}", file=sys.stderr)
 
 
 def save_best_match(match: Dict, output_path: str) -> None:
     """Save the best match to a separate JSON file for the dispatch step."""
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    Path(output_path).write_text(json.dumps(match, indent=2))
+    p = Path(output_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(".tmp")
+    tmp.write_text(json.dumps(match, indent=2))
+    tmp.replace(p)
     print(f"[INFO] Best match saved to {output_path}", file=sys.stderr)
 
 

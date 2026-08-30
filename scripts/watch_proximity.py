@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Watch proximity: checks if any match is starting soon, dispatches bot.
 
-Called by watcher.yml every 30 minutes. Reads the schedule artifact,
+Called by watcher.yml every 10 minutes. Reads the schedule artifact,
 picks the SINGLE best match, and triggers the bot workflow.
 Only dispatches future matches — never re-dispatches past matches.
 """
@@ -81,11 +81,11 @@ def filter_future_matches(matches: List[Dict]) -> List[Dict]:
             print(f"[INFO]   filtered: {m['home']} vs {m['away']} — too far ({minutes_until:.0f}min)", file=sys.stderr)
             continue
 
-        # Must have at least 1 Kalshi market (disqualify illiquid matches)
+        # Keep matches even if markets_count==0 — bot polls for markets live
+        # (Kalshi opens markets close to kickoff, scheduler may have run early)
         markets_count = m.get("markets_count", 0)
         if markets_count == 0:
-            print(f"[INFO]   filtered: {m['home']} vs {m['away']} — no markets", file=sys.stderr)
-            continue
+            print(f"[INFO]   keep: {m['home']} vs {m['away']} — no markets yet (bot will poll)", file=sys.stderr)
 
         future.append({**m, "minutes_until": round(minutes_until, 1)})
 

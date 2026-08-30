@@ -98,7 +98,9 @@ def load_db() -> dict:
 
 
 def save_db(db: dict) -> None:
-    STATE_FILE.write_text(json.dumps(db, indent=2))
+    tmp = STATE_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(db, indent=2))
+    tmp.replace(STATE_FILE)
 
 
 def log_trade(trade: dict) -> None:
@@ -1707,7 +1709,10 @@ class GitHubBot:
         # Keep last 30 sessions
         state["sessions"] = state["sessions"][-30:]
 
-        BANKROLL_FILE.write_text(json.dumps(state, indent=2))
+        # Atomic write: tmp + rename so GH timeout can't truncate
+        tmp = BANKROLL_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(state, indent=2))
+        tmp.replace(BANKROLL_FILE)
         logger.info("Bankroll state saved: $%.2f", self._bankroll)
 
     def _save_calibration_data(self) -> None:

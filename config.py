@@ -125,7 +125,7 @@ class Config:
             polymarket_private_key=os.environ.get("POLYMARKET_PRIVATE_KEY", ""),
             kalshi_api_key=os.environ.get("KALSHI_API_KEY", ""),
             kalshi_private_key=os.environ.get("KALSHI_PRIVATE_KEY", "").replace("\\n", "\n"),
-            api_football_key=os.environ.get("API_FOOTBALL_KEY", ""),
+            api_football_key=os.environ.get("API_FOOTBALL_API_KEY", os.environ.get("API_FOOTBALL_KEY", "")),
             api_football_fixture_id=_int("API_FOOTBALL_FIXTURE_ID", 0),
             min_bet_usd=_float("MIN_BET_USD", 5.0),
             max_bet_pct=_float("MAX_BET_PCT", 0.05),

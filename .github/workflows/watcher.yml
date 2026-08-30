@@ -21,7 +21,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install -q requests cryptography
+        run: pip install -q requests cryptography cloudscraper
 
       - name: Download latest schedule
         uses: dawidd6/action-download-artifact@v6
@@ -56,8 +56,14 @@ jobs:
           KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -o pipefail
           OUTPUT=$(python scripts/watch_proximity.py 2>&1)
           echo "$OUTPUT"
+          # Fail loudly if watcher crashed (import error, etc.)
+          if ! echo "$OUTPUT" | grep -q "^dispatched="; then
+            echo "Watcher failed to output dispatched= — treating as error" >&2
+            exit 1
+          fi
           DISPATCHED=$(echo "$OUTPUT" | grep "^dispatched=" | cut -d= -f2-)
           echo "dispatched=${DISPATCHED:-none}" >> "$GITHUB_OUTPUT"
 
