@@ -1,8 +1,8 @@
 {
-  "bankroll": -627.59,
-  "start_of_day": 1366.72,
-  "session_start": "2026-08-30T17:40:39.251535+05:30",
-  "total_pnl": -1994.31,
+  "bankroll": 500.0,
+  "start_of_day": 500.0,
+  "session_start": "2026-08-31T18:59:13.565470+05:30",
+  "total_pnl": 0.0,
   "sessions": [
     {
       "match": "Corum vs Kasimpasa",
@@ -45,8 +45,14 @@
       "trades": 52,
       "pnl": -1994.31,
       "time": "2026-08-30T17:40:39.251616+05:30"
+    },
+    {
+      "match": "BANKROLL RESET after -1994 loss (Utrecht)",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-08-31T18:59:13.565068+05:30"
     }
   ],
-  "last_updated": "2026-08-30T17:40:39.251546+05:30",
-  "last_match": "Utrecht vs Eindhoven"
+  "last_updated": "2026-08-31T18:59:13.565470+05:30",
+  "last_match": "RESET to $500 seed"
 }

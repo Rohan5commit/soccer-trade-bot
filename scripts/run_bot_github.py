@@ -365,6 +365,11 @@ class GitHubBot:
         else:
             self._bankroll = 0.0
             self._start_of_day_bankroll = 0.0
+        # Guard: negative or below min_bet bankroll would block all trading — reset to $500 seed
+        if self._bankroll < self.config.min_bet_usd:
+            logger.warning("Bankroll $%.2f below min_bet $%.2f — resetting to $500 seed", self._bankroll, self.config.min_bet_usd)
+            self._bankroll = 500.0
+            self._start_of_day_bankroll = 500.0
         logger.info("Starting bankroll: $%.2f", self._bankroll)
 
         # API-Football client (for live match data) — supports dual-key rotation
@@ -1324,16 +1329,25 @@ class GitHubBot:
     def _check_loss_floor(self) -> bool:
         """Check if bankroll has hit the relative loss floor (Fix 8).
 
-        Halts trading if current bankroll is X% below start-of-day bankroll.
+        Halts trading if effective bankroll (bankroll minus open exposure)
+        is X% below start-of-day bankroll. Accounts for unsettled trades
+        so floor triggers mid-match, not only at settlement.
+
         Returns True if loss floor is breached (should halt trading).
         """
         if self._start_of_day_bankroll <= 0:
             return False
-        loss_pct = (self._start_of_day_bankroll - self._bankroll) / self._start_of_day_bankroll
+        # Exposure for open (unsettled) trades
+        exposure = 0.0
+        for t in self._trades:
+            if "settlement_result" not in t:
+                exposure += t.get("price", 0) * t.get("count", 0) + t.get("fee", 0.0)
+        effective = self._bankroll - exposure
+        loss_pct = (self._start_of_day_bankroll - effective) / self._start_of_day_bankroll
         if loss_pct >= self.config.loss_floor_pct:
             logger.warning(
-                "LOSS FLOOR BREACHED: bankroll $%.2f is %.1f%% below start-of-day $%.2f (floor=%.1f%%)",
-                self._bankroll, loss_pct * 100, self._start_of_day_bankroll,
+                "LOSS FLOOR BREACHED: effective $%.2f (bank $%.2f - exposure $%.2f) is %.1f%% below start $%.2f (floor=%.1f%%)",
+                effective, self._bankroll, exposure, loss_pct * 100, self._start_of_day_bankroll,
                 self.config.loss_floor_pct * 100,
             )
             return True
