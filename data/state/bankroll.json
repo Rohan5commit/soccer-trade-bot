@@ -1,8 +1,8 @@
 {
   "bankroll": 445.76,
-  "start_of_day": 500.0,
-  "session_start": "2026-09-01T00:00:00.749025+05:30",
-  "total_pnl": -54.24,
+  "start_of_day": 445.76,
+  "session_start": "2026-09-01T21:30:00.975116+05:30",
+  "total_pnl": 0.0,
   "sessions": [
     {
       "match": "Corum vs Kasimpasa",
@@ -57,8 +57,14 @@
       "trades": 2,
       "pnl": -54.24,
       "time": "2026-09-01T00:00:00.749108+05:30"
+    },
+    {
+      "match": "Zurich vs Young Boys",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-09-01T21:30:00.975218+05:30"
     }
   ],
-  "last_updated": "2026-09-01T00:00:00.749036+05:30",
-  "last_match": "Lecce vs Roma"
+  "last_updated": "2026-09-01T21:30:00.975130+05:30",
+  "last_match": "Zurich vs Young Boys"
 }
