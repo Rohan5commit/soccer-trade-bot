@@ -46,7 +46,7 @@ BSD_TO_KALSHI_SERIES: Dict[int, str] = {
     85: "KXARGNACBGAME",     # Liga Profesional (Argentina)
     19: "KXLIGAMXGAME",      # Liga MX (Mexico)
     80: "KXPERLIGA1GAME",    # Categoría Primera A (Colombia)
-    55: "KXSWISSLEAGUEGAME", # Veikkausliiga (Finland) — maps to Swiss
+    15: "KXSWISSLEAGUEGAME", # Super League (Switzerland)
 }
 
 # Kalshi series → BSD league IDs (reverse of above)

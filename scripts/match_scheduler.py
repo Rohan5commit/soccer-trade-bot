@@ -527,6 +527,12 @@ def save_schedule(matches: List[Dict], output_path: str) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_suffix(".tmp")
     tmp.write_text(json.dumps(schedule, indent=2))
+    try:
+        import os as _os
+        with open(tmp, "rb") as _f:
+            _os.fsync(_f.fileno())
+    except Exception:
+        pass
     tmp.replace(p)
     print(f"[INFO] Saved {len(matches)} matches to {output_path}", file=sys.stderr)
 
@@ -537,6 +543,12 @@ def save_best_match(match: Dict, output_path: str) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_suffix(".tmp")
     tmp.write_text(json.dumps(match, indent=2))
+    try:
+        import os as _os
+        with open(tmp, "rb") as _f:
+            _os.fsync(_f.fileno())
+    except Exception:
+        pass
     tmp.replace(p)
     print(f"[INFO] Best match saved to {output_path}", file=sys.stderr)
 

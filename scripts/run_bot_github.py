@@ -100,6 +100,12 @@ def load_db() -> dict:
 def save_db(db: dict) -> None:
     tmp = STATE_FILE.with_suffix(".tmp")
     tmp.write_text(json.dumps(db, indent=2))
+    try:
+        import os as _os
+        with open(tmp, "rb") as _f:
+            _os.fsync(_f.fileno())
+    except Exception:
+        pass
     tmp.replace(STATE_FILE)
 
 
@@ -1723,9 +1729,15 @@ class GitHubBot:
         # Keep last 30 sessions
         state["sessions"] = state["sessions"][-30:]
 
-        # Atomic write: tmp + rename so GH timeout can't truncate
+        # Atomic write: tmp + fsync + rename so GH 300m timeout can't truncate to 0
         tmp = BANKROLL_FILE.with_suffix(".tmp")
         tmp.write_text(json.dumps(state, indent=2))
+        try:
+            import os as _os
+            with open(tmp, "rb") as _f:
+                _os.fsync(_f.fileno())
+        except Exception:
+            pass
         tmp.replace(BANKROLL_FILE)
         logger.info("Bankroll state saved: $%.2f", self._bankroll)
 
