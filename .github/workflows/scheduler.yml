@@ -43,6 +43,7 @@ jobs:
           API_FOOTBALL_API_KEY_2: ${{ secrets.API_FOOTBALL_API_KEY_2 }}
           BSD_API_KEY: ${{ secrets.BSD_API_KEY }}
         run: |
+          set -o pipefail -e
           python scripts/match_scheduler.py \
             --within-hours 24 \
             --output data/schedule.json \
@@ -68,11 +69,13 @@ jobs:
           fi
 
       - name: Store schedule as artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: match-schedule
           path: data/schedule.json
           retention-days: 2
+          if-no-files-found: error
 
       - name: Store best match as artifact
         if: always()

@@ -110,9 +110,18 @@ def parse_kalshi_event(event: dict, now: datetime, api_football_fixtures: Dict[s
                         home, away, year, month, day, api_football_fixtures
                     )
 
-                # Fallback: use 21:00 IST (common European kickoff time)
+                # Fallback: league-aware IST (EU 21:00, US 02:00 next day, Asia 17:00)
                 if kickoff is None:
-                    kickoff = datetime(year, month, day, 21, 0, tzinfo=IST)
+                    if series in ("KXMLSGAME", "KXUSLGAME", "KXUSOPENCUPGAME", "KXUSLCUPGAME", "KXWIBPLGAME"):
+                        # US evening → 19:00 ET = 04:30 IST next day → use 02:00 IST next day
+                        kickoff = datetime(year, month, day, 21, 0, tzinfo=IST)
+                        # If US, shift to early IST next day (02:00)
+                        if series != "KXWIBPLGAME":
+                            kickoff = kickoff + timedelta(hours=5)  # 02:00 next day
+                    elif series in ("KXCHNSLGAME", "KXKLEAGUEGAME", "KXISLGAME", "KXTHAIL1GAME", "KXQSTARSGAME", "KXUAEPLGAME", "KXASEANGAME"):
+                        kickoff = datetime(year, month, day, 17, 0, tzinfo=IST)  # Asian evening
+                    else:
+                        kickoff = datetime(year, month, day, 21, 0, tzinfo=IST)  # EU 21:00
         except Exception:
             pass
 
@@ -419,7 +428,7 @@ def _score_timing(minutes_until: float) -> float:
 
 
 # Leagues covered by BSD API (primary live data source — free, no quota, 83+ leagues)
-# Replaces football-data.org as the free data source filter
+# Alias kept as FD_COVERED_SERIES for watcher import compat
 FD_COVERED_SERIES = {
     # Tier 1: UEFA
     "KXUCLGAME", "KXCHAMPIONSLEAGUEGAME",
@@ -437,12 +446,14 @@ FD_COVERED_SERIES = {
     "KXCHNSLGAME", "KXISLGAME",
     "KXPERLIGA1GAME", "KXVENFUTVEGAME",
     "KXQSTARSGAME", "KXSPBGAME", "KXWIBPLGAME",
+    "KXTHAIL1GAME", "KXUAEPLGAME", "KXSERIEBGAME",
     # Tier 5: Cups & Other
-    "KXTACAPORTGAME", "KXUSLGAME", "KXUSOPENCUPGAME",
+    "KXTACAPORTGAME", "KXUSLGAME", "KXUSOPENCUPGAME", "KXUSLCUPGAME",
     "KXSCOCUPGAME", "KXARGNACBGAME",
     "KXCLUBFGAME", "KXWCGAME", "KXMENWORLDCUP",
     "KXASEANGAME",
 }
+BSD_COVERED_SERIES = FD_COVERED_SERIES  # alias
 
 
 def pick_best_match(matches: List[Dict]) -> Optional[Dict]:

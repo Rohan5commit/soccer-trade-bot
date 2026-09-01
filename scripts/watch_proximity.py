@@ -23,7 +23,21 @@ def load_schedule() -> dict:
 
     if schedule_file.exists():
         try:
-            return json.loads(schedule_file.read_text())
+            data = json.loads(schedule_file.read_text())
+            # Stale check: if generated >12h ago, treat as missing (scheduler outage)
+            gen = data.get("generated_at", "")
+            if gen:
+                try:
+                    gen_dt = datetime.fromisoformat(gen.replace("Z", "+00:00"))
+                    if gen_dt.tzinfo is None:
+                        gen_dt = gen_dt.replace(tzinfo=timezone.utc)
+                    age_h = (datetime.now(timezone.utc) - gen_dt).total_seconds() / 3600
+                    if age_h > 12:
+                        print(f"[CRITICAL] schedule.json stale {age_h:.1f}h old (>{12}h) — treating as missing", file=sys.stderr)
+                        return {}
+                except Exception:
+                    pass
+            return data
         except Exception as e:
             print(f"[WARN] Failed to load schedule: {e}", file=sys.stderr)
 
