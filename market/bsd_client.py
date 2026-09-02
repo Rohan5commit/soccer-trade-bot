@@ -37,16 +37,18 @@ BSD_TO_KALSHI_SERIES: Dict[int, str] = {
     9: "KXBRASILEIROGAME",   # Brasileirão Serie A (Brazil)
     34: "KXBRASILEIROBGAME", # Brasileirão Serie B (Brazil)
     18: "KXMLSGAME",         # MLS (USA)
-    24: "KXASEANGAME",       # AFC Asian Cup
+    24: "KXSLGREECEGAME",    # Stoiximan Super League (Greece) — was 22 Parva Liga
+    26: "KXALLSVENSKANGAME", # Allsvenskan (Sweden) — was 113 API id
+    13: "KXSCOTTISHPREMGAME",# Scottish Premiership (Scotland)
     17: "KXSAUDIPLGAME",     # Saudi Pro League
-    49: "KXKLEAGAME",        # J1 League (Japan)
+    50: "KXKLEAGUEGAME",     # K League 1 (South Korea) — was 49 J1
     52: "KXCHNSLGAME",       # Chinese Super League
-    22: "KXSLGREECEGAME",    # Parva Liga (Bulgaria) — maps to Greek SL
     84: "KXDENSUPERLIGAGAME",# Danish Superliga
     85: "KXARGNACBGAME",     # Liga Profesional (Argentina)
     19: "KXLIGAMXGAME",      # Liga MX (Mexico)
     80: "KXPERLIGA1GAME",    # Categoría Primera A (Colombia)
     15: "KXSWISSLEAGUEGAME", # Super League (Switzerland)
+    68: "KXASEANGAME",       # AFC Asian Cup (Asia)
 }
 
 # Kalshi series → BSD league IDs (reverse of above)
