@@ -1,7 +1,7 @@
 {
   "bankroll": 445.76,
   "start_of_day": 445.76,
-  "session_start": "2026-09-02T21:30:00.729442+05:30",
+  "session_start": "2026-09-03T21:30:00.046709+05:30",
   "total_pnl": 0.0,
   "sessions": [
     {
@@ -69,8 +69,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-09-02T21:30:00.729578+05:30"
+    },
+    {
+      "match": "Nautico vs Botafogo",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-09-03T21:30:00.046813+05:30"
     }
   ],
-  "last_updated": "2026-09-02T21:30:00.729462+05:30",
-  "last_match": "Celtic vs Aberdeen"
+  "last_updated": "2026-09-03T21:30:00.046722+05:30",
+  "last_match": "Nautico vs Botafogo"
 }
