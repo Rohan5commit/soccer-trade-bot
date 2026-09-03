@@ -252,9 +252,13 @@ def fetch_bsd_fixtures() -> Dict[str, dict]:
                     home = event.get("home_team", "")
                     away = event.get("away_team", "")
                     if home and away:
-                        # Normalize keys to match lookup normalization
-                        key = (home.lower().replace(".", "").replace("'", "").replace("-", " "),
-                               away.lower().replace(".", "").replace("'", "").replace("-", " "))
+                        # Normalize keys to match lookup normalization (NFKD for Náutico/Botafogo etc.)
+                        import unicodedata
+                        def _knorm(s: str) -> str:
+                            s = s.lower().replace(".", "").replace("'", "").replace("-", " ")
+                            s = "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
+                            return s.replace("ı", "i")
+                        key = (_knorm(home), _knorm(away))
                         fixtures[key] = event
             except Exception:
                 continue
@@ -266,8 +270,13 @@ def _find_kickoff_from_bsd(
     home: str, away: str, bsd_fixtures: Dict[str, dict]
 ) -> Optional[datetime]:
     """Find actual kickoff time from BSD fixtures by matching team names."""
-    home_norm = home.lower().replace(".", "").replace("'", "").replace("-", " ")
-    away_norm = away.lower().replace(".", "").replace("'", "").replace("-", " ")
+    import unicodedata
+    def _norm(s: str) -> str:
+        s = s.lower().replace(".", "").replace("'", "").replace("-", " ")
+        s = "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
+        return s.replace("ı", "i")
+    home_norm = _norm(home)
+    away_norm = _norm(away)
 
     for (f_home, f_away), event in bsd_fixtures.items():
         if (home_norm in f_home or f_home in home_norm) and \
