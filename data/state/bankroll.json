@@ -1,7 +1,7 @@
 {
   "bankroll": 445.76,
   "start_of_day": 445.76,
-  "session_start": "2026-09-03T21:30:00.046709+05:30",
+  "session_start": "2026-09-04T21:30:01.419050+05:30",
   "total_pnl": 0.0,
   "sessions": [
     {
@@ -75,8 +75,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-09-03T21:30:00.046813+05:30"
+    },
+    {
+      "match": "CR Brasil vs America FC",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-09-04T21:30:01.419160+05:30"
     }
   ],
-  "last_updated": "2026-09-03T21:30:00.046722+05:30",
-  "last_match": "Nautico vs Botafogo"
+  "last_updated": "2026-09-04T21:30:01.419065+05:30",
+  "last_match": "CR Brasil vs America FC"
 }
