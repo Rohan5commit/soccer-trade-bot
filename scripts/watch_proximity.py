@@ -32,8 +32,8 @@ def load_schedule() -> dict:
                     if gen_dt.tzinfo is None:
                         gen_dt = gen_dt.replace(tzinfo=timezone.utc)
                     age_h = (datetime.now(timezone.utc) - gen_dt).total_seconds() / 3600
-                    if age_h > 12:
-                        print(f"[CRITICAL] schedule.json stale {age_h:.1f}h old (>{12}h) — treating as missing", file=sys.stderr)
+                    if age_h > 18:
+                        print(f"[CRITICAL] schedule.json stale {age_h:.1f}h old (>{18}h) — treating as missing", file=sys.stderr)
                         return {}
                 except Exception:
                     pass

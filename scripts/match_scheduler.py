@@ -437,7 +437,7 @@ def _score_timing(minutes_until: float) -> float:
 
 
 # Leagues covered by BSD API (primary live data source — free, no quota, 83+ leagues)
-# Alias kept as FD_COVERED_SERIES for watcher import compat
+# Strict: only BSD-mapped series — ensures live data exists (pruned Thai/UAE/ISl etc. that have tier but no BSD id)
 FD_COVERED_SERIES = {
     # Tier 1: UEFA
     "KXUCLGAME", "KXCHAMPIONSLEAGUEGAME",
@@ -451,15 +451,11 @@ FD_COVERED_SERIES = {
     "KXSLGREECEGAME", "KXSWISSLEAGUEGAME",
     "KXDENSUPERLIGAGAME", "KXLIGAMXGAME",
     "KXSAUDIPLGAME", "KXKLEAGUEGAME",
-    # Tier 4: Other
-    "KXCHNSLGAME", "KXISLGAME",
-    "KXPERLIGA1GAME", "KXVENFUTVEGAME",
-    "KXQSTARSGAME", "KXSPBGAME", "KXWIBPLGAME",
-    "KXTHAIL1GAME", "KXUAEPLGAME", "KXSERIEBGAME",
-    # Tier 5: Cups & Other
-    "KXTACAPORTGAME", "KXUSLGAME", "KXUSOPENCUPGAME", "KXUSLCUPGAME",
-    "KXSCOCUPGAME", "KXARGNACBGAME",
-    "KXCLUBFGAME", "KXWCGAME", "KXMENWORLDCUP",
+    # Tier 4: Other — only if BSD-mapped
+    "KXCHNSLGAME",
+    "KXPERLIGA1GAME",
+    # Tier 5: Cups & Other — only BSD-mapped (remove Thai/UAE/ISL/USL etc. with no live)
+    "KXARGNACBGAME",
     "KXASEANGAME",
 }
 BSD_COVERED_SERIES = FD_COVERED_SERIES  # alias

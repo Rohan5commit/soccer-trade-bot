@@ -32,8 +32,8 @@ KALSHI_TO_LEAGUE_ID: Dict[str, int] = {
     "KXUEFANLGAME": 848,
     # Tier 2: Top 5
     "KXPREMIERLEAGUE": 39,
-    "KXSERIEAGAME": 71,
-    "KXPRIMERALIGAME": 94,
+    "KXSERIEAGAME": 135,
+    "KXPRIMERALIGAME": 140,
     "KXMLSGAME": 253,
     # Tier 3: Strong European
     "KXEREDIVISIEGAME": 88,
