@@ -439,6 +439,11 @@ class BSDClient:
         name = name.replace("ı", "i")
         # Remove non-alphanumeric
         name = "".join(c for c in name if c.isalnum())
+        # Brazilian aliases — America MG / CRB
+        if "america" in name:
+            return "america"
+        if "crb" in name or "crbrasil" in name:
+            return "crb"
         return name
 
     def _teams_match(self, event: Dict, home_norm: str, away_norm: str) -> bool:
