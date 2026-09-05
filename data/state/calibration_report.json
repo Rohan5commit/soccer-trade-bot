@@ -1,32 +1,32 @@
 {
-  "match": "Lecce vs Roma",
-  "time": "2026-09-01T00:00:00.749401+05:30",
+  "match": "Wuhan Three Towns FC vs Qingdao West Coast FC",
+  "time": "2026-09-05T18:30:00.611897+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-08-31T22:07:29.223442+05:30",
-      "ticker": "KXSERIEAGAME-26AUG31LECROM-TIE",
+      "time": "2026-09-05T16:31:08.765598+05:30",
+      "ticker": "KXCHNSLGAME-26SEP05WUHQWC-TIE",
       "outcome": "draw",
-      "fill_price": 0.22,
+      "fill_price": 0.26,
       "model_prob": 0.9993396048235512,
-      "market_ask": 0.22,
-      "net_edge": 0.7593396048235512,
-      "count": 113,
-      "fee": 2.2600000000000002,
+      "market_ask": 0.26,
+      "net_edge": 0.7193396048235512,
+      "count": 85,
+      "fee": 1.7,
       "clock": 0.0,
       "score": "0-0"
     },
     {
-      "time": "2026-08-31T22:09:01.434800+05:30",
-      "ticker": "KXSERIEAGAME-26AUG31LECROM-TIE",
+      "time": "2026-09-05T16:32:41.457196+05:30",
+      "ticker": "KXCHNSLGAME-26SEP05WUHQWC-TIE",
       "outcome": "draw",
-      "fill_price": 0.22,
+      "fill_price": 0.25,
       "model_prob": 0.9993396048235512,
-      "market_ask": 0.22,
-      "net_edge": 0.7593396048235512,
-      "count": 113,
-      "fee": 2.2600000000000002,
+      "market_ask": 0.25,
+      "net_edge": 0.7293396048235512,
+      "count": 89,
+      "fee": 1.78,
       "clock": 1.0,
       "score": "0-0"
     }
@@ -34,6 +34,6 @@
   "summary": {
     "total_trades": 2,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.7593
+    "avg_net_edge": 0.7243
   }
 }

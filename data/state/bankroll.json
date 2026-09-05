@@ -1,8 +1,8 @@
 {
-  "bankroll": 445.76,
+  "bankroll": 571.93,
   "start_of_day": 445.76,
-  "session_start": "2026-09-04T21:30:01.419050+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-09-05T18:30:00.611131+05:30",
+  "total_pnl": 126.17,
   "sessions": [
     {
       "match": "Corum vs Kasimpasa",
@@ -81,8 +81,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-09-04T21:30:01.419160+05:30"
+    },
+    {
+      "match": "Wuhan Three Towns FC vs Qingdao West Coast FC",
+      "trades": 2,
+      "pnl": 126.17,
+      "time": "2026-09-05T18:30:00.611235+05:30"
     }
   ],
-  "last_updated": "2026-09-04T21:30:01.419065+05:30",
-  "last_match": "CR Brasil vs America FC"
+  "last_updated": "2026-09-05T18:30:00.611145+05:30",
+  "last_match": "Wuhan Three Towns FC vs Qingdao West Coast FC"
 }
