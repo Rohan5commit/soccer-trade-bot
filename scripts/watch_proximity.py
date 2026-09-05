@@ -24,7 +24,7 @@ def load_schedule() -> dict:
     if schedule_file.exists():
         try:
             data = json.loads(schedule_file.read_text())
-            # Stale check: if generated >12h ago, treat as missing (scheduler outage)
+            # Stale check: if generated >22h ago, treat as missing (scheduler outage)
             gen = data.get("generated_at", "")
             if gen:
                 try:
@@ -32,8 +32,8 @@ def load_schedule() -> dict:
                     if gen_dt.tzinfo is None:
                         gen_dt = gen_dt.replace(tzinfo=timezone.utc)
                     age_h = (datetime.now(timezone.utc) - gen_dt).total_seconds() / 3600
-                    if age_h > 18:
-                        print(f"[CRITICAL] schedule.json stale {age_h:.1f}h old (>{18}h) — treating as missing", file=sys.stderr)
+                    if age_h > 22:
+                        print(f"[CRITICAL] schedule.json stale {age_h:.1f}h old (>{22}h) — treating as missing", file=sys.stderr)
                         return {}
                 except Exception:
                     pass
@@ -217,12 +217,15 @@ def _session_date(dt: datetime) -> str:
 
 
 def was_dispatched_today() -> bool:
-    """Check if a bot was already dispatched today (IST). One match per night."""
+    """Check if a bot was already dispatched today (IST). One match per night.
+
+    Allows retry when the prior run did not succeed (failure/cancelled).
+    """
     session = _session_date(datetime.now(IST))
     try:
         result = subprocess.run(
             ["gh", "run", "list", "--workflow=bot.yml", "--limit=30",
-             "--json=createdAt"],
+             "--json=createdAt,conclusion,status"],
             capture_output=True, text=True, timeout=15,
         )
         if result.returncode == 0:
@@ -236,6 +239,12 @@ def was_dispatched_today() -> bool:
                 except Exception:
                     continue
                 if _session_date(created_dt.astimezone(IST)) == session:
+                    conclusion = (run.get("conclusion") or "").lower()
+                    status = (run.get("status") or "").lower()
+                    if conclusion and conclusion not in ("success", "in_progress", "queued", "waiting"):
+                        continue  # failed/cancelled -> allow retry tonight
+                    if not conclusion and status not in ("in_progress", "queued", "waiting", "completed"):
+                        continue
                     print(f"[INFO] Bot already dispatched this session ({session}) — "
                           f"one match per night. Skipping.", file=sys.stderr)
                     return True

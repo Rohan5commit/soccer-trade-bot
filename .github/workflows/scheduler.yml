@@ -13,7 +13,7 @@ permissions:
 jobs:
   discover:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -28,6 +28,7 @@ jobs:
         env:
           KALSHI_PRIVATE_KEY_B64: ${{ secrets.KALSHI_PRIVATE_KEY_B64 }}
         run: |
+          if [ -z "$KALSHI_PRIVATE_KEY_B64" ]; then echo "::error::missing KALSHI_PRIVATE_KEY_B64 secret"; exit 1; fi
           DECODED=$(echo "$KALSHI_PRIVATE_KEY_B64" | base64 -d)
           {
             echo "KALSHI_PRIVATE_KEY<<EOF"

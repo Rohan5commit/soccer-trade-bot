@@ -1,5 +1,7 @@
 name: Paper Trade Bot
 
+run-name: Paper Trade Bot - ${{ inputs.event_ticker }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -27,12 +29,14 @@ permissions:
 jobs:
   trade:
     runs-on: ubuntu-latest
-    timeout-minutes: 300  # 5 hours max (180 min wait + 120 min match + buffer, watcher may dispatch 180m early)
+    timeout-minutes: 340  # 180 wait + 120 match + 40 buffer (pip 3-7m + init 1-2m + stoppage/push)
     concurrency:
       group: paper-trade-bot
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -53,6 +57,7 @@ jobs:
         env:
           KALSHI_PRIVATE_KEY_B64: ${{ secrets.KALSHI_PRIVATE_KEY_B64 }}
         run: |
+          if [ -z "$KALSHI_PRIVATE_KEY_B64" ]; then echo "::error::missing KALSHI_PRIVATE_KEY_B64 secret"; exit 1; fi
           DECODED=$(echo "$KALSHI_PRIVATE_KEY_B64" | base64 -d)
           {
             echo "KALSHI_PRIVATE_KEY<<EOF"
@@ -79,7 +84,7 @@ jobs:
           LIQUIDITY_BUFFER: "0.7"
           LOSS_FLOOR_PCT: "0.08"
         run: |
-          set -o pipefail
+          set -eo pipefail
           mkdir -p data
           python scripts/run_bot_github.py 2>&1 | tee data/bot_output.log
 

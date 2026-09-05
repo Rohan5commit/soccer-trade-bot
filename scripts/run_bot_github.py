@@ -927,16 +927,18 @@ class GitHubBot:
         We snapshot the score at 90' so we can resolve against regulation result.
         """
         # Track regulation-time score for settlement (Fix 6)
-        # Capture snapshot at 90'+ and FREEZE — extra-time goals must not overwrite it.
-        # Only update while clock >= 90 AND before snapshot is taken (stoppage time goals count).
-        if ms.clock_minutes >= 90 and not self._regulation_snapshot_taken:
+        # Keep updating through stoppage time, FREEZE on ET/FT/P.
+        # First snapshot at 90'+ logs; later stoppage goals update silently.
+        if ms.clock_minutes >= 90 and ms.status not in ("ET", "P", "FT") and ms.period < 3:
+            first = not self._regulation_snapshot_taken
             self._regulation_home_goals = ms.home_score
             self._regulation_away_goals = ms.away_score
             self._regulation_snapshot_taken = True
-            logger.info(
-                "REGULATION SNAPSHOT at %.0f': %d-%d (settles at this score)",
-                ms.clock_minutes, ms.home_score, ms.away_score,
-            )
+            if first:
+                logger.info(
+                    "REGULATION SNAPSHOT at %.0f': %d-%d (settles at this score)",
+                    ms.clock_minutes, ms.home_score, ms.away_score,
+                )
 
         goals_in_10 = self._count_goals_in_window(ms, 10)
         goals_in_15 = self._count_goals_in_window(ms, 15)
@@ -1063,7 +1065,7 @@ class GitHubBot:
     def run(self):
         if not self.initialize():
             logger.warning("Bot initialization failed — could not authenticate. Exiting.")
-            return
+            sys.exit(1)
 
         # Try market discovery immediately (fast path: markets already open)
         self._discover_markets()
@@ -1122,8 +1124,8 @@ class GitHubBot:
                 # Fetch live match data (API-Football primary, SofaScore fallback)
                 match_status = self._fetch_live_state()
 
-                # Stop immediately if match is over (FT, AET, PEN, etc.)
-                if match_status and match_status in ("FT", "AET", "PEN", "AWD", "CANC", "POST"):
+                # Stop immediately if match is over (FT, ET, P, postponed, etc.)
+                if match_status and match_status in ("FT", "AET", "PEN", "P", "ET", "AWD", "CANC", "PST", "SUSP", "DELAYED", "INT", "POST"):
                     logger.info("Match finished (status=%s). Stopping.", match_status)
                     # Resolve PnL for all open trades (Fix 2 + Fix 6)
                     self._resolve_session_pnl()

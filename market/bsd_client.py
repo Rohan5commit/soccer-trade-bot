@@ -129,13 +129,16 @@ STATUS_MAP = {
 PERIOD_MAP = {
     "": 0,
     "1st_half": 1,
+    "1H": 1,
     "1T": 1,
     "halftime": 1,
     "HT": 1,
     "2nd_half": 2,
+    "2H": 2,
     "2T": 2,
     "extra_time_1st_half": 3,
     "ET1": 3,
+    "ET": 3,
     "extra_time_halftime": 3,
     "extra_time_2nd_half": 4,
     "ET2": 4,
@@ -143,6 +146,9 @@ PERIOD_MAP = {
     "P": 5,
     "FT": 5,
     "finished": 5,
+    "inprogress": 1,
+    "notstarted": 0,
+    "NS": 0,
 }
 
 
@@ -378,15 +384,15 @@ class BSDClient:
 
         # Refine status by period if status is inprogress or a period string
         if status_raw == "inprogress" or status_raw in PERIOD_MAP:
-            if period_raw in ("2nd_half", "2T"):
+            if period_raw in ("2nd_half", "2H", "2T"):
                 status = "2H"
             elif period_raw in ("halftime", "HT"):
                 status = "HT"
-            elif period_raw in ("extra_time_1st_half", "ET1", "extra_time_halftime", "extra_time_2nd_half", "ET2"):
+            elif period_raw in ("extra_time_1st_half", "ET1", "ET", "extra_time_halftime", "extra_time_2nd_half", "ET2"):
                 status = "ET"
             elif period_raw in ("penalties", "P"):
                 status = "P"
-            elif period_raw in ("1st_half", "1T"):
+            elif period_raw in ("1st_half", "1H", "1T"):
                 status = "1H"
             elif status_raw == "inprogress":
                 status = "1H"  # Default to first half for inprogress
