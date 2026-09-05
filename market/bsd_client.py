@@ -103,7 +103,9 @@ STATUS_MAP = {
     "notstarted": "NS",
     "inprogress": "1H",  # Refined by period
     "1st_half": "1H",
+    "1H": "1H",
     "2nd_half": "2H",
+    "2H": "2H",
     "halftime": "HT",
     "HT": "HT",
     "finished": "FT",
@@ -392,7 +394,7 @@ class BSDClient:
         # Map period
         period = PERIOD_MAP.get(period_raw, 0)
 
-        is_live = status_raw in ("inprogress", "1st_half", "2nd_half",
+        is_live = status_raw in ("inprogress", "1st_half", "2nd_half", "1H", "2H",
                                   "halftime", "HT", "extra_time_1st_half",
                                   "extra_time_halftime", "extra_time_2nd_half",
                                   "penalties", "ET", "P", "1T", "2T", "ET1", "ET2",
