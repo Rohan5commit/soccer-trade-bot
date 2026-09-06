@@ -1,8 +1,8 @@
 {
-  "bankroll": 571.93,
-  "start_of_day": 445.76,
-  "session_start": "2026-09-05T18:30:00.611131+05:30",
-  "total_pnl": 126.17,
+  "bankroll": 511.13,
+  "start_of_day": 571.93,
+  "session_start": "2026-09-06T17:29:35.793920+05:30",
+  "total_pnl": -60.8,
   "sessions": [
     {
       "match": "Corum vs Kasimpasa",
@@ -87,8 +87,14 @@
       "trades": 2,
       "pnl": 126.17,
       "time": "2026-09-05T18:30:00.611235+05:30"
+    },
+    {
+      "match": "FC Anyang vs Gangwon",
+      "trades": 2,
+      "pnl": -60.8,
+      "time": "2026-09-06T17:29:35.794027+05:30"
     }
   ],
-  "last_updated": "2026-09-05T18:30:00.611145+05:30",
-  "last_match": "Wuhan Three Towns FC vs Qingdao West Coast FC"
+  "last_updated": "2026-09-06T17:29:35.793930+05:30",
+  "last_match": "FC Anyang vs Gangwon"
 }
