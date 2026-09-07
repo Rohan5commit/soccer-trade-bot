@@ -1,39 +1,39 @@
 {
-  "match": "FC Anyang vs Gangwon",
-  "time": "2026-09-06T17:29:35.794696+05:30",
+  "match": "Udinese vs Lazio",
+  "time": "2026-09-08T02:13:35.665837+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-09-06T15:31:49.297101+05:30",
-      "ticker": "KXKLEAGUEGAME-26SEP06ANYGAW-TIE",
+      "time": "2026-09-08T00:16:42.617067+05:30",
+      "ticker": "KXSERIEAGAME-26SEP07UDILAZ-TIE",
       "outcome": "draw",
-      "fill_price": 0.3,
+      "fill_price": 0.32,
       "model_prob": 0.9993396048235512,
-      "market_ask": 0.3,
-      "net_edge": 0.6793396048235512,
-      "count": 95,
-      "fee": 1.9000000000000001,
+      "market_ask": 0.32,
+      "net_edge": 0.6593396048235511,
+      "count": 79,
+      "fee": 1.58,
       "clock": 0.0,
       "score": "0-0"
     },
     {
-      "time": "2026-09-06T15:33:23.044839+05:30",
-      "ticker": "KXKLEAGUEGAME-26SEP06ANYGAW-TIE",
+      "time": "2026-09-08T00:18:16.275158+05:30",
+      "ticker": "KXSERIEAGAME-26SEP07UDILAZ-TIE",
       "outcome": "draw",
-      "fill_price": 0.3,
+      "fill_price": 0.32,
       "model_prob": 0.9993396048235512,
-      "market_ask": 0.3,
-      "net_edge": 0.6793396048235512,
-      "count": 95,
-      "fee": 1.9000000000000001,
-      "clock": 0.0,
+      "market_ask": 0.32,
+      "net_edge": 0.6593396048235511,
+      "count": 79,
+      "fee": 1.58,
+      "clock": 1.0,
       "score": "0-0"
     }
   ],
   "summary": {
     "total_trades": 2,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.6793
+    "avg_net_edge": 0.6593
   }
 }
