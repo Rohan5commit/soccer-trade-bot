@@ -1,32 +1,32 @@
 {
-  "match": "Udinese vs Lazio",
-  "time": "2026-09-08T02:13:35.665837+05:30",
+  "match": "AEK Athens vs LASK",
+  "time": "2026-09-09T00:06:45.926369+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-09-08T00:16:42.617067+05:30",
-      "ticker": "KXSERIEAGAME-26SEP07UDILAZ-TIE",
+      "time": "2026-09-08T22:17:45.815216+05:30",
+      "ticker": "KXUCLGAME-26SEP08AEKASK-TIE",
       "outcome": "draw",
-      "fill_price": 0.32,
+      "fill_price": 0.24,
       "model_prob": 0.9993396048235512,
-      "market_ask": 0.32,
-      "net_edge": 0.6593396048235511,
-      "count": 79,
-      "fee": 1.58,
+      "market_ask": 0.24,
+      "net_edge": 0.7393396048235512,
+      "count": 66,
+      "fee": 1.32,
       "clock": 0.0,
       "score": "0-0"
     },
     {
-      "time": "2026-09-08T00:18:16.275158+05:30",
-      "ticker": "KXSERIEAGAME-26SEP07UDILAZ-TIE",
+      "time": "2026-09-08T22:19:18.136266+05:30",
+      "ticker": "KXUCLGAME-26SEP08AEKASK-TIE",
       "outcome": "draw",
-      "fill_price": 0.32,
+      "fill_price": 0.23,
       "model_prob": 0.9993396048235512,
-      "market_ask": 0.32,
-      "net_edge": 0.6593396048235511,
-      "count": 79,
-      "fee": 1.58,
+      "market_ask": 0.23,
+      "net_edge": 0.7493396048235512,
+      "count": 99,
+      "fee": 1.98,
       "clock": 1.0,
       "score": "0-0"
     }
@@ -34,6 +34,6 @@
   "summary": {
     "total_trades": 2,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.6593
+    "avg_net_edge": 0.7443
   }
 }
