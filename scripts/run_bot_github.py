@@ -1220,17 +1220,26 @@ class GitHubBot:
         home, draw, away = probs
         raw_home, raw_draw, raw_away = home, draw, away
 
-        # Step 1: Cap at MAX_PROB_CAP
-        home = min(home, MAX_PROB_CAP)
-        draw = min(draw, MAX_PROB_CAP)
-        away = min(away, MAX_PROB_CAP)
-
-        # Step 2: Normalize so probabilities sum to 1
+        # Step 1: Normalize FIRST so probabilities sum to 1
         total = home + draw + away
         if total > 0:
             home /= total
             draw /= total
             away /= total
+
+        # Step 2: Hard-cap the leader at MAX_PROB_CAP, split excess
+        # EQUALLY (not proportionally — proportional renormalization
+        # restores 0.999 when the other two are ~0, see Anyang 0-0).
+        for _ in range(1):
+            vals = {"home": home, "draw": draw, "away": away}
+            leader = max(vals, key=lambda k: vals[k])
+            if vals[leader] > MAX_PROB_CAP:
+                excess = vals[leader] - MAX_PROB_CAP
+                vals[leader] = MAX_PROB_CAP
+                others = [k for k in vals if k != leader]
+                vals[others[0]] += excess / 2
+                vals[others[1]] += excess / 2
+                home, draw, away = vals["home"], vals["draw"], vals["away"]
 
         # Step 3: Track prediction stability
         best_outcome = max(("home", home), ("draw", draw), ("away", away), key=lambda x: x[1])
@@ -1410,6 +1419,13 @@ class GitHubBot:
         # Don't predict before match is live
         if self._prev_live_state and not self._prev_live_state.is_live:
             logger.debug("Match not live yet (status=%s) — skipping prediction", self._prev_live_state.status)
+            return
+
+        # Don't trade the opening minutes — 0-0 model output is overconfident
+        # noise (see Anyang: 0.999 draw at 2'). Edge needs play to develop.
+        if self._prev_live_state and self._prev_live_state.clock_minutes < 10:
+            logger.debug("Clock %.0f' < 10' — too early, skipping prediction",
+                         self._prev_live_state.clock_minutes)
             return
 
         # RISK GUARD: never trade on stale live data.
