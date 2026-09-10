@@ -1,8 +1,8 @@
 {
-  "bankroll": 415.5,
+  "bankroll": 521.26,
   "start_of_day": 415.5,
-  "session_start": "2026-09-10T00:10:09.734829+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-09-11T00:07:30.786619+05:30",
+  "total_pnl": 105.76,
   "sessions": [
     {
       "match": "Corum vs Kasimpasa",
@@ -111,8 +111,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-09-10T00:10:09.734908+05:30"
+    },
+    {
+      "match": "Fenerbahce vs Roma",
+      "trades": 2,
+      "pnl": 105.76,
+      "time": "2026-09-11T00:07:30.786740+05:30"
     }
   ],
-  "last_updated": "2026-09-10T00:10:09.734840+05:30",
-  "last_match": "Barcelona vs Feyenoord"
+  "last_updated": "2026-09-11T00:07:30.786633+05:30",
+  "last_match": "Fenerbahce vs Roma"
 }

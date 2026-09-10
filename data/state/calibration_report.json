@@ -1,39 +1,39 @@
 {
-  "match": "AEK Athens vs LASK",
-  "time": "2026-09-09T00:06:45.926369+05:30",
+  "match": "Fenerbahce vs Roma",
+  "time": "2026-09-11T00:07:30.787654+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-09-08T22:17:45.815216+05:30",
-      "ticker": "KXUCLGAME-26SEP08AEKASK-TIE",
+      "time": "2026-09-10T22:27:54.370924+05:30",
+      "ticker": "KXUCLGAME-26SEP10FENROM-TIE",
       "outcome": "draw",
-      "fill_price": 0.24,
-      "model_prob": 0.9993396048235512,
-      "market_ask": 0.24,
-      "net_edge": 0.7393396048235512,
-      "count": 66,
-      "fee": 1.32,
-      "clock": 0.0,
+      "fill_price": 0.27,
+      "model_prob": 0.8,
+      "market_ask": 0.27,
+      "net_edge": 0.51,
+      "count": 76,
+      "fee": 1.52,
+      "clock": 10.0,
       "score": "0-0"
     },
     {
-      "time": "2026-09-08T22:19:18.136266+05:30",
-      "ticker": "KXUCLGAME-26SEP08AEKASK-TIE",
+      "time": "2026-09-10T22:29:28.318092+05:30",
+      "ticker": "KXUCLGAME-26SEP10FENROM-TIE",
       "outcome": "draw",
-      "fill_price": 0.23,
-      "model_prob": 0.9993396048235512,
-      "market_ask": 0.23,
-      "net_edge": 0.7493396048235512,
-      "count": 99,
-      "fee": 1.98,
-      "clock": 1.0,
+      "fill_price": 0.28,
+      "model_prob": 0.8,
+      "market_ask": 0.28,
+      "net_edge": 0.5,
+      "count": 74,
+      "fee": 1.48,
+      "clock": 11.0,
       "score": "0-0"
     }
   ],
   "summary": {
     "total_trades": 2,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.7443
+    "avg_net_edge": 0.505
   }
 }
