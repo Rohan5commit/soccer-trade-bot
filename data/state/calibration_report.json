@@ -1,32 +1,32 @@
 {
-  "match": "Fenerbahce vs Roma",
-  "time": "2026-09-11T00:07:30.787654+05:30",
+  "match": "Besiktas vs Erzurum",
+  "time": "2026-09-12T00:23:15.088191+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-09-10T22:27:54.370924+05:30",
-      "ticker": "KXUCLGAME-26SEP10FENROM-TIE",
+      "time": "2026-09-11T22:41:13.959675+05:30",
+      "ticker": "KXSUPERLIGGAME-26SEP11BESERZ-TIE",
       "outcome": "draw",
-      "fill_price": 0.27,
+      "fill_price": 0.14,
       "model_prob": 0.8,
-      "market_ask": 0.27,
-      "net_edge": 0.51,
-      "count": 76,
-      "fee": 1.52,
+      "market_ask": 0.14,
+      "net_edge": 0.65,
+      "count": 186,
+      "fee": 1.86,
       "clock": 10.0,
       "score": "0-0"
     },
     {
-      "time": "2026-09-10T22:29:28.318092+05:30",
-      "ticker": "KXUCLGAME-26SEP10FENROM-TIE",
+      "time": "2026-09-11T22:42:46.404726+05:30",
+      "ticker": "KXSUPERLIGGAME-26SEP11BESERZ-TIE",
       "outcome": "draw",
-      "fill_price": 0.28,
+      "fill_price": 0.14,
       "model_prob": 0.8,
-      "market_ask": 0.28,
-      "net_edge": 0.5,
-      "count": 74,
-      "fee": 1.48,
+      "market_ask": 0.14,
+      "net_edge": 0.65,
+      "count": 186,
+      "fee": 1.86,
       "clock": 11.0,
       "score": "0-0"
     }
@@ -34,6 +34,6 @@
   "summary": {
     "total_trades": 2,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.505
+    "avg_net_edge": 0.65
   }
 }

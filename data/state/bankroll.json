@@ -1,8 +1,8 @@
 {
-  "bankroll": 521.26,
-  "start_of_day": 415.5,
-  "session_start": "2026-09-11T00:07:30.786619+05:30",
-  "total_pnl": 105.76,
+  "bankroll": 465.46,
+  "start_of_day": 521.26,
+  "session_start": "2026-09-12T00:23:15.087364+05:30",
+  "total_pnl": -55.8,
   "sessions": [
     {
       "match": "Corum vs Kasimpasa",
@@ -117,8 +117,14 @@
       "trades": 2,
       "pnl": 105.76,
       "time": "2026-09-11T00:07:30.786740+05:30"
+    },
+    {
+      "match": "Besiktas vs Erzurum",
+      "trades": 2,
+      "pnl": -55.8,
+      "time": "2026-09-12T00:23:15.087453+05:30"
     }
   ],
-  "last_updated": "2026-09-11T00:07:30.786633+05:30",
-  "last_match": "Fenerbahce vs Roma"
+  "last_updated": "2026-09-12T00:23:15.087375+05:30",
+  "last_match": "Besiktas vs Erzurum"
 }
