@@ -318,6 +318,7 @@ class GitHubBot:
         self._consecutive_same_outcome: int = 0
         self._clock_stuck_since: Optional[float] = None
         self._last_clock_value: float = 0.0
+        self._last_score: Optional[tuple] = None
 
         # Game state — enriched by KickoffAPI live data
         self._game_state = GameState(
@@ -1343,29 +1344,36 @@ class GitHubBot:
         else:
             return "draw"
 
+    def _open_exposure(self, outcome: str = None) -> float:
+        """Total unsettled exposure (price*count + fee), optionally one outcome."""
+        exp = 0.0
+        for t in self._trades:
+            if "settlement_result" in t:
+                continue
+            if outcome is not None and t.get("outcome") != outcome:
+                continue
+            exp += t.get("price", 0) * t.get("count", 0) + t.get("fee", 0.0)
+        return exp
+
     def _check_loss_floor(self) -> bool:
-        """Check if bankroll has hit the relative loss floor (Fix 8).
+        """Catastrophic halt only (2x floor on effective bankroll).
 
-        Halts trading if effective bankroll (bankroll minus open exposure)
-        is X% below start-of-day bankroll. Accounts for unsettled trades
-        so floor triggers mid-match, not only at settlement.
-
-        Returns True if loss floor is breached (should halt trading).
+        Day-to-day sizing is enforced per-ticket by the budget gate in
+        _place_paper_trade. This halt exists for tail risk: if effective
+        bankroll (bankroll minus open exposure) is 2x floor below start,
+        stop everything — the session thesis is broken, not just full.
         """
         if self._start_of_day_bankroll <= 0:
             return False
-        # Exposure for open (unsettled) trades
-        exposure = 0.0
-        for t in self._trades:
-            if "settlement_result" not in t:
-                exposure += t.get("price", 0) * t.get("count", 0) + t.get("fee", 0.0)
+        exposure = self._open_exposure()
         effective = self._bankroll - exposure
+        hard_floor = self.config.loss_floor_pct * 2
         loss_pct = (self._start_of_day_bankroll - effective) / self._start_of_day_bankroll
-        if loss_pct >= self.config.loss_floor_pct:
+        if loss_pct >= hard_floor:
             logger.warning(
-                "LOSS FLOOR BREACHED: effective $%.2f (bank $%.2f - exposure $%.2f) is %.1f%% below start $%.2f (floor=%.1f%%)",
+                "HARD FLOOR BREACHED: effective $%.2f (bank $%.2f - exposure $%.2f) is %.1f%% below start $%.2f (hard=%.1f%%)",
                 effective, self._bankroll, exposure, loss_pct * 100, self._start_of_day_bankroll,
-                self.config.loss_floor_pct * 100,
+                hard_floor * 100,
             )
             return True
         return False
@@ -1422,11 +1430,22 @@ class GitHubBot:
             return
 
         # Don't trade the opening minutes — 0-0 model output is overconfident
-        # noise (see Anyang: 0.999 draw at 2'). Edge needs play to develop.
-        if self._prev_live_state and self._prev_live_state.clock_minutes < 10:
-            logger.debug("Clock %.0f' < 10' — too early, skipping prediction",
+        # noise (see Anyang: 0.999 draw at 2', Besiktas: 0.800 draw at 11').
+        # Edge needs a quarter-half of play to develop.
+        if self._prev_live_state and self._prev_live_state.clock_minutes < 20:
+            logger.debug("Clock %.0f' < 20' — too early, skipping prediction",
                          self._prev_live_state.clock_minutes)
             return
+
+        # Game-state change: a goal kills the old thesis — log it and keep
+        # evaluating. Budget gate (not a halt) decides what still fits.
+        score_now = (self._game_state.home_score, self._game_state.away_score)
+        if self._last_score is not None and score_now != self._last_score:
+            logger.info("GAME STATE CHANGE %d-%d -> %d-%d @ %.0f' — re-evaluating within remaining budget",
+                        self._last_score[0], self._last_score[1],
+                        score_now[0], score_now[1],
+                        self._game_state.clock_minutes)
+        self._last_score = score_now
 
         # RISK GUARD: never trade on stale live data.
         # If the data source (API-Football) is dead/stuck and the fallback
@@ -1501,6 +1520,15 @@ class GitHubBot:
             return
 
         best = analysis.best_edge
+        # Ban scoreless-draw bets before 25' — the recurring killer pattern
+        # (4 of last 6 losing fills were 0-0 draws before 15'). After a goal
+        # or 25' of play a draw quote is a real opinion, not model noise.
+        if best and best.outcome == "draw":
+            gs = self._game_state
+            if gs.home_score == 0 and gs.away_score == 0 and gs.clock_minutes < 25:
+                logger.debug("0-0 draw @ %.0f' < 25' — banned pattern, skipping",
+                             gs.clock_minutes)
+                return
         if best:
             self._place_paper_trade(best, model_probs)
 
@@ -1552,6 +1580,32 @@ class GitHubBot:
         count = max(1, int(bet_usd / ask_price)) if ask_price > 0 else 0
         if count <= 0:
             return
+
+        # ── Budget gate: this ticket must fit the session risk budget.
+        # Floor is a position limit, not a kill switch: small late tickets
+        # can still fire after early ones, as long as total open exposure
+        # stays within floor% of start bankroll.
+        if self._start_of_day_bankroll > 0:
+            budget = self._start_of_day_bankroll * self.config.loss_floor_pct
+            est_fee = KalshiClient._calc_fee(ask_price, count)
+            est_cost = count * ask_price + est_fee
+            if self._open_exposure() + est_cost > budget:
+                logger.debug(
+                    "Budget gate: %s x%d ~$%.2f would exceed $%.2f budget (open $%.2f) — skipping",
+                    outcome, count, est_cost, budget, self._open_exposure(),
+                )
+                return
+            # Per-outcome cap: one thesis may not eat the whole budget.
+            # 1.5x max ticket: first full ticket always fits (cost runs a
+            # hair over bet_usd via int() rounding), second same-outcome
+            # ticket is blocked, leaving room for other outcomes late.
+            per_out_cap = self._start_of_day_bankroll * self.config.max_bet_pct * 1.5
+            if self._open_exposure(outcome) + est_cost > per_out_cap:
+                logger.debug(
+                    "Outcome cap: %s open $%.2f + ~$%.2f exceeds $%.2f cap — skipping",
+                    outcome, self._open_exposure(outcome), est_cost, per_out_cap,
+                )
+                return
 
         # ── Phase 2: simulate fill against shadow book ──
         shadow = self._shadow_books.get(ticker)
