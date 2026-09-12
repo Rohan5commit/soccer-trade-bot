@@ -1,39 +1,39 @@
 {
-  "match": "Besiktas vs Erzurum",
-  "time": "2026-09-12T00:23:15.088191+05:30",
+  "match": "Bucheon vs Jeju SK",
+  "time": "2026-09-12T14:56:48.459189+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-09-11T22:41:13.959675+05:30",
-      "ticker": "KXSUPERLIGGAME-26SEP11BESERZ-TIE",
-      "outcome": "draw",
-      "fill_price": 0.14,
+      "time": "2026-09-12T13:11:29.061129+05:30",
+      "ticker": "KXKLEAGUEGAME-26SEP12BUCJEJ-BUC",
+      "outcome": "home",
+      "fill_price": 0.56,
       "model_prob": 0.8,
-      "market_ask": 0.14,
-      "net_edge": 0.65,
-      "count": 186,
-      "fee": 1.86,
+      "market_ask": 0.56,
+      "net_edge": 0.22,
+      "count": 41,
+      "fee": 0.8200000000000001,
       "clock": 10.0,
-      "score": "0-0"
+      "score": "1-0"
     },
     {
-      "time": "2026-09-11T22:42:46.404726+05:30",
-      "ticker": "KXSUPERLIGGAME-26SEP11BESERZ-TIE",
-      "outcome": "draw",
-      "fill_price": 0.14,
+      "time": "2026-09-12T13:13:01.373157+05:30",
+      "ticker": "KXKLEAGUEGAME-26SEP12BUCJEJ-BUC",
+      "outcome": "home",
+      "fill_price": 0.61,
       "model_prob": 0.8,
-      "market_ask": 0.14,
-      "net_edge": 0.65,
-      "count": 186,
-      "fee": 1.86,
+      "market_ask": 0.61,
+      "net_edge": 0.17000000000000007,
+      "count": 38,
+      "fee": 0.76,
       "clock": 11.0,
-      "score": "0-0"
+      "score": "1-0"
     }
   ],
   "summary": {
     "total_trades": 2,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.65
+    "avg_net_edge": 0.195
   }
 }
