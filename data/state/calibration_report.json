@@ -1,39 +1,26 @@
 {
-  "match": "Bucheon vs Jeju SK",
-  "time": "2026-09-12T14:56:48.459189+05:30",
+  "match": "Gimcheon Sangmu vs Gangwon",
+  "time": "2026-09-13T15:00:00.766220+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-09-12T13:11:29.061129+05:30",
-      "ticker": "KXKLEAGUEGAME-26SEP12BUCJEJ-BUC",
+      "time": "2026-09-13T13:22:46.512089+05:30",
+      "ticker": "KXKLEAGUEGAME-26SEP13GISGAW-GIS",
       "outcome": "home",
-      "fill_price": 0.56,
+      "fill_price": 0.53,
       "model_prob": 0.8,
-      "market_ask": 0.56,
-      "net_edge": 0.22,
-      "count": 41,
-      "fee": 0.8200000000000001,
-      "clock": 10.0,
-      "score": "1-0"
-    },
-    {
-      "time": "2026-09-12T13:13:01.373157+05:30",
-      "ticker": "KXKLEAGUEGAME-26SEP12BUCJEJ-BUC",
-      "outcome": "home",
-      "fill_price": 0.61,
-      "model_prob": 0.8,
-      "market_ask": 0.61,
-      "net_edge": 0.17000000000000007,
-      "count": 38,
-      "fee": 0.76,
-      "clock": 11.0,
+      "market_ask": 0.53,
+      "net_edge": 0.25,
+      "count": 39,
+      "fee": 0.78,
+      "clock": 20.0,
       "score": "1-0"
     }
   ],
   "summary": {
-    "total_trades": 2,
+    "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.195
+    "avg_net_edge": 0.25
   }
 }
