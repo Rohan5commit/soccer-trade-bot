@@ -1,8 +1,8 @@
 {
-  "bankroll": 396.29,
-  "start_of_day": 417.74,
-  "session_start": "2026-09-13T15:00:00.765304+05:30",
-  "total_pnl": -21.45,
+  "bankroll": 375.01,
+  "start_of_day": 396.29,
+  "session_start": "2026-09-14T23:57:53.891123+05:30",
+  "total_pnl": -21.28,
   "sessions": [
     {
       "match": "Corum vs Kasimpasa",
@@ -135,8 +135,14 @@
       "trades": 1,
       "pnl": -21.45,
       "time": "2026-09-13T15:00:00.765419+05:30"
+    },
+    {
+      "match": "Torino vs Roma",
+      "trades": 1,
+      "pnl": -21.28,
+      "time": "2026-09-14T23:57:53.891256+05:30"
     }
   ],
-  "last_updated": "2026-09-13T15:00:00.765319+05:30",
-  "last_match": "Gimcheon Sangmu vs Gangwon"
+  "last_updated": "2026-09-14T23:57:53.891138+05:30",
+  "last_match": "Torino vs Roma"
 }

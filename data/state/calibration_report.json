@@ -1,26 +1,26 @@
 {
-  "match": "Gimcheon Sangmu vs Gangwon",
-  "time": "2026-09-13T15:00:00.766220+05:30",
+  "match": "Torino vs Roma",
+  "time": "2026-09-14T23:57:53.892140+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-09-13T13:22:46.512089+05:30",
-      "ticker": "KXKLEAGUEGAME-26SEP13GISGAW-GIS",
-      "outcome": "home",
-      "fill_price": 0.53,
-      "model_prob": 0.8,
-      "market_ask": 0.53,
-      "net_edge": 0.25,
-      "count": 39,
-      "fee": 0.78,
-      "clock": 20.0,
-      "score": "1-0"
+      "time": "2026-09-14T22:29:02.096964+05:30",
+      "ticker": "KXSERIEAGAME-26SEP13TORROM-TIE",
+      "outcome": "draw",
+      "fill_price": 0.26,
+      "model_prob": 0.7435897435897436,
+      "market_ask": 0.26,
+      "net_edge": 0.4635897435897436,
+      "count": 76,
+      "fee": 1.52,
+      "clock": 25.0,
+      "score": "0-0"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.25
+    "avg_net_edge": 0.4636
   }
 }
