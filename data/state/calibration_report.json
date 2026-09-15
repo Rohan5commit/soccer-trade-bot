@@ -1,19 +1,19 @@
 {
-  "match": "Torino vs Roma",
-  "time": "2026-09-14T23:57:53.892140+05:30",
+  "match": "Ajax vs Willem II",
+  "time": "2026-09-16T01:21:00.546468+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-09-14T22:29:02.096964+05:30",
-      "ticker": "KXSERIEAGAME-26SEP13TORROM-TIE",
+      "time": "2026-09-15T23:56:07.058348+05:30",
+      "ticker": "KXEREDIVISIEGAME-26SEP15AJAWIL-TIE",
       "outcome": "draw",
-      "fill_price": 0.26,
-      "model_prob": 0.7435897435897436,
-      "market_ask": 0.26,
-      "net_edge": 0.4635897435897436,
-      "count": 76,
-      "fee": 1.52,
+      "fill_price": 0.1,
+      "model_prob": 0.7500000000000001,
+      "market_ask": 0.1,
+      "net_edge": 0.6400000000000001,
+      "count": 187,
+      "fee": 1.87,
       "clock": 25.0,
       "score": "0-0"
     }
@@ -21,6 +21,6 @@
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.4636
+    "avg_net_edge": 0.64
   }
 }
