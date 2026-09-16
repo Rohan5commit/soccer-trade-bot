@@ -1,8 +1,8 @@
 {
   "bankroll": 354.44,
-  "start_of_day": 375.01,
-  "session_start": "2026-09-16T01:21:00.544091+05:30",
-  "total_pnl": -20.57,
+  "start_of_day": 354.44,
+  "session_start": "2026-09-16T21:30:00.039647+05:30",
+  "total_pnl": 0.0,
   "sessions": [
     {
       "match": "Corum vs Kasimpasa",
@@ -147,8 +147,14 @@
       "trades": 1,
       "pnl": -20.57,
       "time": "2026-09-16T01:21:00.544184+05:30"
+    },
+    {
+      "match": "Ararat-Armenia vs Sparta Prague",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-09-16T21:30:00.039751+05:30"
     }
   ],
-  "last_updated": "2026-09-16T01:21:00.544104+05:30",
-  "last_match": "Ajax vs Willem II"
+  "last_updated": "2026-09-16T21:30:00.039668+05:30",
+  "last_match": "Ararat-Armenia vs Sparta Prague"
 }
