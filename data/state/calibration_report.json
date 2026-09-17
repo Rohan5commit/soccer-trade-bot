@@ -1,26 +1,26 @@
 {
-  "match": "Ajax vs Willem II",
-  "time": "2026-09-16T01:21:00.546468+05:30",
+  "match": "Besiktas vs Marseille",
+  "time": "2026-09-18T02:28:28.915301+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-09-15T23:56:07.058348+05:30",
-      "ticker": "KXEREDIVISIEGAME-26SEP15AJAWIL-TIE",
-      "outcome": "draw",
-      "fill_price": 0.1,
-      "model_prob": 0.7500000000000001,
-      "market_ask": 0.1,
-      "net_edge": 0.6400000000000001,
-      "count": 187,
-      "fee": 1.87,
-      "clock": 25.0,
-      "score": "0-0"
+      "time": "2026-09-18T00:53:33.361471+05:30",
+      "ticker": "KXUELGAME-26SEP17BESOLM-BES",
+      "outcome": "home",
+      "fill_price": 0.71,
+      "model_prob": 0.8,
+      "market_ask": 0.71,
+      "net_edge": 0.07000000000000008,
+      "count": 24,
+      "fee": 0.48,
+      "clock": 20.0,
+      "score": "1-0"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.64
+    "avg_net_edge": 0.07
   }
 }

@@ -1,8 +1,8 @@
 {
-  "bankroll": 354.44,
+  "bankroll": 360.92,
   "start_of_day": 354.44,
-  "session_start": "2026-09-16T21:30:00.039647+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-09-18T02:28:28.914446+05:30",
+  "total_pnl": 6.48,
   "sessions": [
     {
       "match": "Corum vs Kasimpasa",
@@ -153,8 +153,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-09-16T21:30:00.039751+05:30"
+    },
+    {
+      "match": "Besiktas vs Marseille",
+      "trades": 1,
+      "pnl": 6.48,
+      "time": "2026-09-18T02:28:28.914540+05:30"
     }
   ],
-  "last_updated": "2026-09-16T21:30:00.039668+05:30",
-  "last_match": "Ararat-Armenia vs Sparta Prague"
+  "last_updated": "2026-09-18T02:28:28.914456+05:30",
+  "last_match": "Besiktas vs Marseille"
 }
