@@ -1212,11 +1212,12 @@ class GitHubBot:
     def _clamp_probabilities(self, probs: tuple) -> tuple:
         """Clamp extreme probabilities and apply confidence decay.
 
-        The model sometimes outputs 99.9% for a single outcome when the
-        match is 0-0. This is clearly wrong. We:
-        1. Cap any single probability at MAX_PROB_CAP (0.80)
-        2. If the same outcome keeps winning, decay its confidence
-        3. Redistribute excess probability to other outcomes
+        The model outputs ~99.9% draw at 0-0 with no signal. We:
+        1. Normalize probabilities to sum to 1
+        2. Zero draw at 0-0 (hallucination — real prob is ~25-30%)
+        3. Cap any remaining leader at MAX_PROB_CAP (0.80)
+        4. If the same outcome keeps winning, decay its confidence
+        5. Redistribute excess probability to other outcomes
         """
         home, draw, away = probs
         raw_home, raw_draw, raw_away = home, draw, away
@@ -1227,6 +1228,13 @@ class GitHubBot:
             home /= total
             draw /= total
             away /= total
+
+        # Step 1b: Zero draw at 0-0 — the model hallucinates ~99.9% draw
+        # here with no signal. Market prices draw at ~9-14%, real probability
+        # is ~25-30%. Setting to 0.0 makes edge calculator skip draw entirely
+        # at scoreless. At other scores (1-1, 2-2) draw stays clamped normally.
+        if self._game_state.home_score == 0 and self._game_state.away_score == 0:
+            draw = 0.0
 
         # Step 2: Hard-cap the leader at MAX_PROB_CAP, split excess
         # EQUALLY (not proportionally — proportional renormalization
@@ -1520,15 +1528,6 @@ class GitHubBot:
             return
 
         best = analysis.best_edge
-        # Ban scoreless-draw bets before 25' — the recurring killer pattern
-        # (4 of last 6 losing fills were 0-0 draws before 15'). After a goal
-        # or 25' of play a draw quote is a real opinion, not model noise.
-        if best and best.outcome == "draw":
-            gs = self._game_state
-            if gs.home_score == 0 and gs.away_score == 0 and gs.clock_minutes < 25:
-                logger.debug("0-0 draw @ %.0f' < 25' — banned pattern, skipping",
-                             gs.clock_minutes)
-                return
         if best:
             self._place_paper_trade(best, model_probs)
 
