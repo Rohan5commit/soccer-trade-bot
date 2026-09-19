@@ -1,8 +1,8 @@
 {
-  "bankroll": 360.92,
+  "bankroll": 342.05,
   "start_of_day": 360.92,
-  "session_start": "2026-09-18T19:03:27.898675+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-09-19T14:55:08.635670+05:30",
+  "total_pnl": -18.87,
   "sessions": [
     {
       "match": "Corum vs Kasimpasa",
@@ -165,8 +165,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-09-18T19:03:27.898807+05:30"
+    },
+    {
+      "match": "Bucheon vs Gimcheon Sangmu",
+      "trades": 1,
+      "pnl": -18.87,
+      "time": "2026-09-19T14:55:08.635762+05:30"
     }
   ],
-  "last_updated": "2026-09-18T19:03:27.898712+05:30",
-  "last_match": "Zhejiang Prof. vs Wuhan Three Towns FC"
+  "last_updated": "2026-09-19T14:55:08.635681+05:30",
+  "last_match": "Bucheon vs Gimcheon Sangmu"
 }

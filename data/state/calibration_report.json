@@ -1,26 +1,26 @@
 {
-  "match": "Besiktas vs Marseille",
-  "time": "2026-09-18T02:28:28.915301+05:30",
+  "match": "Bucheon vs Gimcheon Sangmu",
+  "time": "2026-09-19T14:55:08.636863+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-09-18T00:53:33.361471+05:30",
-      "ticker": "KXUELGAME-26SEP17BESOLM-BES",
-      "outcome": "home",
-      "fill_price": 0.71,
-      "model_prob": 0.8,
-      "market_ask": 0.71,
-      "net_edge": 0.07000000000000008,
-      "count": 24,
-      "fee": 0.48,
-      "clock": 20.0,
-      "score": "1-0"
+      "time": "2026-09-19T13:27:52.824803+05:30",
+      "ticker": "KXKLEAGUEGAME-26SEP19BUCGIS-TIE",
+      "outcome": "draw",
+      "fill_price": 0.35,
+      "model_prob": 0.7435897435897436,
+      "market_ask": 0.35,
+      "net_edge": 0.3735897435897436,
+      "count": 51,
+      "fee": 1.02,
+      "clock": 25.0,
+      "score": "0-0"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.07
+    "avg_net_edge": 0.3736
   }
 }
