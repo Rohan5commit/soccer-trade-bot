@@ -1,8 +1,8 @@
 {
-  "bankroll": 342.05,
-  "start_of_day": 360.92,
-  "session_start": "2026-09-19T14:55:08.635670+05:30",
-  "total_pnl": -18.87,
+  "bankroll": 388.85,
+  "start_of_day": 342.05,
+  "session_start": "2026-09-20T14:53:56.172797+05:30",
+  "total_pnl": 46.8,
   "sessions": [
     {
       "match": "Corum vs Kasimpasa",
@@ -171,8 +171,14 @@
       "trades": 1,
       "pnl": -18.87,
       "time": "2026-09-19T14:55:08.635762+05:30"
+    },
+    {
+      "match": "Gangwon vs Jeju SK",
+      "trades": 1,
+      "pnl": 46.8,
+      "time": "2026-09-20T14:53:56.172915+05:30"
     }
   ],
-  "last_updated": "2026-09-19T14:55:08.635681+05:30",
-  "last_match": "Bucheon vs Gimcheon Sangmu"
+  "last_updated": "2026-09-20T14:53:56.172811+05:30",
+  "last_match": "Gangwon vs Jeju SK"
 }
