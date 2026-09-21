@@ -1212,9 +1212,10 @@ class GitHubBot:
     def _clamp_probabilities(self, probs: tuple) -> tuple:
         """Clamp extreme probabilities and apply confidence decay.
 
-        The model outputs ~99.9% draw at 0-0 with no signal. We:
+        The model outputs ~99.9% for a single outcome at 0-0 with no signal.
+        We:
         1. Normalize probabilities to sum to 1
-        2. Zero draw at 0-0 (hallucination — real prob is ~25-30%)
+        2. Zero ALL outcomes at 0-0 (hallucination — no signal)
         3. Cap any remaining leader at MAX_PROB_CAP (0.80)
         4. If the same outcome keeps winning, decay its confidence
         5. Redistribute excess probability to other outcomes
@@ -1229,12 +1230,13 @@ class GitHubBot:
             draw /= total
             away /= total
 
-        # Step 1b: Zero draw at 0-0 — the model hallucinates ~99.9% draw
-        # here with no signal. Market prices draw at ~9-14%, real probability
-        # is ~25-30%. Setting to 0.0 makes edge calculator skip draw entirely
-        # at scoreless. At other scores (1-1, 2-2) draw stays clamped normally.
+        # Step 1b: Zero ALL outcomes at 0-0 — the model hallucinates
+        # ~99.9% for whichever outcome it picks (draw, home, or away).
+        # None of these have signal at scoreless. Edge calculator sees
+        # 0.0 - market_ask = negative → no trade at all at 0-0.
+        # After a goal (1-0, 1-1, etc.) probabilities flow normally.
         if self._game_state.home_score == 0 and self._game_state.away_score == 0:
-            draw = 0.0
+            home = draw = away = 0.0
 
         # Step 2: Hard-cap the leader at MAX_PROB_CAP, split excess
         # EQUALLY (not proportionally — proportional renormalization
