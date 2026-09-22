@@ -12,7 +12,10 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Must cover sleep-until-ready: up to ~340 min nap + setup/dispatch.
+    # GitHub throttles */10 crons to multi-hour gaps, so we track matches
+    # out to 360 min and sleep until they're within 180 min of kickoff.
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
 
@@ -55,16 +58,16 @@ jobs:
         env:
           KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONUNBUFFERED: "1"
         run: |
           set -eo pipefail
-          OUTPUT=$(python scripts/watch_proximity.py 2>&1)
-          echo "$OUTPUT"
-          # Fail loudly if watcher crashed (import error, etc.)
-          if ! echo "$OUTPUT" | grep -q "^dispatched="; then
+          # Tee to a file so long sleep-until-ready runs still leave full logs
+          python scripts/watch_proximity.py 2>&1 | tee /tmp/watcher_out.txt
+          if ! grep -q "^dispatched=" /tmp/watcher_out.txt; then
             echo "Watcher failed to output dispatched= — treating as error" >&2
             exit 1
           fi
-          DISPATCHED=$(echo "$OUTPUT" | grep "^dispatched=" | cut -d= -f2-)
+          DISPATCHED=$(grep "^dispatched=" /tmp/watcher_out.txt | cut -d= -f2-)
           echo "dispatched=${DISPATCHED:-none}" >> "$GITHUB_OUTPUT"
 
       - name: Summary

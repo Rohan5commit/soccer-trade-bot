@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """Watch proximity: checks if any match is starting soon, dispatches bot.
 
-Called by watcher.yml every 10 minutes. Reads the schedule artifact,
-picks the SINGLE best match, and triggers the bot workflow.
+Called by watcher.yml. GitHub heavily throttles high-frequency crons
+(observed */10 → ~3.6h average gaps, max ~6h), so a narrow 10-180 min
+window is often missed. We therefore:
+  - track matches up to INTEREST_MAX (360 min) out
+  - dispatch immediately when a match is within DISPATCH_NOW_MAX (180 min)
+  - otherwise sleep until SLEEP_TARGET (150 min) before kickoff, then dispatch
+
 Only dispatches future matches — never re-dispatches past matches.
 """
 
@@ -10,11 +15,24 @@ import json
 import os
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
 IST = timezone(timedelta(hours=5, minutes=30))
+
+# Match must be at least this far out to dispatch (bot needs init time)
+MIN_BEFORE_KICKOFF = 10
+# Dispatch without sleeping when kickoff is within this many minutes
+# (bot.yml timeout 340 = 180 wait + 120 match + 40 buffer)
+DISPATCH_NOW_MAX = 180
+# Track matches up to this many minutes out (covers worst observed
+# GitHub cron gap of ~6h so we don't skip a match entirely)
+INTEREST_MAX = 360
+# After sleeping, dispatch when this many minutes remain before kickoff
+# (sweet spot: bot ready, markets typically open or opening)
+SLEEP_TARGET = 150
 
 
 def load_schedule() -> dict:
@@ -84,14 +102,13 @@ def filter_future_matches(matches: List[Dict]) -> List[Dict]:
 
         minutes_until = (kickoff - now).total_seconds() / 60
 
-        # Only future matches (at least 10 min away, max 180 min)
-        # Bot polls for markets during pre-kickoff wait. 180 min gives bot
-        # time to initialize, find markets, and trade before kickoff.
-        # Bot timeout is 240 min; 180 min wait + 120 min match + 30 min buffer.
-        if minutes_until < 10:
+        # Keep matches from MIN_BEFORE_KICKOFF out through INTEREST_MAX.
+        # Beyond DISPATCH_NOW_MAX we sleep in wait_until_ready() rather than
+        # dropping the match (GitHub cron gaps can exceed 3h).
+        if minutes_until < MIN_BEFORE_KICKOFF:
             print(f"[INFO]   filtered: {m['home']} vs {m['away']} — too close ({minutes_until:.0f}min)", file=sys.stderr)
             continue
-        if minutes_until > 180:
+        if minutes_until > INTEREST_MAX:
             print(f"[INFO]   filtered: {m['home']} vs {m['away']} — too far ({minutes_until:.0f}min)", file=sys.stderr)
             continue
 
@@ -354,6 +371,71 @@ def dispatch_bot(match: dict) -> bool:
         return False
 
 
+def _minutes_until(kickoff_iso: str) -> float:
+    kickoff = datetime.fromisoformat(kickoff_iso.replace("Z", "+00:00"))
+    if kickoff.tzinfo is None:
+        kickoff = kickoff.replace(tzinfo=IST)
+    return (kickoff - datetime.now(IST)).total_seconds() / 60
+
+
+def wait_until_ready(match: Dict) -> Optional[Dict]:
+    """Return match when it's within DISPATCH_NOW_MAX, sleeping if needed.
+
+    Callers only invoke this for matches already inside INTEREST_MAX.
+    Returns None if the match became too close/started during the wait
+    (e.g. long GitHub cron delay landed us after kickoff).
+    """
+    kickoff_iso = match.get("kickoff_ist", "")
+    if not kickoff_iso:
+        return None
+
+    try:
+        mins = _minutes_until(kickoff_iso)
+    except Exception as e:
+        print(f"[WARN] wait_until_ready: bad kickoff {kickoff_iso}: {e}", file=sys.stderr)
+        return None
+
+    if mins < MIN_BEFORE_KICKOFF:
+        print(f"[INFO] Match already too close after wait ({mins:.0f}min) — skip", file=sys.stderr)
+        return None
+
+    if mins > DISPATCH_NOW_MAX:
+        sleep_min = mins - SLEEP_TARGET
+        # Cap so the watcher job always finishes inside its timeout
+        # (watcher.yml timeout-minutes: 360; setup ~2min + dispatch ~1min)
+        max_sleep_min = 340
+        if sleep_min > max_sleep_min:
+            sleep_min = max_sleep_min
+        if sleep_min > 0:
+            print(
+                f"[INFO] Kickoff in {mins:.0f}min (> {DISPATCH_NOW_MAX}) — "
+                f"sleeping {sleep_min:.0f}min until ~{SLEEP_TARGET}min out",
+                file=sys.stderr,
+            )
+            time.sleep(sleep_min * 60)
+
+        try:
+            mins = _minutes_until(kickoff_iso)
+        except Exception:
+            return None
+
+        if mins < MIN_BEFORE_KICKOFF:
+            print(f"[INFO] Match started during sleep ({mins:.0f}min) — skip", file=sys.stderr)
+            return None
+        if mins > DISPATCH_NOW_MAX:
+            # Still too far (hit sleep cap) — let the next cron try again
+            print(f"[INFO] Still {mins:.0f}min out after sleep cap — deferring", file=sys.stderr)
+            return None
+
+    fresh = {**match, "minutes_until": round(mins, 1)}
+    print(
+        f"[INFO] Ready to dispatch: {fresh['home']} vs {fresh['away']} "
+        f"({fresh['minutes_until']}min out)",
+        file=sys.stderr,
+    )
+    return fresh
+
+
 def main():
     now = datetime.now(IST)
     print(f"[INFO] Watcher check at {now.strftime('%Y-%m-%d %H:%M IST')}", file=sys.stderr)
@@ -363,7 +445,7 @@ def main():
     generated_at = schedule_data.get("generated_at", "unknown")
     print(f"[INFO] Schedule generated at {generated_at}, loaded {len(raw_matches)} matches", file=sys.stderr)
 
-    # Filter to future matches only
+    # Filter to matches within INTEREST_MAX (includes not-yet-ready ones)
     matches = filter_future_matches(raw_matches)
     print(f"[INFO] {len(matches)} matches still upcoming (filtered from {len(raw_matches)})", file=sys.stderr)
 
@@ -375,10 +457,24 @@ def main():
             file=sys.stderr,
         )
 
-    # Prefer the scheduler's designated best match if it's still upcoming;
-    # fall back to real-time scoring otherwise
     preferred = load_preferred_match()
-    best = prioritize(preferred, matches) or pick_best_match(matches)
+
+    # Prefer matches already inside the immediate dispatch window so we
+    # never sleep past a match that's ready to trade right now.
+    ready_now = [m for m in matches if m.get("minutes_until", 9999) <= DISPATCH_NOW_MAX]
+    if ready_now:
+        best = prioritize(preferred, ready_now) or pick_best_match(ready_now)
+        if best:
+            best = wait_until_ready(best)
+    else:
+        best = prioritize(preferred, matches) or pick_best_match(matches)
+        if best:
+            print(
+                f"[INFO] Nearest eligible match is {best.get('minutes_until', '?')}min out "
+                f"(>{DISPATCH_NOW_MAX}) — waiting for dispatch window",
+                file=sys.stderr,
+            )
+            best = wait_until_ready(best)
 
     # Dispatch
     dispatched = "none"
