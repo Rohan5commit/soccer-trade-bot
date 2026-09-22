@@ -216,40 +216,55 @@ def _session_date(dt: datetime) -> str:
     return (dt - timedelta(hours=10)).strftime("%Y-%m-%d")
 
 
-def was_dispatched_today() -> bool:
-    """Check if a bot was already dispatched today (IST). One match per night.
+MAX_MATCHES_PER_SESSION = 2
 
-    Allows retry when the prior run did not succeed (failure/cancelled).
-    """
-    session = _session_date(datetime.now(IST))
+
+def _count_session_dispatches(session: str) -> int:
+    """Count successful/active bot runs in this trading session."""
     try:
         result = subprocess.run(
             ["gh", "run", "list", "--workflow=bot.yml", "--limit=30",
              "--json=createdAt,conclusion,status"],
             capture_output=True, text=True, timeout=15,
         )
-        if result.returncode == 0:
-            runs = json.loads(result.stdout)
-            for run in runs:
-                created = run.get("createdAt", "")
-                if not created:
-                    continue
-                try:
-                    created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
-                except Exception:
-                    continue
-                if _session_date(created_dt.astimezone(IST)) == session:
-                    conclusion = (run.get("conclusion") or "").lower()
-                    status = (run.get("status") or "").lower()
-                    if conclusion and conclusion not in ("success", "in_progress", "queued", "waiting"):
-                        continue  # failed/cancelled -> allow retry tonight
-                    if not conclusion and status not in ("in_progress", "queued", "waiting", "completed"):
-                        continue
-                    print(f"[INFO] Bot already dispatched this session ({session}) — "
-                          f"one match per night. Skipping.", file=sys.stderr)
-                    return True
+        if result.returncode != 0:
+            return 0
+        count = 0
+        for run in json.loads(result.stdout):
+            created = run.get("createdAt", "")
+            if not created:
+                continue
+            try:
+                created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
+            except Exception:
+                continue
+            if _session_date(created_dt.astimezone(IST)) != session:
+                continue
+            conclusion = (run.get("conclusion") or "").lower()
+            status = (run.get("status") or "").lower()
+            # failed/cancelled runs don't consume the slot (allow retry)
+            if conclusion and conclusion not in ("success", "in_progress", "queued", "waiting"):
+                continue
+            if not conclusion and status not in ("in_progress", "queued", "waiting", "completed"):
+                continue
+            count += 1
+        return count
     except Exception:
-        pass
+        return 0
+
+
+def was_dispatched_today() -> bool:
+    """Check if this session already hit the match quota.
+
+    Allows up to MAX_MATCHES_PER_SESSION successful runs per session
+    (failed/cancelled runs don't consume a slot — retry allowed).
+    """
+    session = _session_date(datetime.now(IST))
+    count = _count_session_dispatches(session)
+    if count >= MAX_MATCHES_PER_SESSION:
+        print(f"[INFO] Session {session} already has {count}/{MAX_MATCHES_PER_SESSION} "
+              f"matches dispatched — skipping.", file=sys.stderr)
+        return True
     return False
 
 
@@ -304,9 +319,10 @@ def dispatch_bot(match: dict) -> bool:
         print(f"[INFO] Bot already running or queued — skipping", file=sys.stderr)
         return False
 
-    # Hard limit: one match per night (single API-Football key = 100 calls/day)
+    # Session quota: up to MAX_MATCHES_PER_SESSION matches (BSD primary live
+    # source, so the old API-Football 100 calls/day constraint no longer applies)
     if was_dispatched_today():
-        print(f"[INFO] One match per night limit — skipping", file=sys.stderr)
+        print(f"[INFO] Session match quota reached — skipping", file=sys.stderr)
         return False
 
     # Check if this match was already dispatched

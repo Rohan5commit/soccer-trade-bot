@@ -130,8 +130,10 @@ def parse_kalshi_event(event: dict, now: datetime, api_football_fixtures: Dict[s
 
     minutes_until = (kickoff - now).total_seconds() / 60
 
-    # Only include matches within next 24 hours that haven't started yet
-    if minutes_until < -10 or minutes_until > 1440:
+    # Only include matches within next 48 hours that haven't started yet
+    # (48h: catch US/Asia kickoffs that fall just outside a 24h window from
+    # the scheduler run time — e.g. 02:00 IST next-day fallback kickoffs)
+    if minutes_until < -10 or minutes_until > 2880:
         return None
 
     # Markets count will be populated by discover_matches() via separate API call
@@ -575,8 +577,8 @@ def main():
     parser = argparse.ArgumentParser(description="Discover upcoming soccer matches")
     parser.add_argument("--output", "-o", help="Output JSON file path")
     parser.add_argument("--best-output", help="Save best match to this path")
-    parser.add_argument("--within-hours", type=float, default=24,
-                        help="Only include matches within N hours (default: 24)")
+    parser.add_argument("--within-hours", type=float, default=48,
+                        help="Only include matches within N hours (default: 48)")
     args = parser.parse_args()
 
     matches = discover_matches()

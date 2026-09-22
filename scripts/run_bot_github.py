@@ -1447,6 +1447,16 @@ class GitHubBot:
                          self._prev_live_state.clock_minutes)
             return
 
+        # Signal stability gate: require the same best outcome for ≥3
+        # consecutive predictions before placing any trade. Filters one-off
+        # model flips that would otherwise trigger a premature entry.
+        if self._consecutive_same_outcome < 3:
+            logger.debug(
+                "Unstable signal (consecutive=%d < 3) — skipping prediction",
+                self._consecutive_same_outcome,
+            )
+            return
+
         # Game-state change: a goal kills the old thesis — log it and keep
         # evaluating. Budget gate (not a halt) decides what still fits.
         score_now = (self._game_state.home_score, self._game_state.away_score)
@@ -1455,7 +1465,9 @@ class GitHubBot:
                         self._last_score[0], self._last_score[1],
                         score_now[0], score_now[1],
                         self._game_state.clock_minutes)
-        self._last_score = score_now
+            self._last_score = score_now
+            # Goal changes the thesis — require fresh stability confirmation
+            self._consecutive_same_outcome = 0
 
         # RISK GUARD: never trade on stale live data.
         # If the data source (API-Football) is dead/stuck and the fallback
