@@ -1,8 +1,8 @@
 {
   "bankroll": 388.85,
-  "start_of_day": 342.05,
-  "session_start": "2026-09-20T14:53:56.172797+05:30",
-  "total_pnl": 46.8,
+  "start_of_day": 388.85,
+  "session_start": "2026-09-23T21:30:00.243428+05:30",
+  "total_pnl": 0.0,
   "sessions": [
     {
       "match": "Corum vs Kasimpasa",
@@ -177,8 +177,14 @@
       "trades": 1,
       "pnl": 46.8,
       "time": "2026-09-20T14:53:56.172915+05:30"
+    },
+    {
+      "match": "Asociacion Deportiva Tarma vs Cienciano",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-09-23T21:30:00.243520+05:30"
     }
   ],
-  "last_updated": "2026-09-20T14:53:56.172811+05:30",
-  "last_match": "Gangwon vs Jeju SK"
+  "last_updated": "2026-09-23T21:30:00.243437+05:30",
+  "last_match": "Asociacion Deportiva Tarma vs Cienciano"
 }
