@@ -1,15 +1,9 @@
 {
   "bankroll": 388.85,
   "start_of_day": 388.85,
-  "session_start": "2026-09-24T09:00:00.761031+05:30",
+  "session_start": "2026-09-24T21:30:00.303712+05:30",
   "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Daejeon Citizen vs Gangwon",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-08-23T17:59:35.369508+05:30"
-    },
     {
       "match": "AEK Athens vs Levski Sofia",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-09-24T09:00:00.761169+05:30"
+    },
+    {
+      "match": "Andorra vs Malta",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-09-24T21:30:00.303862+05:30"
     }
   ],
-  "last_updated": "2026-09-24T09:00:00.761045+05:30",
-  "last_match": "Seattle vs Salt Lake"
+  "last_updated": "2026-09-24T21:30:00.303731+05:30",
+  "last_match": "Andorra vs Malta"
 }
