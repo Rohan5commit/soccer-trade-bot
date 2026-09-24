@@ -1,15 +1,9 @@
 {
   "bankroll": 388.85,
   "start_of_day": 388.85,
-  "session_start": "2026-09-23T21:30:00.243428+05:30",
+  "session_start": "2026-09-24T09:00:00.761031+05:30",
   "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Corum vs Kasimpasa",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-08-22T15:30:00.476542+05:30"
-    },
     {
       "match": "Daejeon Citizen vs Gangwon",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-09-23T21:30:00.243520+05:30"
+    },
+    {
+      "match": "Seattle vs Salt Lake",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-09-24T09:00:00.761169+05:30"
     }
   ],
-  "last_updated": "2026-09-23T21:30:00.243437+05:30",
-  "last_match": "Asociacion Deportiva Tarma vs Cienciano"
+  "last_updated": "2026-09-24T09:00:00.761045+05:30",
+  "last_match": "Seattle vs Salt Lake"
 }
