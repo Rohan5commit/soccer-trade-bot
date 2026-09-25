@@ -1,15 +1,9 @@
 {
   "bankroll": 388.85,
   "start_of_day": 388.85,
-  "session_start": "2026-09-24T21:30:00.303712+05:30",
+  "session_start": "2026-09-25T21:30:00.385454+05:30",
   "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "AEK Athens vs Levski Sofia",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-08-26T21:30:00.370696+05:30"
-    },
     {
       "match": "CSKA Sofia vs OFI Crete",
       "trades": 56,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-09-24T21:30:00.303862+05:30"
+    },
+    {
+      "match": "Armenia vs Latvia",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-09-25T21:30:00.385594+05:30"
     }
   ],
-  "last_updated": "2026-09-24T21:30:00.303731+05:30",
-  "last_match": "Andorra vs Malta"
+  "last_updated": "2026-09-25T21:30:00.385469+05:30",
+  "last_match": "Armenia vs Latvia"
 }
