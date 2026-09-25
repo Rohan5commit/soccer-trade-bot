@@ -1,6 +1,6 @@
 """Live match data client using SportScore API.
 
-Fallback data source when API-Football can't find a fixture.
+Fallback data source when primary live feeds can't find a fixture.
 SportScore: free, no API key, CORS-open, ~10k req/day.
 
 API: https://sportscore.com/api/widget/
@@ -16,7 +16,7 @@ from typing import Dict, List, Optional
 
 import requests
 
-from market.api_football_client import LiveMatchState, APIFootballEvent
+from market.live_types import LiveMatchState, MatchEvent
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +134,7 @@ class LiveScoreClient:
     def get_live_match(self, slug: str) -> Optional[LiveMatchState]:
         """Fetch live match state by SportScore slug.
 
-        Returns LiveMatchState in the same format as API-Football client.
+        Returns LiveMatchState in the shared live-types format.
         """
         details = self.get_match_detail(slug)
         if not details:
@@ -219,7 +219,7 @@ class LiveScoreClient:
             team_name = inc.get("team", "")
 
             if inc_type in ("goal", "penalty_goal"):
-                events.append(APIFootballEvent(
+                events.append(MatchEvent(
                     event_type="Goal",
                     detail="Normal Goal" if inc_type == "goal" else "Penalty",
                     team_id=0,
@@ -230,7 +230,7 @@ class LiveScoreClient:
             elif inc_type == "card":
                 card_color = inc.get("card", "")
                 detail = "Red Card" if card_color == "red" else "Yellow Card"
-                events.append(APIFootballEvent(
+                events.append(MatchEvent(
                     event_type="Card",
                     detail=detail,
                     team_id=0,

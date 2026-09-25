@@ -15,7 +15,7 @@ from typing import Dict, List, Optional
 
 import requests
 
-from market.api_football_client import LiveMatchState, APIFootballEvent
+from market.live_types import LiveMatchState, MatchEvent
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ COMP_NAMES = {
     "EL1": "League One",
 }
 
-# Status mapping: football-data.org -> API-Football
+# Status mapping: football-data.org -> shared status codes
 STATUS_MAP = {
     "SCHEDULED": "NS",
     "TIMED": "NS",
@@ -187,7 +187,7 @@ class FootballDataClient:
     def get_live_match(self, match_id: int) -> Optional[LiveMatchState]:
         """Fetch live match state by match ID.
 
-        Returns LiveMatchState in the same format as API-Football client.
+        Returns LiveMatchState in the shared live-types format.
         """
         match = self.get_match(match_id)
         if not match:
@@ -260,7 +260,7 @@ class FootballDataClient:
                 scorer = goal.get("scorer", {})
                 team = goal.get("team", {})
                 minute_val = goal.get("minute", 0)
-                events.append(APIFootballEvent(
+                events.append(MatchEvent(
                     event_type="Goal",
                     detail=goal.get("type", "REGULAR"),
                     team_id=team.get("id", 0),
@@ -275,7 +275,7 @@ class FootballDataClient:
                 minute_val = booking.get("minute", 0)
                 card = booking.get("card", "")
                 detail = "Red Card" if "RED" in card else "Yellow Card"
-                events.append(APIFootballEvent(
+                events.append(MatchEvent(
                     event_type="Card",
                     detail=detail,
                     team_id=team.get("id", 0),

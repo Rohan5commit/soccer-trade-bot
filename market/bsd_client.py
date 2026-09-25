@@ -1,7 +1,7 @@
 """BSD (bzzoiro) live match state client.
 
 Fetches real-time score, clock, events, and odds from BSD API (sports.bzzoiro.com).
-Replaces API-Football as the primary live data source — free, no quota, 83+ leagues,
+Primary live data source — free, no quota, 83+ leagues,
 covers Turkish Super Lig 100%, works from datacenter IPs.
 
 API: https://sports.bzzoiro.com/api/v2/
@@ -46,7 +46,6 @@ BSD_TO_KALSHI_SERIES: Dict[int, str] = {
     84: "KXDENSUPERLIGAGAME",# Danish Superliga
     85: "KXARGNACBGAME",     # Liga Profesional (Argentina)
     19: "KXLIGAMXGAME",      # Liga MX (Mexico)
-    80: "KXPERLIGA1GAME",    # Categoría Primera A (Colombia)
     15: "KXSWISSLEAGUEGAME", # Super League (Switzerland)
     68: "KXASEANGAME",       # AFC Asian Cup (Asia)
 }
@@ -58,6 +57,24 @@ for _bsd_id, _kalshi in BSD_TO_KALSHI_SERIES.items():
 
 # All BSD league IDs we care about
 ALL_BSD_LEAGUE_IDS = list(BSD_TO_KALSHI_SERIES.keys())
+
+# Single source of truth: Kalshi series with a dedicated BSD league mapping.
+# Only these series enter discovery, scheduling, and trading.
+# Dropped: KXCHAMPIONSLEAGUEGAME / KXUEFAGAME / KXUEFANLGAME (no dedicated BSD league),
+# KXPERLIGA1GAME (BSD 80 is Colombia, not Peru — caused 0-trade sessions).
+# KXBRASILEIROBGAME intentionally excluded (live coverage unreliable).
+BSD_COVERED_SERIES = {
+    "KXUCLGAME", "KXUELGAME", "KXUECLGAME",
+    "KXPREMIERLEAGUE", "KXSERIEAGAME", "KXPRIMERALIGAME",
+    "KXMLSGAME", "KXEREDIVISIEGAME", "KXSUPERLIGGAME",
+    "KXBRASILEIROGAME",
+    "KXALLSVENSKANGAME", "KXSCOTTISHPREMGAME",
+    "KXSLGREECEGAME", "KXSWISSLEAGUEGAME",
+    "KXDENSUPERLIGAGAME", "KXLIGAMXGAME",
+    "KXSAUDIPLGAME", "KXKLEAGUEGAME",
+    "KXCHNSLGAME",
+    "KXARGNACBGAME", "KXASEANGAME",
+}
 
 
 @dataclass
@@ -86,7 +103,7 @@ class LiveMatchState:
     is_live: bool
     period: int  # 1=first half, 2=second half, 3=extra time
     events: List[BSDEvent] = field(default_factory=list)
-    home_stats: object = None  # Compatible with APIFootballStats (always None for BSD)
+    home_stats: object = None  # Compatible with shared MatchStats (always None for BSD)
     away_stats: object = None
     home_xg_running: float = 0.0
     away_xg_running: float = 0.0
@@ -98,7 +115,7 @@ class LiveMatchState:
     last_update: float = field(default_factory=time.time)
 
 
-# Status mapping: BSD → API-Football compatible
+# Status mapping: BSD → shared status codes
 STATUS_MAP = {
     "notstarted": "NS",
     "inprogress": "1H",  # Refined by period

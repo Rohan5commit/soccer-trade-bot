@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Match scheduler: discovers upcoming soccer matches from Kalshi + API-Football.
+"""Match scheduler: discovers upcoming soccer matches from Kalshi + BSD.
 
 Used by GitHub Actions workflows:
   - scheduler.yml: Daily discovery, stores today's matches
   - watcher.yml: Checks proximity, dispatches bot when match is ~2hrs away
+
+Only series in BSD_COVERED_SERIES enter discovery and schedule.json.
 
 Outputs JSON to stdout and optionally saves to a file.
 """
@@ -17,44 +19,21 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
-import requests
-
 IST = timezone(timedelta(hours=5, minutes=30))
 
 # Add parent dir to path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from market.kalshi_client import KalshiClient, SOCCER_SERIES
-from market.bsd_client import BSDClient, KALSHI_TO_BSD_LEAGUE
+from market.bsd_client import BSDClient, KALSHI_TO_BSD_LEAGUE, BSD_COVERED_SERIES
 from config import load_config
 
 
-# Kalshi series → API-Football league ID (for kickoff time lookup)
-KALSHI_TO_LEAGUE_ID: Dict[str, int] = {
-    "KXUCLGAME": 2, "KXCHAMPIONSLEAGUEGAME": 2,
-    "KXUELGAME": 3, "KXUECLGAME": 848, "KXUEFAGAME": 848, "KXUEFANLGAME": 848,
-    "KXPREMIERLEAGUE": 39, "KXSERIEAGAME": 135, "KXPRIMERALIGAME": 140,
-    "KXMLSGAME": 253, "KXEREDIVISIEGAME": 88, "KXSUPERLIGGAME": 203,
-    "KXBRASILEIROGAME": 71, "KXBRASILEIROBGAME": 72,
-    "KXALLSVENSKANGAME": 113, "KXSCOTTISHPREMGAME": 179,
-    "KXSLGREECEGAME": 197, "KXSWISSLEAGUEGAME": 207,
-    "KXDENSUPERLIGAGAME": 119, "KXLIGAMXGAME": 262,
-    "KXSAUDIPLGAME": 307, "KXKLEAGUEGAME": 292, "KXISLGAME": 164,
-    "KXTHAIL1GAME": 296, "KXUAEPLGAME": 1089,
-    "KXPERLIGA1GAME": 281, "KXVENFUTVEGAME": 300,
-    "KXQSTARSGAME": 306, "KXSPBGAME": 475, "KXWIBPLGAME": 110,
-    "KXTACAPORTGAME": 96, "KXUSLGAME": 244, "KXUSOPENCUPGAME": 257,
-    "KXSCOCUPGAME": 1078, "KXARGNACBGAME": 130,
-    "KXCLUBFGAME": 15, "KXWCGAME": 1, "KXMENWORLDCUP": 1,
-    "KXASEANGAME": 24,
-}
-
-
-def parse_kalshi_event(event: dict, now: datetime, api_football_fixtures: Dict[str, dict] = None,
+def parse_kalshi_event(event: dict, now: datetime,
                        bsd_fixtures: Dict[str, dict] = None) -> Optional[Dict]:
     """Parse a Kalshi event into a match candidate dict.
 
-    Uses API-Football fixtures to get actual kickoff time (Kalshi only has date).
+    Uses BSD fixtures to get actual kickoff time (Kalshi only has date).
 
     Returns None if the event is not a valid upcoming match.
     """
@@ -104,12 +83,6 @@ def parse_kalshi_event(event: dict, now: datetime, api_football_fixtures: Dict[s
                 if bsd_fixtures:
                     kickoff = _find_kickoff_from_bsd(home, away, bsd_fixtures)
 
-                # Fall back to API-Football fixtures
-                if kickoff is None and api_football_fixtures:
-                    kickoff = _find_kickoff_from_api_football(
-                        home, away, year, month, day, api_football_fixtures
-                    )
-
                 # Fallback: league-aware IST (EU 21:00, US 02:00 next day, Asia 17:00)
                 if kickoff is None:
                     if series in ("KXMLSGAME", "KXUSLGAME", "KXUSOPENCUPGAME", "KXUSLCUPGAME", "KXWIBPLGAME"):
@@ -151,83 +124,11 @@ def parse_kalshi_event(event: dict, now: datetime, api_football_fixtures: Dict[s
     }
 
 
-def _find_kickoff_from_api_football(
-    home: str, away: str, year: int, month: int, day: int,
-    fixtures: Dict[str, dict]
-) -> Optional[datetime]:
-    """Find actual kickoff time from API-Football fixtures by matching team names."""
-    target_date = f"{year}-{month:02d}-{day:02d}"
-    home_norm = home.lower().replace(".", "").replace("'", "").replace("-", " ")
-    away_norm = away.lower().replace(".", "").replace("'", "").replace("-", " ")
-
-    for fixture_key, fixture in fixtures.items():
-        inner = fixture.get("fixture", {})
-        fixture_date = inner.get("date", "")[:10]
-        if fixture_date != target_date:
-            continue
-
-        f_teams = fixture.get("teams", {})
-        f_home = f_teams.get("home", {}).get("name", "").lower()
-        f_away = f_teams.get("away", {}).get("name", "").lower()
-
-        # Check if both team names match (substring match)
-        if (home_norm in f_home or f_home in home_norm) and \
-           (away_norm in f_away or f_away in away_norm):
-            # Parse UTC timestamp and convert to IST
-            fixture_date_str = inner.get("date", "")
-            try:
-                utc_time = datetime.fromisoformat(fixture_date_str.replace("Z", "+00:00"))
-                return utc_time.astimezone(IST)
-            except Exception:
-                pass
-
-    return None
-
-
-def fetch_api_football_fixtures(api_key: str, api_key_2: str = "") -> Dict[str, dict]:
-    """Fetch today's and tomorrow's fixtures from API-Football for kickoff time lookup.
-
-    Returns dict keyed by fixture ID. Tries api_key first; falls back to api_key_2
-    on error (suspended account, rate limit, etc.).
-    """
-    def _try_fetch(key: str) -> Dict[str, dict]:
-        if not key:
-            return {}
-        headers = {"x-apisports-key": key}
-        base = "https://v3.football.api-sports.io"
-        fixtures = {}
-        for date_offset in [0, 1]:
-            try:
-                date = (datetime.now(timezone.utc) + timedelta(days=date_offset)).strftime("%Y-%m-%d")
-                resp = requests.get(f"{base}/fixtures", params={"date": date}, headers=headers, timeout=15)
-                data = resp.json()
-                if resp.status_code == 200 and not data.get("errors"):
-                    for f in data.get("response", []):
-                        fid = f.get("fixture", {}).get("id")
-                        if fid:
-                            fixtures[fid] = f
-                else:
-                    # Don't discard earlier date's fixtures on later-date failure
-                    print(f"[WARN] API-Football fixtures for {date} failed: {data.get('errors', resp.status_code)}", file=sys.stderr)
-                    continue
-                time.sleep(0.5)
-            except Exception as e:
-                print(f"[WARN] API-Football fetch for date offset {date_offset} failed: {e}", file=sys.stderr)
-                continue
-        return fixtures
-
-    fixtures = _try_fetch(api_key)
-    if not fixtures and api_key_2:
-        print("[WARN] Primary API-Football key failed, trying secondary", file=sys.stderr)
-        fixtures = _try_fetch(api_key_2)
-    return fixtures
-
-
 def fetch_bsd_fixtures() -> Dict[str, dict]:
     """Fetch upcoming fixtures from BSD API for kickoff time lookup.
 
     Returns dict keyed by (home_team, away_team) for fast lookup.
-    BSD covers 83+ leagues — replaces API-Football for kickoff lookup.
+    BSD covers 83+ leagues — sole kickoff source besides league defaults.
     """
     bsd_key = os.environ.get("BSD_API_KEY", "")
     if not bsd_key:
@@ -294,29 +195,20 @@ def _find_kickoff_from_bsd(
 
 
 def discover_matches() -> List[Dict]:
-    """Discover all upcoming soccer matches from Kalshi.
+    """Discover upcoming soccer matches from Kalshi (BSD-covered series only).
 
-    Uses BSD API (primary) or API-Football (fallback) for actual kickoff times.
+    Uses BSD API for actual kickoff times.
     Returns sorted list of match dicts, soonest first.
     """
     cfg = load_config()
     now = datetime.now(IST)
 
-    # Try BSD fixtures first (free, no quota, 83+ leagues)
+    # Try BSD fixtures (free, no quota, 83+ leagues)
     bsd_fixtures = fetch_bsd_fixtures()
     if bsd_fixtures:
         print(f"[INFO] Loaded {len(bsd_fixtures)} BSD fixtures for kickoff lookup", file=sys.stderr)
-
-    # Fall back to API-Football if BSD unavailable
-    api_football_fixtures = {}
-    if not bsd_fixtures:
-        api_key = os.environ.get("API_FOOTBALL_API_KEY", "")
-        api_key_2 = os.environ.get("API_FOOTBALL_API_KEY_2", "")
-        api_football_fixtures = fetch_api_football_fixtures(api_key, api_key_2)
-        if api_football_fixtures:
-            print(f"[INFO] Loaded {len(api_football_fixtures)} API-Football fixtures for kickoff lookup", file=sys.stderr)
-        else:
-            print("[WARN] No fixtures from BSD or API-Football — using 21:00 IST default kickoff", file=sys.stderr)
+    else:
+        print("[WARN] No BSD fixtures — using league-aware IST default kickoffs", file=sys.stderr)
 
     client = KalshiClient(
         api_key=cfg.kalshi_api_key,
@@ -326,6 +218,9 @@ def discover_matches() -> List[Dict]:
     matches = []
 
     for series in SOCCER_SERIES:
+        # BSD-only pipeline: skip series without a dedicated BSD league mapping
+        if series not in BSD_COVERED_SERIES:
+            continue
         try:
             resp = client._request(
                 "GET",
@@ -336,7 +231,7 @@ def discover_matches() -> List[Dict]:
                 continue
 
             for event in resp["events"]:
-                match = parse_kalshi_event(event, now, api_football_fixtures, bsd_fixtures)
+                match = parse_kalshi_event(event, now, bsd_fixtures)
                 if match:
                     # Fetch actual market count (Kalshi /events doesn't include markets)
                     try:
@@ -439,28 +334,8 @@ def _score_timing(minutes_until: float) -> float:
 
 
 # Leagues covered by BSD API (primary live data source — free, no quota, 83+ leagues)
-# Strict: only BSD-mapped series — ensures live data exists (pruned Thai/UAE/ISl etc. that have tier but no BSD id)
-FD_COVERED_SERIES = {
-    # Tier 1: UEFA
-    "KXUCLGAME", "KXCHAMPIONSLEAGUEGAME",
-    "KXUELGAME", "KXUECLGAME", "KXUEFAGAME", "KXUEFANLGAME",
-    # Tier 2: Top 5
-    "KXPREMIERLEAGUE", "KXSERIEAGAME", "KXPRIMERALIGAME",
-    "KXMLSGAME", "KXEREDIVISIEGAME", "KXSUPERLIGGAME",
-    "KXBRASILEIROGAME",  # BGAME removed tonight — BSD 34 live 0/2 nights (Nautico 6h late, CR Brasil none)
-    # Tier 3: Strong European
-    "KXALLSVENSKANGAME", "KXSCOTTISHPREMGAME",
-    "KXSLGREECEGAME", "KXSWISSLEAGUEGAME",
-    "KXDENSUPERLIGAGAME", "KXLIGAMXGAME",
-    "KXSAUDIPLGAME", "KXKLEAGUEGAME",
-    # Tier 4: Other — only if BSD-mapped
-    "KXCHNSLGAME",
-    "KXPERLIGA1GAME",
-    # Tier 5: Cups & Other — only BSD-mapped (remove Thai/UAE/ISL/USL etc. with no live)
-    "KXARGNACBGAME",
-    "KXASEANGAME",
-}
-BSD_COVERED_SERIES = FD_COVERED_SERIES  # alias
+# Single source of truth lives in market/bsd_client.BSD_COVERED_SERIES
+FD_COVERED_SERIES = BSD_COVERED_SERIES
 
 
 def pick_best_match(matches: List[Dict]) -> Optional[Dict]:
@@ -471,7 +346,7 @@ def pick_best_match(matches: List[Dict]) -> Optional[Dict]:
       - League tier (30%): higher tier = better data quality
       - Timing (30%): sweet spot ~3 hours from now
 
-    Only picks matches in leagues with free live data coverage (football-data.org).
+    Only picks matches in leagues with free live data coverage (BSD).
 
     Returns the best match dict with 'score' field added, or None.
     """
@@ -496,7 +371,7 @@ def pick_best_match(matches: List[Dict]) -> Optional[Dict]:
 
         # Skip matches in leagues without free live data coverage
         series = match.get("series", "")
-        if series not in FD_COVERED_SERIES:
+        if series not in BSD_COVERED_SERIES:
             continue
 
         if markets_count == 0:

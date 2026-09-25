@@ -148,8 +148,8 @@ def pick_best_match(matches: List[Dict]) -> Optional[Dict]:
         return None
 
     # Filter to leagues with free live data coverage
-    from match_scheduler import FD_COVERED_SERIES
-    covered = [m for m in matches if m.get("series", "") in FD_COVERED_SERIES]
+    from match_scheduler import BSD_COVERED_SERIES
+    covered = [m for m in matches if m.get("series", "") in BSD_COVERED_SERIES]
     if not covered:
         print("[INFO] No matches in leagues with free live data coverage", file=sys.stderr)
         return None
@@ -177,11 +177,26 @@ def prioritize(preferred: Optional[Dict], matches: List[Dict]) -> Optional[Dict]
     if not preferred:
         return None
 
+    # Coverage re-check: never dispatch a non-BSD series even if a stale
+    # best_match.json artifact slipped through from an older run.
+    from match_scheduler import BSD_COVERED_SERIES
+    preferred_series = preferred.get("series", "")
+    if preferred_series and preferred_series not in BSD_COVERED_SERIES:
+        print(
+            f"[INFO] Scheduler pick series {preferred_series} is not BSD-covered — "
+            "falling back to real-time scoring",
+            file=sys.stderr,
+        )
+        return None
+
     preferred_ticker = preferred.get("event_ticker", "")
     preferred_home = preferred.get("home", "")
     preferred_away = preferred.get("away", "")
 
     for m in matches:
+        m_series = m.get("series", "")
+        if m_series and m_series not in BSD_COVERED_SERIES:
+            continue
         if preferred_ticker and m.get("event_ticker") == preferred_ticker:
             print(
                 f"[INFO] Honoring scheduler pick: {m['home']} vs {m['away']} "
@@ -337,7 +352,7 @@ def dispatch_bot(match: dict) -> bool:
         return False
 
     # Session quota: up to MAX_MATCHES_PER_SESSION matches (BSD primary live
-    # source, so the old API-Football 100 calls/day constraint no longer applies)
+    # source, so rate-limit quotas no longer apply)
     if was_dispatched_today():
         print(f"[INFO] Session match quota reached — skipping", file=sys.stderr)
         return False

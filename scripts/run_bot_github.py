@@ -5,17 +5,20 @@ Runs as a single match session:
 1. Receives match info via env vars (from workflow_dispatch)
 2. Loads pre-trained models
 3. Discovers Kalshi markets for this specific match
-4. Fetches live match data from API-Football (primary) or SofaScore (fallback)
+4. Fetches live match data from BSD (primary) or fallback sources
 5. Runs model predictions on enriched GameState
 6. Simulates trades via shadow orderbook (production prices, local fills)
 
 Unlike run_paper_trade.py, this does NOT discover matches —
 it runs a single match passed in by the watcher workflow.
 
+Only series in BSD_COVERED_SERIES are traded (coverage guard at init).
+
 Data sources (in order of preference):
-1. ESPN (site.api.espn.com) — free, no key, reliable, covers major leagues
-2. API-Football (api-sports.io) — 100 req/day free tier, requires API key
-3. SportScore (sportscore.com) — public API, no key needed, broader coverage
+1. BSD (sports.bzzoiro.com) — free, no key, primary live feed
+2. football-data.org — free tier, major European leagues
+3. ESPN (site.api.espn.com) — free, no key, major leagues
+4. SportScore (sportscore.com) — public API, no key needed
 
 Fail-safe: Bot never trades without live data. If all sources fail,
 predictions are skipped until data becomes available.
@@ -39,8 +42,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config import load_config
 from market.kalshi_client import KalshiClient, KalshiMarket, ShadowOrderbook
-from market.api_football_client import APIFootballClient, LiveMatchState
-from market.bsd_client import BSDClient
+from market.live_types import LiveMatchState
+from market.bsd_client import BSDClient, BSD_COVERED_SERIES
 from market.espn_client import ESPNClient
 from market.football_data_client import FootballDataClient
 from market.sofascore_client import LiveScoreClient
@@ -70,7 +73,6 @@ CALIBRATION_FILE = STATE_DIR / "calibration_report.json"
 
 # How often to update live data from API sources (seconds)
 # BSD: no quota, poll every 10s for responsive predictions
-# API-Football: 100 calls/day budget — use 75s intervals
 LIVE_UPDATE_INTERVAL = 10
 # How often to update Kalshi prices (seconds)
 PRICE_UPDATE_INTERVAL = 15
@@ -114,147 +116,12 @@ def log_trade(trade: dict) -> None:
         f.write(json.dumps(trade) + "\n")
 
 
-def _normalize_team_name(name: str) -> str:
-    """Normalize team name for fuzzy matching.
-
-    Strips Kalshi suffixes like ': Regulation Time Moneyline' and other noise.
-    """
-    name = name.strip()
-    # Strip everything after ":" or " - " (Kalshi market suffixes)
-    for marker in [":", " - "]:
-        if marker in name:
-            name = name.split(marker, 1)[0].strip()
-    return name.lower().replace(".", "").replace("'", "").replace("-", " ")
-
-
-# Team alias dictionary — maps common Kalshi names to full API names
-# Used for fuzzy matching when substring matching fails
-TEAM_ALIASES: Dict[str, List[str]] = {
-    # English Premier League
-    "manchester united": ["man united", "man utd", "manu", "manchester utd"],
-    "manchester city": ["man city", "mancity"],
-    "tottenham hotspur": ["tottenham", "spurs"],
-    "west ham united": ["west ham"],
-    "newcastle united": ["newcastle"],
-    "brighton & hove albion": ["brighton"],
-    "wolverhampton wanderers": ["wolves", "wolverhampton"],
-    "nottingham forest": ["nottingham"],
-    # La Liga
-    "real madrid": ["real madrid cf", "rmadrid", "real madrid castilla"],
-    "atlético madrid": ["atletico", "atleti", "atletico madrid"],
-    "fc barcelona": ["barca", "barcelona"],
-    "real sociedad": ["sociedad"],
-    "real betis": ["betis"],
-    # Serie A
-    "inter milan": ["inter", "internazionale", "inter milan"],
-    "ac milan": ["milan", "ac milan"],
-    "juventus": ["juve", "jfc", "juventus turin"],
-    "as roma": ["roma", "as roma"],
-    "ss lazio": ["lazio"],
-    # Bundesliga
-    "bayern munich": ["bayern", "fc bayern", "bayern munchen"],
-    "borussia dortmund": ["bvb", "dortmund", "borussia dortmund"],
-    "borussia mönchengladbach": ["gladbach", "monchengladbach"],
-    "rb leipzig": ["leipzig"],
-    # Ligue 1
-    "paris saint-germain": ["psg", "paris sg", "paris saint germain"],
-    "olympique lyonnais": ["lyon", "ol"],
-    "olympique de marseille": ["marseille", "om"],
-    "as monaco": ["monaco"],
-    # Eredivisie
-    "ajax": ["ajax amsterdam", "afc ajax"],
-    "feyenoord": ["feyenoord rotterdam"],
-    "psv": ["psv eindhoven"],
-    # Portuguese Liga
-    "benfica": ["sl benfica"],
-    "porto": ["fc porto", "porto"],
-    "sporting cp": ["sporting lisbon", "sporting"],
-    # Turkish Super Lig
-    "galatasaray": ["gs"],
-    "fenerbahçe": ["fenerbahce", "fener"],
-    "beşiktaş": ["besiktas", "bjk"],
-    # Scottish Premiership
-    "celtic": ["celtic fc"],
-    "rangers": ["rangers fc"],
-    # Brazilian Serie A
-    "flamengo": ["cr flamengo", "flamengo rio"],
-    "palmeiras": ["se palmeiras"],
-    "corinthians": ["sc corinthians paulista"],
-    "são paulo": ["sao paulo", "spfc"],
-    "internacional": ["sc internacional", "internacional rs"],
-    "grêmio": ["gremio", "grêmio fbpa"],
-    # Argentine Liga
-    "boca juniors": ["boca"],
-    "river plate": ["river"],
-    # MLS
-    "inter miami": ["miami", "inter miami cf"],
-    "la galaxy": ["galaxy", "la galaxy"],
-    # UCL / Europa
-    "real madrid cf": ["real madrid"],
-    "manchester city": ["man city"],
-}
-
-# Reverse alias lookup: alias → canonical name
-ALIAS_TO_CANONICAL: Dict[str, str] = {}
-for canonical, aliases in TEAM_ALIASES.items():
-    ALIAS_TO_CANONICAL[canonical.lower()] = canonical.lower()
-    for alias in aliases:
-        ALIAS_TO_CANONICAL[alias.lower()] = canonical.lower()
-
-
-def _resolve_team_alias(name: str) -> str:
-    """Resolve a team name through the alias dictionary.
-
-    Returns the canonical normalized name if found, otherwise the original normalized name.
-    """
-    norm = _normalize_team_name(name)
-    return ALIAS_TO_CANONICAL.get(norm, norm)
-
-
-def _fuzzy_match_score(name1: str, name2: str) -> float:
-    """Compute fuzzy match score between two team names using SequenceMatcher.
-
-    Returns a score between 0.0 (no match) and 1.0 (exact match).
-    Also compares the primary (first) tokens, since API names often carry
-    suffixes like "SK FK", "FC", etc. ("Vasteras SK FK" vs "Vasteraas").
-    """
-    from difflib import SequenceMatcher
-    n1 = _normalize_team_name(name1)
-    n2 = _normalize_team_name(name2)
-
-    def _ratio(a: str, b: str) -> float:
-        return SequenceMatcher(None, a, b).ratio()
-
-    # Direct match
-    ratio = _ratio(n1, n2)
-
-    # Also check if any alias matches
-    r1 = _ratio(_resolve_team_alias(name1), n2)
-    r2 = _ratio(n1, _resolve_team_alias(name2))
-
-    best = max(ratio, r1, r2)
-
-    # Compare primary tokens (first word of each name) — helps with
-    # "Vasteraas" vs "Vasteras SK FK" and similar suffix-heavy API names
-    tok1 = n1.split()[0] if n1.split() else n1
-    tok2 = n2.split()[0] if n2.split() else n2
-    token_ratio = _ratio(tok1, tok2)
-    for t in n2.split():
-        if t in ("fc", "sk", "fk", "cf", "afc", "sc", "if", "bk", "ff", "w", "bvo"):
-            continue
-        token_ratio = max(token_ratio, _ratio(tok1, t))
-
-    best = max(best, token_ratio * 0.90)
-    return best
-
-
 class GitHubBot:
     """Paper trader for GitHub Actions (single match with live data)."""
 
     def __init__(self):
         self.config = load_config()
         self.kalshi: Optional[KalshiClient] = None
-        self.api_football: Optional[APIFootballClient] = None
         self.bsd: Optional[BSDClient] = None
         self.livescore: Optional[LiveScoreClient] = None
         self.predictor: Optional[WinPredictor] = None
@@ -302,8 +169,7 @@ class GitHubBot:
         # Calibration data (Fix 7)
         self._calibration_data: List[dict] = []
 
-        # API-Football fixture tracking
-        self._api_football_fixture_id: Optional[int] = None
+        # Live source fixture tracking
         self._bsd_event_id: Optional[int] = None
         self._espn_event_id: Optional[str] = None
         self._espn_league: Optional[str] = None
@@ -320,7 +186,7 @@ class GitHubBot:
         self._last_clock_value: float = 0.0
         self._last_score: Optional[tuple] = None
 
-        # Game state — enriched by KickoffAPI live data
+        # Game state — enriched by live data sources
         self._game_state = GameState(
             home_team=self.match_home,
             away_team=self.match_away,
@@ -341,6 +207,14 @@ class GitHubBot:
         else:
             logger.info("Kickoff: %s", self.match_kickoff_str)
         logger.info("=" * 60)
+
+        # BSD-only coverage guard: refuse to trade uncovered series
+        series = self.event_ticker.split("-")[0] if self.event_ticker else ""
+        if series and series not in BSD_COVERED_SERIES:
+            logger.error(
+                "Series %s is not BSD-covered — refusing to trade this match", series
+            )
+            return False
 
         # Kalshi client (production only — reads prices + orderbook depth)
         self.kalshi = KalshiClient(
@@ -379,19 +253,6 @@ class GitHubBot:
             self._start_of_day_bankroll = 500.0
         logger.info("Starting bankroll: $%.2f", self._bankroll)
 
-        # API-Football client (for live match data) — supports dual-key rotation
-        api_key = os.environ.get("API_FOOTBALL_API_KEY", "")
-        api_key_2 = os.environ.get("API_FOOTBALL_API_KEY_2", "")
-        if api_key:
-            self.api_football = APIFootballClient(api_key=api_key, api_key_2=api_key_2)
-            if self.api_football.is_suspended:
-                logger.warning("API-Football key suspended — will skip to next source")
-            else:
-                logger.info("API-Football client initialized (%d remaining, dual-key=%s)",
-                            self.api_football.remaining, "yes" if api_key_2 else "no")
-        else:
-            logger.info("No API_FOOTBALL_API_KEY — will use other sources")
-
         # BSD client (primary live data source — free, no quota, 83+ leagues)
         bsd_key = os.environ.get("BSD_API_KEY", "")
         if bsd_key:
@@ -404,9 +265,9 @@ class GitHubBot:
         self.livescore = LiveScoreClient()
         logger.info("LiveScore client initialized (SportScore fallback)")
 
-        # ESPN client (primary live data source — free, no key, reliable)
+        # ESPN client (fallback live data source — free, no key, reliable)
         self.espn = ESPNClient()
-        logger.info("ESPN client initialized (primary live source)")
+        logger.info("ESPN client initialized (fallback live source)")
 
         # football-data.org client (free tier — covers major European leagues)
         self.fd = FootballDataClient()
@@ -435,13 +296,17 @@ class GitHubBot:
             min_bet_usd=self.config.min_bet_usd,
         )
 
-        # Find API-Football fixture for live data
-        if self.api_football and not self.api_football.is_suspended:
-            self._find_api_football_fixture()
-
         # Find BSD event for live data (primary source)
         if self.bsd and not self._bsd_event_id:
             self._find_bsd_event()
+
+        # Fallback fixture discovery (ESPN / football-data / SportScore)
+        if self.espn and not self._espn_event_id:
+            self._find_espn_fixture()
+        if self.fd and not self._fd_match_id:
+            self._find_fd_fixture()
+        if self.livescore and not self._livescore_slug:
+            self._find_livescore_match()
 
         return True
 
@@ -509,124 +374,6 @@ class GitHubBot:
         logger.info("Markets ready: %d markets found for %s", len(self._markets), self.event_ticker)
         return True
 
-    def _find_api_football_fixture(self) -> None:
-        """Find API-Football fixture ID by matching team names.
-
-        Uses fuzzy matching with alias dictionary for robust name resolution.
-        Falls back to SofaScore if API-Football can't find the match.
-        """
-        if not self.api_football:
-            return
-
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        try:
-            fixtures = self.api_football.get_fixtures_by_date(today)
-            if not fixtures:
-                tomorrow = (datetime.now(timezone.utc) + timedelta(days=1)).strftime("%Y-%m-%d")
-                fixtures = self.api_football.get_fixtures_by_date(tomorrow)
-
-            home_norm = _normalize_team_name(self.match_home)
-            away_norm = _normalize_team_name(self.match_away)
-            home_resolved = _resolve_team_alias(self.match_home)
-            away_resolved = _resolve_team_alias(self.match_away)
-
-            best_match = None
-            best_score = 0.0
-
-            YOUTH_KEYWORDS = {"u19", "u21", "u23", "reserve", "youth", "amateur"}
-
-            for f in fixtures:
-                teams = f.get("teams", {})
-                f_home = teams.get("home", {}).get("name", "")
-                f_away = teams.get("away", {}).get("name", "")
-
-                # Skip youth/reserve/U23 fixtures — we only want senior teams
-                f_home_lower = f_home.lower()
-                f_away_lower = f_away.lower()
-                if any(kw in f_home_lower or kw in f_away_lower for kw in YOUTH_KEYWORDS):
-                    continue
-
-                # Strategy 1: Exact substring match (fast)
-                score1 = 0
-                if home_norm in _normalize_team_name(f_home) or _normalize_team_name(f_home) in home_norm:
-                    score1 += 1
-                if away_norm in _normalize_team_name(f_away) or _normalize_team_name(f_away) in away_norm:
-                    score1 += 1
-
-                score2 = 0
-                if home_norm in _normalize_team_name(f_away) or _normalize_team_name(f_away) in home_norm:
-                    score2 += 1
-                if away_norm in _normalize_team_name(f_home) or _normalize_team_name(f_home) in away_norm:
-                    score2 += 1
-
-                substring_score = max(score1, score2)
-                if substring_score >= 2:
-                    best_match = f
-                    best_score = 2.0
-                    break
-
-                # Strategy 2: Alias resolution match
-                alias_score = 0
-                if home_resolved in _normalize_team_name(f_home) or _normalize_team_name(f_home) in home_resolved:
-                    alias_score += 1
-                if away_resolved in _normalize_team_name(f_away) or _normalize_team_name(f_away) in away_resolved:
-                    alias_score += 1
-
-                alias_score2 = 0
-                if home_resolved in _normalize_team_name(f_away) or _normalize_team_name(f_away) in home_resolved:
-                    alias_score2 += 1
-                if away_resolved in _normalize_team_name(f_home) or _normalize_team_name(f_home) in away_resolved:
-                    alias_score2 += 1
-
-                alias_total = max(alias_score, alias_score2)
-                if alias_total >= 2:
-                    best_match = f
-                    best_score = 2.0
-                    break
-
-                # Strategy 3: Fuzzy matching (slower, for edge cases)
-                fuzzy_home = _fuzzy_match_score(self.match_home, f_home)
-                fuzzy_away = _fuzzy_match_score(self.match_away, f_away)
-                fuzzy_score = min(fuzzy_home, fuzzy_away)
-
-                # Also check reversed ordering
-                fuzzy_home_rev = _fuzzy_match_score(self.match_home, f_away)
-                fuzzy_away_rev = _fuzzy_match_score(self.match_away, f_home)
-                fuzzy_score_rev = min(fuzzy_home_rev, fuzzy_away_rev)
-
-                fuzzy_best = max(fuzzy_score, fuzzy_score_rev)
-                if fuzzy_best > best_score and fuzzy_best >= 0.65:
-                    best_score = fuzzy_best
-                    best_match = f
-
-            # Accept either an exact match (2.0) or a confident fuzzy match (>= 0.80)
-            if best_match and best_score >= 0.80:
-                fixture_data = best_match.get("fixture", {})
-                self._api_football_fixture_id = fixture_data.get("id")
-                teams = best_match.get("teams", {})
-                f_home = teams.get("home", {}).get("name", "?")
-                f_away = teams.get("away", {}).get("name", "?")
-                logger.info("API-Football fixture found: %s vs %s (ID=%s, score=%.2f)",
-                            f_home, f_away, self._api_football_fixture_id, best_score)
-            else:
-                logger.warning("API-Football: no matching fixture for %s vs %s (checked %d fixtures)",
-                               self.match_home, self.match_away, len(fixtures))
-        except Exception as e:
-            logger.warning("API-Football fixture discovery failed: %s", e)
-
-        # ESPN fixture discovery — find event ID for live data (free, no key)
-        if self.espn and not self._espn_event_id:
-            self._find_espn_fixture()
-
-        # football-data.org fixture discovery — free tier covers major European leagues
-        if self.fd and not self._fd_match_id:
-            self._find_fd_fixture()
-
-        # LiveScore fallback — find match slug for live data
-        # Always try to discover SportScore as fallback, even when API-Football works
-        if self.livescore and not self._livescore_slug:
-            self._find_livescore_match()
-
     def _find_fd_fixture(self) -> None:
         """Find football-data.org match ID by team names. Free, covers major leagues."""
         if not self.fd:
@@ -683,7 +430,7 @@ class GitHubBot:
             logger.warning("BSD event discovery failed: %s", e)
 
     def _find_livescore_match(self) -> None:
-        """Find SportScore match slug for this match (fallback when API-Football fails)."""
+        """Find SportScore match slug for this match (fallback source)."""
         if not self.livescore:
             return
 
@@ -702,7 +449,7 @@ class GitHubBot:
         """Fetch live match data from multiple sources.
 
         Returns match status string ("NS", "1H", "2H", "FT", etc.) or None on error.
-        Source priority: BSD → football-data.org → ESPN → API-Football → SportScore.
+        Source priority: BSD → football-data.org → ESPN → SportScore.
         """
         now = time.time()
 
@@ -710,7 +457,7 @@ class GitHubBot:
         if now - self._last_live_update < LIVE_UPDATE_INTERVAL:
             return self._prev_live_state.status if self._prev_live_state else None
 
-        # Check if API-Football clock is stuck
+        # Check if live clock is stuck
         clock_stuck = self._detect_clock_stuck()
 
         # Source 1: BSD API (primary — free, no quota, 83+ leagues, works everywhere)
@@ -725,30 +472,11 @@ class GitHubBot:
             if state:
                 return state
 
-        # Source 2: ESPN (free, no key, but blocked from datacenter IPs)
+        # Source 3: ESPN (free, no key, but blocked from datacenter IPs)
         if self.espn and self._espn_event_id:
             state = self._fetch_from_espn(now)
             if state:
                 return state
-
-        # Source 3: API-Football (fallback) — skip if clock is stuck or suspended
-        if self.api_football and self._api_football_fixture_id and not clock_stuck:
-            if self.api_football.is_suspended:
-                logger.debug("API-Football suspended — skipping")
-            else:
-                remaining = self.api_football.remaining
-                if remaining <= 10:
-                    logger.warning("API-Football rate limit critical (%d remaining)", remaining)
-                elif remaining <= 30:
-                    if now - self._last_live_update < LIVE_UPDATE_INTERVAL * 2:
-                        return self._prev_live_state.status if self._prev_live_state else None
-                    state = self._fetch_from_api_football(now)
-                    if state:
-                        return state
-                else:
-                    state = self._fetch_from_api_football(now)
-                    if state:
-                        return state
 
         # Source 4: SportScore (last resort)
         if self.livescore and self._livescore_slug:
@@ -863,33 +591,6 @@ class GitHubBot:
 
         except Exception as e:
             logger.warning("ESPN live update failed: %s", e)
-            self._last_live_update = now - 8
-            return None
-
-    def _fetch_from_api_football(self, now: float) -> Optional[str]:
-        """Fetch live state from API-Football. Returns status or None."""
-        try:
-            state = self.api_football.get_live_match(self._api_football_fixture_id)
-            if not state:
-                return None
-
-            logger.info(
-                "LIVE [API-Football]: %s %d - %d %s | %s %.0f' | events=%d | remaining=%d",
-                state.home_team, state.home_score, state.away_score, state.away_team,
-                state.status, state.clock_minutes,
-                len(state.events), self.api_football.remaining,
-            )
-
-            self._game_state = self._match_state_to_game_state(state)
-            self._prev_live_state = state
-            self._last_live_update = now
-            if not self._live_data_received:
-                self._live_data_received = True
-                logger.info("First live data received — predictions enabled")
-            return state.status
-
-        except Exception as e:
-            logger.warning("API-Football live update failed: %s", e)
             self._last_live_update = now - 8
             return None
 
@@ -1122,7 +823,7 @@ class GitHubBot:
                     if elapsed > 0 and not self._live_data_received:
                         self._game_state.clock_minutes = min(elapsed, 90)
 
-                # Fetch live match data (API-Football primary, SofaScore fallback)
+                # Fetch live match data (BSD primary, fallbacks as needed)
                 match_status = self._fetch_live_state()
 
                 # Stop immediately if match is over (FT, ET, P, postponed, etc.)
@@ -1324,7 +1025,7 @@ class GitHubBot:
         if stuck_duration > 180:
             if self._livescore_slug and stuck_duration < 600:
                 logger.warning(
-                    "API-Football clock stuck for %.0fs at %d'. Trying SportScore fallback...",
+                    "Live clock stuck for %.0fs at %d'. Trying SportScore fallback...",
                     stuck_duration, current_clock,
                 )
                 return True
@@ -1470,19 +1171,18 @@ class GitHubBot:
             self._consecutive_same_outcome = 0
 
         # RISK GUARD: never trade on stale live data.
-        # If the data source (API-Football) is dead/stuck and the fallback
-        # (SportScore) has no match, the clock won't advance — trading on a
-        # frozen GameState produces garbage predictions. Halt instead.
+        # If every source's clock is frozen during live play, the GameState
+        # is garbage — trading on it produces garbage predictions. Halt.
         if self._clock_stuck_since and self._prev_live_state and self._prev_live_state.is_live:
             stuck_min = (time.time() - self._clock_stuck_since) / 60
-            api_dead = self.api_football and self.api_football.remaining <= 15
-            no_fallback = not self._livescore_slug
-            if stuck_min >= 5 and (api_dead or no_fallback):
+            if stuck_min >= 5:
                 logger.warning(
-                    "RISK GUARD: clock stuck at %.0f' for %.0f min with no working fallback "
-                    "(API remaining=%d, LS slug=%s) — halting new trades",
+                    "RISK GUARD: clock stuck at %.0f' for %.0f min with no source advancing "
+                    "(BSD=%s, FD=%s, ESPN=%s, SS=%s) — halting new trades",
                     self._prev_live_state.clock_minutes, stuck_min,
-                    self.api_football.remaining if self.api_football else -1,
+                    self._bsd_event_id or "none",
+                    self._fd_match_id or "none",
+                    self._espn_event_id or "none",
                     self._livescore_slug or "none",
                 )
                 return
@@ -1705,16 +1405,14 @@ class GitHubBot:
         source = "BSD" if self._bsd_event_id else (
             "football-data.org" if self._fd_match_id else (
             "ESPN" if self._espn_event_id else (
-            "API-Football" if self._api_football_fixture_id else (
-            "SportScore" if self._livescore_slug else "none"))))
-        logger.info("  Markets: %s | Live data: %s | Source: %s (BSD=%s, FD=%s, ESPN=%s, API=%s, SS=%s)",
+            "SportScore" if self._livescore_slug else "none")))
+        logger.info("  Markets: %s | Live data: %s | Source: %s (BSD=%s, FD=%s, ESPN=%s, SS=%s)",
                      "ready" if self._markets_ready else "pending",
                      "yes" if self._live_data_received else "no",
                      source,
                      self._bsd_event_id or "none",
                      self._fd_match_id or "none",
                      self._espn_event_id or "none",
-                     self._api_football_fixture_id or "none",
                      self._livescore_slug or "none")
         for t, m in self._markets.items():
             logger.info("    %s: yes=$%.2f no=$%.2f vol=%d",

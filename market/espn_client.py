@@ -16,7 +16,7 @@ from typing import Dict, List, Optional
 
 import requests
 
-from market.api_football_client import LiveMatchState, APIFootballEvent
+from market.live_types import LiveMatchState, MatchEvent
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ ESPN_NAME_TO_CODE = {
     "europa league": "uefa.europa",
 }
 
-# Status mapping: ESPN status -> API-Football status
+# Status mapping: ESPN status -> shared status codes
 STATUS_MAP = {
     "STATUS_SCHEDULED": "NS",
     "STATUS_IN_PROGRESS": "1H",  # Will be refined by period
@@ -183,7 +183,7 @@ class ESPNClient:
     def get_live_match(self, event_id: str) -> Optional[LiveMatchState]:
         """Fetch live match state by ESPN event ID.
 
-        Returns LiveMatchState in the same format as API-Football client.
+        Returns LiveMatchState in the shared live-types format.
         """
         url = f"{BASE_URL}/scoreboard"
         data = self._get(url)
@@ -319,7 +319,7 @@ class ESPNClient:
                         minute = float(m.group(1))
 
                 if "goal" in dtype.lower() or "score" in dtype.lower():
-                    events.append(APIFootballEvent(
+                    events.append(MatchEvent(
                         event_type="Goal",
                         detail=dtype,
                         team_id=0,
@@ -328,7 +328,7 @@ class ESPNClient:
                         minute=minute,
                     ))
                 elif "yellow" in dtype.lower():
-                    events.append(APIFootballEvent(
+                    events.append(MatchEvent(
                         event_type="Card",
                         detail="Yellow Card",
                         team_id=0,
@@ -341,7 +341,7 @@ class ESPNClient:
                     else:
                         away_yellow += 1
                 elif "red" in dtype.lower():
-                    events.append(APIFootballEvent(
+                    events.append(MatchEvent(
                         event_type="Card",
                         detail="Red Card",
                         team_id=0,

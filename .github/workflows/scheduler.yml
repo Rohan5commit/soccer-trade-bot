@@ -42,8 +42,6 @@ jobs:
         id: discover
         env:
           KALSHI_API_KEY: ${{ secrets.KALSHI_API_KEY }}
-          API_FOOTBALL_API_KEY: ${{ secrets.API_FOOTBALL_API_KEY }}
-          API_FOOTBALL_API_KEY_2: ${{ secrets.API_FOOTBALL_API_KEY_2 }}
           BSD_API_KEY: ${{ secrets.BSD_API_KEY }}
         run: |
           set -o pipefail -e

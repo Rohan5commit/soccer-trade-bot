@@ -40,10 +40,6 @@ class Config:
     kalshi_api_key: str = ""
     kalshi_private_key: str = ""
 
-    # --- API-Football (live match data) ---
-    api_football_key: str = ""
-    api_football_fixture_id: int = 0  # 0 = auto-discover
-
     # --- Trading parameters ---
     min_bet_usd: float = 5.0
     max_bet_pct: float = 0.05
@@ -125,8 +121,6 @@ class Config:
             polymarket_private_key=os.environ.get("POLYMARKET_PRIVATE_KEY", ""),
             kalshi_api_key=os.environ.get("KALSHI_API_KEY", ""),
             kalshi_private_key=os.environ.get("KALSHI_PRIVATE_KEY", "").replace("\\n", "\n"),
-            api_football_key=os.environ.get("API_FOOTBALL_API_KEY", os.environ.get("API_FOOTBALL_KEY", "")),
-            api_football_fixture_id=_int("API_FOOTBALL_FIXTURE_ID", 0),
             min_bet_usd=_float("MIN_BET_USD", 5.0),
             max_bet_pct=_float("MAX_BET_PCT", 0.05),
             kelly_fraction=_float("KELLY_FRACTION", 0.25),
