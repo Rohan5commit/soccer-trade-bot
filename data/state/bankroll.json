@@ -1,15 +1,9 @@
 {
   "bankroll": 388.85,
   "start_of_day": 388.85,
-  "session_start": "2026-09-26T21:30:00.254780+05:30",
+  "session_start": "2026-09-27T02:30:00.021721+05:30",
   "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Henan vs Chongqing Tonglianglong FC",
-      "trades": 66,
-      "pnl": 895.52,
-      "time": "2026-08-29T19:23:30.393583+05:30"
-    },
     {
       "match": "Utrecht vs Eindhoven",
       "trades": 52,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-09-26T21:30:00.254888+05:30"
+    },
+    {
+      "match": "New York RB vs Saint Louis",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-09-27T02:30:00.021840+05:30"
     }
   ],
-  "last_updated": "2026-09-26T21:30:00.254791+05:30",
-  "last_match": "Estudiantes vs San Miguel"
+  "last_updated": "2026-09-27T02:30:00.021733+05:30",
+  "last_match": "New York RB vs Saint Louis"
 }
