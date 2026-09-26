@@ -1,15 +1,9 @@
 {
   "bankroll": 388.85,
   "start_of_day": 388.85,
-  "session_start": "2026-09-26T08:30:00.980712+05:30",
+  "session_start": "2026-09-26T21:30:00.254780+05:30",
   "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Milan vs Venezia",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-08-28T21:30:00.309131+05:30"
-    },
     {
       "match": "Henan vs Chongqing Tonglianglong FC",
       "trades": 66,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-09-26T08:30:00.980835+05:30"
+    },
+    {
+      "match": "Estudiantes vs San Miguel",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-09-26T21:30:00.254888+05:30"
     }
   ],
-  "last_updated": "2026-09-26T08:30:00.980727+05:30",
-  "last_match": "Atlante vs Monterrey"
+  "last_updated": "2026-09-26T21:30:00.254791+05:30",
+  "last_match": "Estudiantes vs San Miguel"
 }
