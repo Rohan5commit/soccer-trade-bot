@@ -1148,16 +1148,6 @@ class GitHubBot:
                          self._prev_live_state.clock_minutes)
             return
 
-        # Signal stability gate: require the same best outcome for ≥3
-        # consecutive predictions before placing any trade. Filters one-off
-        # model flips that would otherwise trigger a premature entry.
-        if self._consecutive_same_outcome < 3:
-            logger.debug(
-                "Unstable signal (consecutive=%d < 3) — skipping prediction",
-                self._consecutive_same_outcome,
-            )
-            return
-
         # Game-state change: a goal kills the old thesis — log it and keep
         # evaluating. Budget gate (not a halt) decides what still fits.
         score_now = (self._game_state.home_score, self._game_state.away_score)
@@ -1169,6 +1159,8 @@ class GitHubBot:
             self._last_score = score_now
             # Goal changes the thesis — require fresh stability confirmation
             self._consecutive_same_outcome = 0
+        elif self._last_score is None:
+            self._last_score = score_now
 
         # RISK GUARD: never trade on stale live data.
         # If every source's clock is frozen during live play, the GameState
@@ -1242,8 +1234,22 @@ class GitHubBot:
             return
 
         best = analysis.best_edge
-        if best:
-            self._place_paper_trade(best, model_probs)
+        if not best:
+            return
+
+        # Stability gate (trade-time only): predictions always run so
+        # _clamp_probabilities can count consecutive agreement, but only
+        # place a trade once the same outcome has held for ≥3 predictions.
+        # Filters one-off model flips that would otherwise trigger a
+        # premature entry. Reset to 0 on every goal (above).
+        if self._consecutive_same_outcome < 3:
+            logger.info(
+                "Stability gate: consecutive=%d < 3 — prediction logged, trade held (%s)",
+                self._consecutive_same_outcome, best.outcome,
+            )
+            return
+
+        self._place_paper_trade(best, model_probs)
 
     def _fee_per_contract(self, market_asks: dict) -> float:
         """Compute average fee per contract across outcomes with asks."""
