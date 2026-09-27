@@ -1,15 +1,9 @@
 {
   "bankroll": 388.85,
   "start_of_day": 388.85,
-  "session_start": "2026-09-27T02:30:00.021721+05:30",
+  "session_start": "2026-09-27T17:30:00.428442+05:30",
   "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Utrecht vs Eindhoven",
-      "trades": 52,
-      "pnl": -1994.31,
-      "time": "2026-08-30T17:40:39.251616+05:30"
-    },
     {
       "match": "BANKROLL RESET after -1994 loss (Utrecht)",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-09-27T02:30:00.021840+05:30"
+    },
+    {
+      "match": "Gangwon vs Incheon Utd",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-09-27T17:30:00.428560+05:30"
     }
   ],
-  "last_updated": "2026-09-27T02:30:00.021733+05:30",
-  "last_match": "New York RB vs Saint Louis"
+  "last_updated": "2026-09-27T17:30:00.428455+05:30",
+  "last_match": "Gangwon vs Incheon Utd"
 }
