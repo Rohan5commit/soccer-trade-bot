@@ -1,15 +1,9 @@
 {
   "bankroll": 388.85,
   "start_of_day": 388.85,
-  "session_start": "2026-09-27T17:30:00.428442+05:30",
+  "session_start": "2026-09-27T21:30:00.950300+05:30",
   "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "BANKROLL RESET after -1994 loss (Utrecht)",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-08-31T18:59:13.565068+05:30"
-    },
     {
       "match": "Lecce vs Roma",
       "trades": 2,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-09-27T17:30:00.428560+05:30"
+    },
+    {
+      "match": "Los Andes vs Moron",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-09-27T21:30:00.950424+05:30"
     }
   ],
-  "last_updated": "2026-09-27T17:30:00.428455+05:30",
-  "last_match": "Gangwon vs Incheon Utd"
+  "last_updated": "2026-09-27T21:30:00.950315+05:30",
+  "last_match": "Los Andes vs Moron"
 }
