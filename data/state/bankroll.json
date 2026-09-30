@@ -1,15 +1,9 @@
 {
   "bankroll": 388.85,
   "start_of_day": 388.85,
-  "session_start": "2026-09-27T21:30:00.950300+05:30",
+  "session_start": "2026-10-01T02:30:00.721072+05:30",
   "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Lecce vs Roma",
-      "trades": 2,
-      "pnl": -54.24,
-      "time": "2026-09-01T00:00:00.749108+05:30"
-    },
     {
       "match": "Zurich vs Young Boys",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-09-27T21:30:00.950424+05:30"
+    },
+    {
+      "match": "New York RB vs Saint Louis",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-10-01T02:30:00.721181+05:30"
     }
   ],
-  "last_updated": "2026-09-27T21:30:00.950315+05:30",
-  "last_match": "Los Andes vs Moron"
+  "last_updated": "2026-10-01T02:30:00.721086+05:30",
+  "last_match": "New York RB vs Saint Louis"
 }
