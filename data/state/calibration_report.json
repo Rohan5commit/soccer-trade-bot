@@ -1,26 +1,26 @@
 {
-  "match": "Sao Paulo vs Santos",
-  "time": "2026-10-03T06:30:01.131024+05:30",
+  "match": "Atletico Mineiro vs Bragantino",
+  "time": "2026-10-04T05:00:00.156795+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-03T04:56:16.724297+05:30",
-      "ticker": "KXBRASILEIROGAME-26OCT02SPASAN-SPA",
+      "time": "2026-10-04T03:21:23.859941+05:30",
+      "ticker": "KXBRASILEIROGAME-26OCT03ATLRBB-ATL",
       "outcome": "home",
-      "fill_price": 0.445,
-      "model_prob": 1.0,
-      "market_ask": 0.445,
-      "net_edge": 0.5349999999999999,
-      "count": 45,
-      "fee": 0.9,
-      "clock": 22.0,
-      "score": "0-0"
+      "fill_price": 0.715,
+      "model_prob": 0.8,
+      "market_ask": 0.715,
+      "net_edge": 0.06500000000000007,
+      "count": 26,
+      "fee": 0.52,
+      "clock": 20.0,
+      "score": "1-0"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.535
+    "avg_net_edge": 0.065
   }
 }

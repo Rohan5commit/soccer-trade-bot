@@ -1,15 +1,9 @@
 {
-  "bankroll": 380.4,
+  "bankroll": 387.29,
   "start_of_day": 380.4,
-  "session_start": "2026-10-03T21:30:00.658399+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-10-04T05:00:00.155757+05:30",
+  "total_pnl": 6.89,
   "sessions": [
-    {
-      "match": "CR Brasil vs America FC",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-09-04T21:30:01.419160+05:30"
-    },
     {
       "match": "Wuhan Three Towns FC vs Qingdao West Coast FC",
       "trades": 2,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-03T21:30:00.658496+05:30"
+    },
+    {
+      "match": "Atletico Mineiro vs Bragantino",
+      "trades": 1,
+      "pnl": 6.89,
+      "time": "2026-10-04T05:00:00.155856+05:30"
     }
   ],
-  "last_updated": "2026-10-03T21:30:00.658409+05:30",
-  "last_match": "Temperley vs Jujuy"
+  "last_updated": "2026-10-04T05:00:00.155769+05:30",
+  "last_match": "Atletico Mineiro vs Bragantino"
 }
