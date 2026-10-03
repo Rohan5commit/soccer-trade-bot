@@ -1,15 +1,9 @@
 {
   "bankroll": 380.4,
-  "start_of_day": 401.33,
-  "session_start": "2026-10-03T06:30:01.130142+05:30",
-  "total_pnl": -20.93,
+  "start_of_day": 380.4,
+  "session_start": "2026-10-03T21:30:00.658399+05:30",
+  "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Nautico vs Botafogo",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-09-03T21:30:00.046813+05:30"
-    },
     {
       "match": "CR Brasil vs America FC",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -20.93,
       "time": "2026-10-03T06:30:01.130232+05:30"
+    },
+    {
+      "match": "Temperley vs Jujuy",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-10-03T21:30:00.658496+05:30"
     }
   ],
-  "last_updated": "2026-10-03T06:30:01.130153+05:30",
-  "last_match": "Sao Paulo vs Santos"
+  "last_updated": "2026-10-03T21:30:00.658409+05:30",
+  "last_match": "Temperley vs Jujuy"
 }
