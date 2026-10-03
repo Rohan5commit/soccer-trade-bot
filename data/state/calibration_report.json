@@ -1,19 +1,19 @@
 {
-  "match": "Seattle vs Kansas City",
-  "time": "2026-10-02T09:00:00.379850+05:30",
+  "match": "Sao Paulo vs Santos",
+  "time": "2026-10-03T06:30:01.131024+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-02T07:34:02.623976+05:30",
-      "ticker": "KXMLSGAME-26OCT01SEASKC-SEA",
+      "time": "2026-10-03T04:56:16.724297+05:30",
+      "ticker": "KXBRASILEIROGAME-26OCT02SPASAN-SPA",
       "outcome": "home",
-      "fill_price": 0.59,
+      "fill_price": 0.445,
       "model_prob": 1.0,
-      "market_ask": 0.59,
-      "net_edge": 0.39,
-      "count": 32,
-      "fee": 0.64,
+      "market_ask": 0.445,
+      "net_edge": 0.5349999999999999,
+      "count": 45,
+      "fee": 0.9,
       "clock": 22.0,
       "score": "0-0"
     }
@@ -21,6 +21,6 @@
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.39
+    "avg_net_edge": 0.535
   }
 }

@@ -1,15 +1,9 @@
 {
-  "bankroll": 401.33,
-  "start_of_day": 388.85,
-  "session_start": "2026-10-02T09:00:00.378946+05:30",
-  "total_pnl": 12.48,
+  "bankroll": 380.4,
+  "start_of_day": 401.33,
+  "session_start": "2026-10-03T06:30:01.130142+05:30",
+  "total_pnl": -20.93,
   "sessions": [
-    {
-      "match": "Celtic vs Aberdeen",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-09-02T21:30:00.729578+05:30"
-    },
     {
       "match": "Nautico vs Botafogo",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 12.48,
       "time": "2026-10-02T09:00:00.379055+05:30"
+    },
+    {
+      "match": "Sao Paulo vs Santos",
+      "trades": 1,
+      "pnl": -20.93,
+      "time": "2026-10-03T06:30:01.130232+05:30"
     }
   ],
-  "last_updated": "2026-10-02T09:00:00.378957+05:30",
-  "last_match": "Seattle vs Kansas City"
+  "last_updated": "2026-10-03T06:30:01.130153+05:30",
+  "last_match": "Sao Paulo vs Santos"
 }
