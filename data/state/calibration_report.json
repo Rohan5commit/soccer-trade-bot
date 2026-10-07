@@ -1,26 +1,26 @@
 {
-  "match": "Atletico Mineiro vs Bragantino",
-  "time": "2026-10-04T05:00:00.156795+05:30",
+  "match": "Chicago Fire vs Vancouver",
+  "time": "2026-10-07T08:00:00.520780+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-04T03:21:23.859941+05:30",
-      "ticker": "KXBRASILEIROGAME-26OCT03ATLRBB-ATL",
+      "time": "2026-10-07T06:33:25.760505+05:30",
+      "ticker": "KXMLSGAME-26OCT06CHIVAN-CHI",
       "outcome": "home",
-      "fill_price": 0.715,
+      "fill_price": 0.54,
       "model_prob": 0.8,
-      "market_ask": 0.715,
-      "net_edge": 0.06500000000000007,
-      "count": 26,
-      "fee": 0.52,
-      "clock": 20.0,
+      "market_ask": 0.54,
+      "net_edge": 0.24000000000000002,
+      "count": 35,
+      "fee": 0.7000000000000001,
+      "clock": 21.0,
       "score": "1-0"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.065
+    "avg_net_edge": 0.24
   }
 }
