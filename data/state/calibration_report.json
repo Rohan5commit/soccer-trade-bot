@@ -1,26 +1,26 @@
 {
-  "match": "Chicago Fire vs Vancouver",
-  "time": "2026-10-07T08:00:00.520780+05:30",
+  "match": "Remo vs Gremio",
+  "time": "2026-10-08T06:00:00.039606+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-07T06:33:25.760505+05:30",
-      "ticker": "KXMLSGAME-26OCT06CHIVAN-CHI",
+      "time": "2026-10-08T04:23:04.932750+05:30",
+      "ticker": "KXBRASILEIROGAME-26OCT07CRGPA-CR",
       "outcome": "home",
-      "fill_price": 0.54,
-      "model_prob": 0.8,
-      "market_ask": 0.54,
-      "net_edge": 0.24000000000000002,
-      "count": 35,
-      "fee": 0.7000000000000001,
+      "fill_price": 0.44,
+      "model_prob": 1.0,
+      "market_ask": 0.44,
+      "net_edge": 0.54,
+      "count": 45,
+      "fee": 0.9,
       "clock": 21.0,
-      "score": "1-0"
+      "score": "0-0"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.24
+    "avg_net_edge": 0.54
   }
 }

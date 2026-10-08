@@ -1,15 +1,9 @@
 {
-  "bankroll": 402.69,
-  "start_of_day": 387.29,
-  "session_start": "2026-10-07T08:00:00.519797+05:30",
-  "total_pnl": 15.4,
+  "bankroll": 381.99,
+  "start_of_day": 402.69,
+  "session_start": "2026-10-08T06:00:00.038426+05:30",
+  "total_pnl": -20.7,
   "sessions": [
-    {
-      "match": "Udinese vs Lazio",
-      "trades": 2,
-      "pnl": -53.72,
-      "time": "2026-09-08T02:13:35.665123+05:30"
-    },
     {
       "match": "AEK Athens vs LASK",
       "trades": 2,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 15.4,
       "time": "2026-10-07T08:00:00.519920+05:30"
+    },
+    {
+      "match": "Remo vs Gremio",
+      "trades": 1,
+      "pnl": -20.7,
+      "time": "2026-10-08T06:00:00.038536+05:30"
     }
   ],
-  "last_updated": "2026-10-07T08:00:00.519812+05:30",
-  "last_match": "Chicago Fire vs Vancouver"
+  "last_updated": "2026-10-08T06:00:00.038441+05:30",
+  "last_match": "Remo vs Gremio"
 }
