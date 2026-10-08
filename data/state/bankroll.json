@@ -1,15 +1,9 @@
 {
   "bankroll": 381.99,
-  "start_of_day": 402.69,
-  "session_start": "2026-10-08T06:00:00.038426+05:30",
-  "total_pnl": -20.7,
+  "start_of_day": 381.99,
+  "session_start": "2026-10-08T21:30:00.079554+05:30",
+  "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "AEK Athens vs LASK",
-      "trades": 2,
-      "pnl": -41.91,
-      "time": "2026-09-09T00:06:45.925765+05:30"
-    },
     {
       "match": "Barcelona vs Feyenoord",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -20.7,
       "time": "2026-10-08T06:00:00.038536+05:30"
+    },
+    {
+      "match": "Paranaense vs Atletico Mineiro",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-10-08T21:30:00.079677+05:30"
     }
   ],
-  "last_updated": "2026-10-08T06:00:00.038441+05:30",
-  "last_match": "Remo vs Gremio"
+  "last_updated": "2026-10-08T21:30:00.079568+05:30",
+  "last_match": "Paranaense vs Atletico Mineiro"
 }
