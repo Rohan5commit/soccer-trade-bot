@@ -1,15 +1,9 @@
 {
-  "bankroll": 361.29,
-  "start_of_day": 381.99,
-  "session_start": "2026-10-09T06:00:00.076059+05:30",
-  "total_pnl": -20.7,
+  "bankroll": 377.74,
+  "start_of_day": 361.29,
+  "session_start": "2026-10-09T14:58:23.312334+05:30",
+  "total_pnl": 16.45,
   "sessions": [
-    {
-      "match": "Fenerbahce vs Roma",
-      "trades": 2,
-      "pnl": 105.76,
-      "time": "2026-09-11T00:07:30.786740+05:30"
-    },
     {
       "match": "Besiktas vs Erzurum",
       "trades": 2,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -20.7,
       "time": "2026-10-09T06:00:00.076148+05:30"
+    },
+    {
+      "match": "Gangwon vs Bucheon",
+      "trades": 1,
+      "pnl": 16.45,
+      "time": "2026-10-09T14:58:23.312449+05:30"
     }
   ],
-  "last_updated": "2026-10-09T06:00:00.076071+05:30",
-  "last_match": "Santos vs Flamengo"
+  "last_updated": "2026-10-09T14:58:23.312345+05:30",
+  "last_match": "Gangwon vs Bucheon"
 }

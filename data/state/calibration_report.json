@@ -1,26 +1,26 @@
 {
-  "match": "Santos vs Flamengo",
-  "time": "2026-10-09T06:00:00.076900+05:30",
+  "match": "Gangwon vs Bucheon",
+  "time": "2026-10-09T14:58:23.313255+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-09T04:24:23.360429+05:30",
-      "ticker": "KXBRASILEIROGAME-26OCT08SANFLA-SAN",
+      "time": "2026-10-09T13:24:24.656437+05:30",
+      "ticker": "KXKLEAGUEGAME-26OCT09GAWBUC-GAW",
       "outcome": "home",
-      "fill_price": 0.21,
+      "fill_price": 0.51,
       "model_prob": 1.0,
-      "market_ask": 0.21,
-      "net_edge": 0.77,
-      "count": 90,
-      "fee": 1.8,
-      "clock": 23.0,
+      "market_ask": 0.51,
+      "net_edge": 0.47,
+      "count": 35,
+      "fee": 0.7000000000000001,
+      "clock": 22.0,
       "score": "0-0"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.77
+    "avg_net_edge": 0.47
   }
 }
