@@ -1,15 +1,9 @@
 {
-  "bankroll": 381.99,
+  "bankroll": 361.29,
   "start_of_day": 381.99,
-  "session_start": "2026-10-08T21:30:00.079554+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-10-09T06:00:00.076059+05:30",
+  "total_pnl": -20.7,
   "sessions": [
-    {
-      "match": "Barcelona vs Feyenoord",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-09-10T00:10:09.734908+05:30"
-    },
     {
       "match": "Fenerbahce vs Roma",
       "trades": 2,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-08T21:30:00.079677+05:30"
+    },
+    {
+      "match": "Santos vs Flamengo",
+      "trades": 1,
+      "pnl": -20.7,
+      "time": "2026-10-09T06:00:00.076148+05:30"
     }
   ],
-  "last_updated": "2026-10-08T21:30:00.079568+05:30",
-  "last_match": "Paranaense vs Atletico Mineiro"
+  "last_updated": "2026-10-09T06:00:00.076071+05:30",
+  "last_match": "Santos vs Flamengo"
 }

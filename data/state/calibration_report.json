@@ -1,26 +1,26 @@
 {
-  "match": "Remo vs Gremio",
-  "time": "2026-10-08T06:00:00.039606+05:30",
+  "match": "Santos vs Flamengo",
+  "time": "2026-10-09T06:00:00.076900+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-08T04:23:04.932750+05:30",
-      "ticker": "KXBRASILEIROGAME-26OCT07CRGPA-CR",
+      "time": "2026-10-09T04:24:23.360429+05:30",
+      "ticker": "KXBRASILEIROGAME-26OCT08SANFLA-SAN",
       "outcome": "home",
-      "fill_price": 0.44,
+      "fill_price": 0.21,
       "model_prob": 1.0,
-      "market_ask": 0.44,
-      "net_edge": 0.54,
-      "count": 45,
-      "fee": 0.9,
-      "clock": 21.0,
+      "market_ask": 0.21,
+      "net_edge": 0.77,
+      "count": 90,
+      "fee": 1.8,
+      "clock": 23.0,
       "score": "0-0"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.54
+    "avg_net_edge": 0.77
   }
 }
