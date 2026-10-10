@@ -1,15 +1,9 @@
 {
-  "bankroll": 377.74,
+  "bankroll": 357.68,
   "start_of_day": 377.74,
-  "session_start": "2026-10-09T21:17:31.605216+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-10-10T17:57:38.733249+05:30",
+  "total_pnl": -20.06,
   "sessions": [
-    {
-      "match": "Bucheon vs Jeju SK",
-      "trades": 2,
-      "pnl": -47.72,
-      "time": "2026-09-12T14:56:48.458514+05:30"
-    },
     {
       "match": "Gimcheon Sangmu vs Gangwon",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-09T21:17:31.605299+05:30"
+    },
+    {
+      "match": "Genclerbirligi vs Amed",
+      "trades": 1,
+      "pnl": -20.06,
+      "time": "2026-10-10T17:57:38.733345+05:30"
     }
   ],
-  "last_updated": "2026-10-09T21:17:31.605225+05:30",
-  "last_match": "Al-Kholood vs Al Qadsiah"
+  "last_updated": "2026-10-10T17:57:38.733261+05:30",
+  "last_match": "Genclerbirligi vs Amed"
 }
