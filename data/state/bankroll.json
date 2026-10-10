@@ -1,15 +1,9 @@
 {
   "bankroll": 357.68,
-  "start_of_day": 377.74,
-  "session_start": "2026-10-10T17:57:38.733249+05:30",
-  "total_pnl": -20.06,
+  "start_of_day": 357.68,
+  "session_start": "2026-10-10T23:23:42.952381+05:30",
+  "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Gimcheon Sangmu vs Gangwon",
-      "trades": 1,
-      "pnl": -21.45,
-      "time": "2026-09-13T15:00:00.765419+05:30"
-    },
     {
       "match": "Torino vs Roma",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -20.06,
       "time": "2026-10-10T17:57:38.733345+05:30"
+    },
+    {
+      "match": "Rizespor vs Fenerbahce",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-10-10T23:23:42.952482+05:30"
     }
   ],
-  "last_updated": "2026-10-10T17:57:38.733261+05:30",
-  "last_match": "Genclerbirligi vs Amed"
+  "last_updated": "2026-10-10T23:23:42.952393+05:30",
+  "last_match": "Rizespor vs Fenerbahce"
 }
