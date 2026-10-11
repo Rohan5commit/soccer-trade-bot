@@ -1,15 +1,9 @@
 {
   "bankroll": 369.68,
-  "start_of_day": 357.68,
-  "session_start": "2026-10-11T17:26:56.155641+05:30",
-  "total_pnl": 12.0,
+  "start_of_day": 369.68,
+  "session_start": "2026-10-11T21:25:00.631966+05:30",
+  "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Ajax vs Willem II",
-      "trades": 1,
-      "pnl": -20.57,
-      "time": "2026-09-16T01:21:00.544184+05:30"
-    },
     {
       "match": "Ararat-Armenia vs Sparta Prague",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 12.0,
       "time": "2026-10-11T17:26:56.155728+05:30"
+    },
+    {
+      "match": "Abha vs Al-Faisaly",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-10-11T21:25:00.632039+05:30"
     }
   ],
-  "last_updated": "2026-10-11T17:26:56.155650+05:30",
-  "last_match": "Qingdao West Coast FC vs Dalian Yingbo FC"
+  "last_updated": "2026-10-11T21:25:00.631976+05:30",
+  "last_match": "Abha vs Al-Faisaly"
 }
