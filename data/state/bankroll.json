@@ -1,15 +1,9 @@
 {
-  "bankroll": 357.68,
+  "bankroll": 369.68,
   "start_of_day": 357.68,
-  "session_start": "2026-10-10T23:23:42.952381+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-10-11T17:26:56.155641+05:30",
+  "total_pnl": 12.0,
   "sessions": [
-    {
-      "match": "Torino vs Roma",
-      "trades": 1,
-      "pnl": -21.28,
-      "time": "2026-09-14T23:57:53.891256+05:30"
-    },
     {
       "match": "Ajax vs Willem II",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-10T23:23:42.952482+05:30"
+    },
+    {
+      "match": "Qingdao West Coast FC vs Dalian Yingbo FC",
+      "trades": 1,
+      "pnl": 12.0,
+      "time": "2026-10-11T17:26:56.155728+05:30"
     }
   ],
-  "last_updated": "2026-10-10T23:23:42.952393+05:30",
-  "last_match": "Rizespor vs Fenerbahce"
+  "last_updated": "2026-10-11T17:26:56.155650+05:30",
+  "last_match": "Qingdao West Coast FC vs Dalian Yingbo FC"
 }
