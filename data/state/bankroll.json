@@ -1,15 +1,9 @@
 {
-  "bankroll": 369.68,
+  "bankroll": 401.3,
   "start_of_day": 369.68,
-  "session_start": "2026-10-11T21:25:00.631966+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-10-13T02:12:45.094838+05:30",
+  "total_pnl": 31.62,
   "sessions": [
-    {
-      "match": "Ararat-Armenia vs Sparta Prague",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-09-16T21:30:00.039751+05:30"
-    },
     {
       "match": "Besiktas vs Marseille",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-11T21:25:00.632039+05:30"
+    },
+    {
+      "match": "Torino vs Udinese",
+      "trades": 1,
+      "pnl": 31.62,
+      "time": "2026-10-13T02:12:45.094951+05:30"
     }
   ],
-  "last_updated": "2026-10-11T21:25:00.631976+05:30",
-  "last_match": "Abha vs Al-Faisaly"
+  "last_updated": "2026-10-13T02:12:45.094849+05:30",
+  "last_match": "Torino vs Udinese"
 }

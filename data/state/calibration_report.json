@@ -1,26 +1,26 @@
 {
-  "match": "Qingdao West Coast FC vs Dalian Yingbo FC",
-  "time": "2026-10-11T17:26:56.156409+05:30",
+  "match": "Torino vs Udinese",
+  "time": "2026-10-13T02:12:45.095717+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-11T15:51:41.474566+05:30",
-      "ticker": "KXCHNSLGAME-26OCT11QWCDAL-DAL",
-      "outcome": "away",
-      "fill_price": 0.58,
-      "model_prob": 0.8,
-      "market_ask": 0.58,
-      "net_edge": 0.2000000000000001,
-      "count": 30,
-      "fee": 0.6,
-      "clock": 21.0,
-      "score": "0-1"
+      "time": "2026-10-13T00:40:25.853109+05:30",
+      "ticker": "KXSERIEAGAME-26OCT12TORUDI-TOR",
+      "outcome": "home",
+      "fill_price": 0.36,
+      "model_prob": 1.0,
+      "market_ask": 0.36,
+      "net_edge": 0.62,
+      "count": 51,
+      "fee": 1.02,
+      "clock": 22.0,
+      "score": "0-0"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.2
+    "avg_net_edge": 0.62
   }
 }
