@@ -1,15 +1,9 @@
 {
   "bankroll": 401.3,
   "start_of_day": 401.3,
-  "session_start": "2026-10-13T07:30:00.137055+05:30",
+  "session_start": "2026-10-13T21:30:00.719257+05:30",
   "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Zhejiang Prof. vs Wuhan Three Towns FC",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-09-18T19:03:27.898807+05:30"
-    },
     {
       "match": "Bucheon vs Gimcheon Sangmu",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-13T07:30:00.137137+05:30"
+    },
+    {
+      "match": "Sabah Masazir vs Slavia Prague",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-10-13T21:30:00.719360+05:30"
     }
   ],
-  "last_updated": "2026-10-13T07:30:00.137066+05:30",
-  "last_match": "Bragantino vs Cruzeiro"
+  "last_updated": "2026-10-13T21:30:00.719269+05:30",
+  "last_match": "Sabah Masazir vs Slavia Prague"
 }
