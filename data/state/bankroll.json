@@ -1,15 +1,9 @@
 {
   "bankroll": 401.3,
-  "start_of_day": 369.68,
-  "session_start": "2026-10-13T02:12:45.094838+05:30",
-  "total_pnl": 31.62,
+  "start_of_day": 401.3,
+  "session_start": "2026-10-13T07:30:00.137055+05:30",
+  "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Besiktas vs Marseille",
-      "trades": 1,
-      "pnl": 6.48,
-      "time": "2026-09-18T02:28:28.914540+05:30"
-    },
     {
       "match": "Zhejiang Prof. vs Wuhan Three Towns FC",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 31.62,
       "time": "2026-10-13T02:12:45.094951+05:30"
+    },
+    {
+      "match": "Bragantino vs Cruzeiro",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-10-13T07:30:00.137137+05:30"
     }
   ],
-  "last_updated": "2026-10-13T02:12:45.094849+05:30",
-  "last_match": "Torino vs Udinese"
+  "last_updated": "2026-10-13T07:30:00.137066+05:30",
+  "last_match": "Bragantino vs Cruzeiro"
 }
