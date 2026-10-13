@@ -1,15 +1,9 @@
 {
-  "bankroll": 401.3,
+  "bankroll": 407.02,
   "start_of_day": 401.3,
-  "session_start": "2026-10-13T21:30:00.719257+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-10-14T02:21:32.351597+05:30",
+  "total_pnl": 5.72,
   "sessions": [
-    {
-      "match": "Bucheon vs Gimcheon Sangmu",
-      "trades": 1,
-      "pnl": -18.87,
-      "time": "2026-09-19T14:55:08.635762+05:30"
-    },
     {
       "match": "Gangwon vs Jeju SK",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-13T21:30:00.719360+05:30"
+    },
+    {
+      "match": "Arsenal vs Lille",
+      "trades": 1,
+      "pnl": 5.72,
+      "time": "2026-10-14T02:21:32.351696+05:30"
     }
   ],
-  "last_updated": "2026-10-13T21:30:00.719269+05:30",
-  "last_match": "Sabah Masazir vs Slavia Prague"
+  "last_updated": "2026-10-14T02:21:32.351608+05:30",
+  "last_match": "Arsenal vs Lille"
 }
