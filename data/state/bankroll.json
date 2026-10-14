@@ -1,15 +1,9 @@
 {
   "bankroll": 407.02,
-  "start_of_day": 401.3,
-  "session_start": "2026-10-14T02:21:32.351597+05:30",
-  "total_pnl": 5.72,
+  "start_of_day": 407.02,
+  "session_start": "2026-10-14T21:30:00.649881+05:30",
+  "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Gangwon vs Jeju SK",
-      "trades": 1,
-      "pnl": 46.8,
-      "time": "2026-09-20T14:53:56.172915+05:30"
-    },
     {
       "match": "Asociacion Deportiva Tarma vs Cienciano",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 5.72,
       "time": "2026-10-14T02:21:32.351696+05:30"
+    },
+    {
+      "match": "Bodoe/Glimt vs Dortmund",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-10-14T21:30:00.649989+05:30"
     }
   ],
-  "last_updated": "2026-10-14T02:21:32.351608+05:30",
-  "last_match": "Arsenal vs Lille"
+  "last_updated": "2026-10-14T21:30:00.649893+05:30",
+  "last_match": "Bodoe/Glimt vs Dortmund"
 }
