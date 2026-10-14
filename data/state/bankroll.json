@@ -1,15 +1,9 @@
 {
   "bankroll": 407.02,
   "start_of_day": 407.02,
-  "session_start": "2026-10-14T21:30:00.649881+05:30",
+  "session_start": "2026-10-15T02:19:39.057158+05:30",
   "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Asociacion Deportiva Tarma vs Cienciano",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-09-23T21:30:00.243520+05:30"
-    },
     {
       "match": "Seattle vs Salt Lake",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-14T21:30:00.649989+05:30"
+    },
+    {
+      "match": "Aston Villa vs Fenerbahce",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-10-15T02:19:39.057271+05:30"
     }
   ],
-  "last_updated": "2026-10-14T21:30:00.649893+05:30",
-  "last_match": "Bodoe/Glimt vs Dortmund"
+  "last_updated": "2026-10-15T02:19:39.057172+05:30",
+  "last_match": "Aston Villa vs Fenerbahce"
 }
