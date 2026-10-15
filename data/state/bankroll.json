@@ -1,15 +1,9 @@
 {
-  "bankroll": 407.02,
+  "bankroll": 385.58,
   "start_of_day": 407.02,
-  "session_start": "2026-10-15T02:19:39.057158+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-10-15T21:10:00.567774+05:30",
+  "total_pnl": -21.44,
   "sessions": [
-    {
-      "match": "Seattle vs Salt Lake",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-09-24T09:00:00.761169+05:30"
-    },
     {
       "match": "Andorra vs Malta",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-15T02:19:39.057271+05:30"
+    },
+    {
+      "match": "Al-Faisaly vs Al-Kholood",
+      "trades": 1,
+      "pnl": -21.44,
+      "time": "2026-10-15T21:10:00.567889+05:30"
     }
   ],
-  "last_updated": "2026-10-15T02:19:39.057172+05:30",
-  "last_match": "Aston Villa vs Fenerbahce"
+  "last_updated": "2026-10-15T21:10:00.567785+05:30",
+  "last_match": "Al-Faisaly vs Al-Kholood"
 }
