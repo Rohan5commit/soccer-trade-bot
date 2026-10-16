@@ -1,15 +1,9 @@
 {
-  "bankroll": 385.58,
+  "bankroll": 365.49,
   "start_of_day": 385.58,
-  "session_start": "2026-10-16T02:20:38.092469+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-10-16T19:02:23.673182+05:30",
+  "total_pnl": -20.09,
   "sessions": [
-    {
-      "match": "Armenia vs Latvia",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-09-25T21:30:00.385594+05:30"
-    },
     {
       "match": "Atlante vs Monterrey",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-16T02:20:38.092558+05:30"
+    },
+    {
+      "match": "Henan vs Tianjin Jinmen Tiger",
+      "trades": 1,
+      "pnl": -20.09,
+      "time": "2026-10-16T19:02:23.673277+05:30"
     }
   ],
-  "last_updated": "2026-10-16T02:20:38.092480+05:30",
-  "last_match": "SL Benfica vs Celtic"
+  "last_updated": "2026-10-16T19:02:23.673191+05:30",
+  "last_match": "Henan vs Tianjin Jinmen Tiger"
 }
