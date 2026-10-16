@@ -1,19 +1,19 @@
 {
-  "match": "Henan vs Tianjin Jinmen Tiger",
-  "time": "2026-10-16T19:02:23.674056+05:30",
+  "match": "Corum vs Rizespor",
+  "time": "2026-10-17T00:22:41.642383+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-16T17:28:23.613676+05:30",
-      "ticker": "KXCHNSLGAME-26OCT16HENTTT-HEN",
+      "time": "2026-10-16T22:53:12.992377+05:30",
+      "ticker": "KXSUPERLIGGAME-26OCT16CORRIZ-COR",
       "outcome": "home",
-      "fill_price": 0.47,
+      "fill_price": 0.41,
       "model_prob": 1.0,
-      "market_ask": 0.47,
-      "net_edge": 0.51,
-      "count": 41,
-      "fee": 0.8200000000000001,
+      "market_ask": 0.41,
+      "net_edge": 0.5700000000000001,
+      "count": 44,
+      "fee": 0.88,
       "clock": 22.0,
       "score": "0-0"
     }
@@ -21,6 +21,6 @@
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.51
+    "avg_net_edge": 0.57
   }
 }
