@@ -1,15 +1,9 @@
 {
-  "bankroll": 369.92,
-  "start_of_day": 390.57,
-  "session_start": "2026-10-17T15:00:00.753210+05:30",
-  "total_pnl": -20.65,
+  "bankroll": 376.42,
+  "start_of_day": 369.92,
+  "session_start": "2026-10-17T21:24:19.795492+05:30",
+  "total_pnl": 6.5,
   "sessions": [
-    {
-      "match": "New York RB vs Saint Louis",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-09-27T02:30:00.021840+05:30"
-    },
     {
       "match": "Gangwon vs Incheon Utd",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -20.65,
       "time": "2026-10-17T15:00:00.753334+05:30"
+    },
+    {
+      "match": "Aberdeen vs St. Mirren",
+      "trades": 1,
+      "pnl": 6.5,
+      "time": "2026-10-17T21:24:19.795627+05:30"
     }
   ],
-  "last_updated": "2026-10-17T15:00:00.753221+05:30",
-  "last_match": "Ulsan HD vs Bucheon"
+  "last_updated": "2026-10-17T21:24:19.795504+05:30",
+  "last_match": "Aberdeen vs St. Mirren"
 }
