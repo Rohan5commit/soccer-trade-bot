@@ -1,15 +1,9 @@
 {
-  "bankroll": 390.57,
-  "start_of_day": 365.49,
-  "session_start": "2026-10-17T00:22:41.641403+05:30",
-  "total_pnl": 25.08,
+  "bankroll": 369.92,
+  "start_of_day": 390.57,
+  "session_start": "2026-10-17T15:00:00.753210+05:30",
+  "total_pnl": -20.65,
   "sessions": [
-    {
-      "match": "Estudiantes vs San Miguel",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-09-26T21:30:00.254888+05:30"
-    },
     {
       "match": "New York RB vs Saint Louis",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 25.08,
       "time": "2026-10-17T00:22:41.641520+05:30"
+    },
+    {
+      "match": "Ulsan HD vs Bucheon",
+      "trades": 1,
+      "pnl": -20.65,
+      "time": "2026-10-17T15:00:00.753334+05:30"
     }
   ],
-  "last_updated": "2026-10-17T00:22:41.641416+05:30",
-  "last_match": "Corum vs Rizespor"
+  "last_updated": "2026-10-17T15:00:00.753221+05:30",
+  "last_match": "Ulsan HD vs Bucheon"
 }

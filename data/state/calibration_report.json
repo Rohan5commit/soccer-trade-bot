@@ -1,26 +1,26 @@
 {
-  "match": "Corum vs Rizespor",
-  "time": "2026-10-17T00:22:41.642383+05:30",
+  "match": "Ulsan HD vs Bucheon",
+  "time": "2026-10-17T15:00:00.754150+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-16T22:53:12.992377+05:30",
-      "ticker": "KXSUPERLIGGAME-26OCT16CORRIZ-COR",
-      "outcome": "home",
-      "fill_price": 0.41,
-      "model_prob": 1.0,
-      "market_ask": 0.41,
-      "net_edge": 0.5700000000000001,
-      "count": 44,
-      "fee": 0.88,
-      "clock": 22.0,
-      "score": "0-0"
+      "time": "2026-10-17T13:22:35.755085+05:30",
+      "ticker": "KXKLEAGUEGAME-26OCT17ULSBUC-BUC",
+      "outcome": "away",
+      "fill_price": 0.33,
+      "model_prob": 0.8,
+      "market_ask": 0.33,
+      "net_edge": 0.45,
+      "count": 59,
+      "fee": 1.18,
+      "clock": 20.0,
+      "score": "0-1"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.57
+    "avg_net_edge": 0.45
   }
 }
