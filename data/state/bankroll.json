@@ -1,15 +1,9 @@
 {
-  "bankroll": 356.82,
-  "start_of_day": 376.42,
-  "session_start": "2026-10-18T14:50:40.650612+05:30",
-  "total_pnl": -19.6,
+  "bankroll": 337.64,
+  "start_of_day": 356.82,
+  "session_start": "2026-10-18T21:50:51.486004+05:30",
+  "total_pnl": -19.18,
   "sessions": [
-    {
-      "match": "Los Andes vs Moron",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-09-27T21:30:00.950424+05:30"
-    },
     {
       "match": "New York RB vs Saint Louis",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -19.6,
       "time": "2026-10-18T14:50:40.650712+05:30"
+    },
+    {
+      "match": "Halmstad vs Hammarby",
+      "trades": 1,
+      "pnl": -19.18,
+      "time": "2026-10-18T21:50:51.486113+05:30"
     }
   ],
-  "last_updated": "2026-10-18T14:50:40.650623+05:30",
-  "last_match": "Pohang Steelers vs FC Anyang"
+  "last_updated": "2026-10-18T21:50:51.486017+05:30",
+  "last_match": "Halmstad vs Hammarby"
 }

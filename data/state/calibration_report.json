@@ -1,19 +1,19 @@
 {
-  "match": "Pohang Steelers vs FC Anyang",
-  "time": "2026-10-18T14:50:40.651611+05:30",
+  "match": "Halmstad vs Hammarby",
+  "time": "2026-10-18T21:50:51.486934+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-18T13:24:14.992871+05:30",
-      "ticker": "KXKLEAGUEGAME-26OCT18POHANY-POH",
+      "time": "2026-10-18T20:24:40.193324+05:30",
+      "ticker": "KXALLSVENSKANGAME-26OCT18HALHIF-HAL",
       "outcome": "home",
-      "fill_price": 0.38,
+      "fill_price": 0.13,
       "model_prob": 1.0,
-      "market_ask": 0.38,
-      "net_edge": 0.6,
-      "count": 49,
-      "fee": 0.98,
+      "market_ask": 0.13,
+      "net_edge": 0.86,
+      "count": 137,
+      "fee": 1.37,
       "clock": 22.0,
       "score": "0-0"
     }
@@ -21,6 +21,6 @@
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.6
+    "avg_net_edge": 0.86
   }
 }
