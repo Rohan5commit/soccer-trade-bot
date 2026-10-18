@@ -1,15 +1,9 @@
 {
-  "bankroll": 376.42,
-  "start_of_day": 369.92,
-  "session_start": "2026-10-17T21:24:19.795492+05:30",
-  "total_pnl": 6.5,
+  "bankroll": 356.82,
+  "start_of_day": 376.42,
+  "session_start": "2026-10-18T14:50:40.650612+05:30",
+  "total_pnl": -19.6,
   "sessions": [
-    {
-      "match": "Gangwon vs Incheon Utd",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-09-27T17:30:00.428560+05:30"
-    },
     {
       "match": "Los Andes vs Moron",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 6.5,
       "time": "2026-10-17T21:24:19.795627+05:30"
+    },
+    {
+      "match": "Pohang Steelers vs FC Anyang",
+      "trades": 1,
+      "pnl": -19.6,
+      "time": "2026-10-18T14:50:40.650712+05:30"
     }
   ],
-  "last_updated": "2026-10-17T21:24:19.795504+05:30",
-  "last_match": "Aberdeen vs St. Mirren"
+  "last_updated": "2026-10-18T14:50:40.650623+05:30",
+  "last_match": "Pohang Steelers vs FC Anyang"
 }
