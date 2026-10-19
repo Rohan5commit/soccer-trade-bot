@@ -1,15 +1,9 @@
 {
-  "bankroll": 337.64,
-  "start_of_day": 356.82,
-  "session_start": "2026-10-18T21:50:51.486004+05:30",
-  "total_pnl": -19.18,
+  "bankroll": 319.16,
+  "start_of_day": 337.64,
+  "session_start": "2026-10-19T22:35:00.118477+05:30",
+  "total_pnl": -18.48,
   "sessions": [
-    {
-      "match": "New York RB vs Saint Louis",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-01T02:30:00.721181+05:30"
-    },
     {
       "match": "Seattle vs Kansas City",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -19.18,
       "time": "2026-10-18T21:50:51.486113+05:30"
+    },
+    {
+      "match": "Al-Fayha vs Al Ahli Saudi",
+      "trades": 1,
+      "pnl": -18.48,
+      "time": "2026-10-19T22:35:00.118626+05:30"
     }
   ],
-  "last_updated": "2026-10-18T21:50:51.486017+05:30",
-  "last_match": "Halmstad vs Hammarby"
+  "last_updated": "2026-10-19T22:35:00.118492+05:30",
+  "last_match": "Al-Fayha vs Al Ahli Saudi"
 }

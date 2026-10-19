@@ -1,19 +1,19 @@
 {
-  "match": "Halmstad vs Hammarby",
-  "time": "2026-10-18T21:50:51.486934+05:30",
+  "match": "Al-Fayha vs Al Ahli Saudi",
+  "time": "2026-10-19T22:35:00.119502+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-18T20:24:40.193324+05:30",
-      "ticker": "KXALLSVENSKANGAME-26OCT18HALHIF-HAL",
+      "time": "2026-10-19T20:59:00.085286+05:30",
+      "ticker": "KXSAUDIPLGAME-26OCT19FAYAAS-FAY",
       "outcome": "home",
-      "fill_price": 0.13,
+      "fill_price": 0.1,
       "model_prob": 1.0,
-      "market_ask": 0.13,
-      "net_edge": 0.86,
-      "count": 137,
-      "fee": 1.37,
+      "market_ask": 0.1,
+      "net_edge": 0.89,
+      "count": 168,
+      "fee": 1.68,
       "clock": 22.0,
       "score": "0-0"
     }
@@ -21,6 +21,6 @@
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.86
+    "avg_net_edge": 0.89
   }
 }
