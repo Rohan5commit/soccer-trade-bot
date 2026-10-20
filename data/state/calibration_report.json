@@ -1,19 +1,19 @@
 {
-  "match": "Al-Fayha vs Al Ahli Saudi",
-  "time": "2026-10-19T22:35:00.119502+05:30",
+  "match": "Corinthians vs Vitoria",
+  "time": "2026-10-20T06:30:00.203554+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-19T20:59:00.085286+05:30",
-      "ticker": "KXSAUDIPLGAME-26OCT19FAYAAS-FAY",
+      "time": "2026-10-20T04:57:25.653918+05:30",
+      "ticker": "KXBRASILEIROGAME-26OCT19CORVIT-COR",
       "outcome": "home",
-      "fill_price": 0.1,
+      "fill_price": 0.595,
       "model_prob": 1.0,
-      "market_ask": 0.1,
-      "net_edge": 0.89,
-      "count": 168,
-      "fee": 1.68,
+      "market_ask": 0.595,
+      "net_edge": 0.385,
+      "count": 26,
+      "fee": 0.52,
       "clock": 22.0,
       "score": "0-0"
     }
@@ -21,6 +21,6 @@
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.89
+    "avg_net_edge": 0.385
   }
 }

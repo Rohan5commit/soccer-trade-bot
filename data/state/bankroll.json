@@ -1,15 +1,9 @@
 {
-  "bankroll": 319.16,
-  "start_of_day": 337.64,
-  "session_start": "2026-10-19T22:35:00.118477+05:30",
-  "total_pnl": -18.48,
+  "bankroll": 303.17,
+  "start_of_day": 319.16,
+  "session_start": "2026-10-20T06:30:00.202550+05:30",
+  "total_pnl": -15.99,
   "sessions": [
-    {
-      "match": "Seattle vs Kansas City",
-      "trades": 1,
-      "pnl": 12.48,
-      "time": "2026-10-02T09:00:00.379055+05:30"
-    },
     {
       "match": "Sao Paulo vs Santos",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -18.48,
       "time": "2026-10-19T22:35:00.118626+05:30"
+    },
+    {
+      "match": "Corinthians vs Vitoria",
+      "trades": 1,
+      "pnl": -15.99,
+      "time": "2026-10-20T06:30:00.202665+05:30"
     }
   ],
-  "last_updated": "2026-10-19T22:35:00.118492+05:30",
-  "last_match": "Al-Fayha vs Al Ahli Saudi"
+  "last_updated": "2026-10-20T06:30:00.202564+05:30",
+  "last_match": "Corinthians vs Vitoria"
 }
