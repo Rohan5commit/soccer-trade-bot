@@ -1,15 +1,9 @@
 {
-  "bankroll": 303.17,
+  "bankroll": 287.87,
   "start_of_day": 303.17,
-  "session_start": "2026-10-20T21:30:00.293455+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-10-21T02:23:45.500981+05:30",
+  "total_pnl": -15.3,
   "sessions": [
-    {
-      "match": "Temperley vs Jujuy",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-03T21:30:00.658496+05:30"
-    },
     {
       "match": "Atletico Mineiro vs Bragantino",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-20T21:30:00.293600+05:30"
+    },
+    {
+      "match": "Porto vs Eindhoven",
+      "trades": 1,
+      "pnl": -15.3,
+      "time": "2026-10-21T02:23:45.501087+05:30"
     }
   ],
-  "last_updated": "2026-10-20T21:30:00.293471+05:30",
-  "last_match": "Fenerbahce vs Slavia Prague"
+  "last_updated": "2026-10-21T02:23:45.500995+05:30",
+  "last_match": "Porto vs Eindhoven"
 }
