@@ -1,15 +1,9 @@
 {
   "bankroll": 303.17,
-  "start_of_day": 319.16,
-  "session_start": "2026-10-20T06:30:00.202550+05:30",
-  "total_pnl": -15.99,
+  "start_of_day": 303.17,
+  "session_start": "2026-10-20T21:30:00.293455+05:30",
+  "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Sao Paulo vs Santos",
-      "trades": 1,
-      "pnl": -20.93,
-      "time": "2026-10-03T06:30:01.130232+05:30"
-    },
     {
       "match": "Temperley vs Jujuy",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -15.99,
       "time": "2026-10-20T06:30:00.202665+05:30"
+    },
+    {
+      "match": "Fenerbahce vs Slavia Prague",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-10-20T21:30:00.293600+05:30"
     }
   ],
-  "last_updated": "2026-10-20T06:30:00.202564+05:30",
-  "last_match": "Corinthians vs Vitoria"
+  "last_updated": "2026-10-20T21:30:00.293471+05:30",
+  "last_match": "Fenerbahce vs Slavia Prague"
 }
