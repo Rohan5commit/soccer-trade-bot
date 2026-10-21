@@ -1,15 +1,9 @@
 {
   "bankroll": 287.87,
   "start_of_day": 287.87,
-  "session_start": "2026-10-21T21:30:00.466705+05:30",
+  "session_start": "2026-10-22T02:26:49.074238+05:30",
   "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Guemes vs Colegiales",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-04T21:30:00.382952+05:30"
-    },
     {
       "match": "Chicago Fire vs Vancouver",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-21T21:30:00.466858+05:30"
+    },
+    {
+      "match": "Aston Villa vs Viking",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-10-22T02:26:49.074368+05:30"
     }
   ],
-  "last_updated": "2026-10-21T21:30:00.466719+05:30",
-  "last_match": "Bayern Munich vs Arsenal"
+  "last_updated": "2026-10-22T02:26:49.074252+05:30",
+  "last_match": "Aston Villa vs Viking"
 }
