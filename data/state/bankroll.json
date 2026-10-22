@@ -1,15 +1,9 @@
 {
   "bankroll": 287.87,
   "start_of_day": 287.87,
-  "session_start": "2026-10-22T02:26:49.074238+05:30",
+  "session_start": "2026-10-22T21:54:14.350003+05:30",
   "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Chicago Fire vs Vancouver",
-      "trades": 1,
-      "pnl": 15.4,
-      "time": "2026-10-07T08:00:00.519920+05:30"
-    },
     {
       "match": "Remo vs Gremio",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-22T02:26:49.074368+05:30"
+    },
+    {
+      "match": "Kairat vs Panathinaikos",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-10-22T21:54:14.350144+05:30"
     }
   ],
-  "last_updated": "2026-10-22T02:26:49.074252+05:30",
-  "last_match": "Aston Villa vs Viking"
+  "last_updated": "2026-10-22T21:54:14.350018+05:30",
+  "last_match": "Kairat vs Panathinaikos"
 }
