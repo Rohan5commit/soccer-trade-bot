@@ -1,15 +1,9 @@
 {
   "bankroll": 287.87,
   "start_of_day": 287.87,
-  "session_start": "2026-10-22T21:54:14.350003+05:30",
+  "session_start": "2026-10-23T20:54:43.962539+05:30",
   "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Remo vs Gremio",
-      "trades": 1,
-      "pnl": -20.7,
-      "time": "2026-10-08T06:00:00.038536+05:30"
-    },
     {
       "match": "Paranaense vs Atletico Mineiro",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-22T21:54:14.350144+05:30"
+    },
+    {
+      "match": "Al-Faisaly vs Al Nassr",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-10-23T20:54:43.962610+05:30"
     }
   ],
-  "last_updated": "2026-10-22T21:54:14.350018+05:30",
-  "last_match": "Kairat vs Panathinaikos"
+  "last_updated": "2026-10-23T20:54:43.962547+05:30",
+  "last_match": "Al-Faisaly vs Al Nassr"
 }
