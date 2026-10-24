@@ -1,26 +1,26 @@
 {
-  "match": "Cruzeiro vs Remo",
-  "time": "2026-10-24T06:29:24.390428+05:30",
+  "match": "Djurgarden vs Orgryte",
+  "time": "2026-10-24T22:55:43.195965+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-24T04:54:19.098435+05:30",
-      "ticker": "KXBRASILEIROGAME-26OCT23CRUCR-CR",
+      "time": "2026-10-24T22:51:25.526123+05:30",
+      "ticker": "KXALLSVENSKANGAME-26OCT24DJUORG-DJU",
       "outcome": "home",
-      "fill_price": 0.105,
-      "model_prob": 1.0,
-      "market_ask": 0.105,
-      "net_edge": 0.885,
-      "count": 137,
-      "fee": 1.37,
-      "clock": 22.0,
-      "score": "0-0"
+      "fill_price": 0.43,
+      "model_prob": 0.7142857142857143,
+      "market_ask": 0.43,
+      "net_edge": 0.2642857142857143,
+      "count": 47,
+      "fee": 0.9400000000000001,
+      "clock": 89.0,
+      "score": "2-1"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.885
+    "avg_net_edge": 0.2643
   }
 }

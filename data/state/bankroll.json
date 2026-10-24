@@ -1,15 +1,9 @@
 {
-  "bankroll": 409.12,
+  "bankroll": 387.97,
   "start_of_day": 409.12,
-  "session_start": "2026-10-24T14:54:42.373880+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-10-24T22:55:43.194782+05:30",
+  "total_pnl": -21.15,
   "sessions": [
-    {
-      "match": "Gangwon vs Bucheon",
-      "trades": 1,
-      "pnl": 16.45,
-      "time": "2026-10-09T14:58:23.312449+05:30"
-    },
     {
       "match": "Al-Kholood vs Al Qadsiah",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-24T14:54:42.373975+05:30"
+    },
+    {
+      "match": "Djurgarden vs Orgryte",
+      "trades": 1,
+      "pnl": -21.15,
+      "time": "2026-10-24T22:55:43.194888+05:30"
     }
   ],
-  "last_updated": "2026-10-24T14:54:42.373890+05:30",
-  "last_match": "Chongqing Tonglianglong FC vs Qingdao Hainiu"
+  "last_updated": "2026-10-24T22:55:43.194792+05:30",
+  "last_match": "Djurgarden vs Orgryte"
 }
