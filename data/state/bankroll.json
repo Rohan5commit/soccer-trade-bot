@@ -1,15 +1,9 @@
 {
   "bankroll": 409.12,
-  "start_of_day": 287.87,
-  "session_start": "2026-10-24T06:29:24.389468+05:30",
-  "total_pnl": 121.25,
+  "start_of_day": 409.12,
+  "session_start": "2026-10-24T14:54:42.373880+05:30",
+  "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Santos vs Flamengo",
-      "trades": 1,
-      "pnl": -20.7,
-      "time": "2026-10-09T06:00:00.076148+05:30"
-    },
     {
       "match": "Gangwon vs Bucheon",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 121.25,
       "time": "2026-10-24T06:29:24.389616+05:30"
+    },
+    {
+      "match": "Chongqing Tonglianglong FC vs Qingdao Hainiu",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-10-24T14:54:42.373975+05:30"
     }
   ],
-  "last_updated": "2026-10-24T06:29:24.389485+05:30",
-  "last_match": "Cruzeiro vs Remo"
+  "last_updated": "2026-10-24T14:54:42.373890+05:30",
+  "last_match": "Chongqing Tonglianglong FC vs Qingdao Hainiu"
 }
