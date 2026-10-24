@@ -1,15 +1,9 @@
 {
-  "bankroll": 287.87,
+  "bankroll": 409.12,
   "start_of_day": 287.87,
-  "session_start": "2026-10-23T20:54:43.962539+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-10-24T06:29:24.389468+05:30",
+  "total_pnl": 121.25,
   "sessions": [
-    {
-      "match": "Paranaense vs Atletico Mineiro",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-08T21:30:00.079677+05:30"
-    },
     {
       "match": "Santos vs Flamengo",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-23T20:54:43.962610+05:30"
+    },
+    {
+      "match": "Cruzeiro vs Remo",
+      "trades": 1,
+      "pnl": 121.25,
+      "time": "2026-10-24T06:29:24.389616+05:30"
     }
   ],
-  "last_updated": "2026-10-23T20:54:43.962547+05:30",
-  "last_match": "Al-Faisaly vs Al Nassr"
+  "last_updated": "2026-10-24T06:29:24.389485+05:30",
+  "last_match": "Cruzeiro vs Remo"
 }

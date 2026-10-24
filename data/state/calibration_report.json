@@ -1,19 +1,19 @@
 {
-  "match": "Porto vs Eindhoven",
-  "time": "2026-10-21T02:23:45.501882+05:30",
+  "match": "Cruzeiro vs Remo",
+  "time": "2026-10-24T06:29:24.390428+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-21T00:54:35.847331+05:30",
-      "ticker": "KXUCLGAME-26OCT20FCPPSV-FCP",
+      "time": "2026-10-24T04:54:19.098435+05:30",
+      "ticker": "KXBRASILEIROGAME-26OCT23CRUCR-CR",
       "outcome": "home",
-      "fill_price": 0.49,
+      "fill_price": 0.105,
       "model_prob": 1.0,
-      "market_ask": 0.49,
-      "net_edge": 0.49,
-      "count": 30,
-      "fee": 0.6,
+      "market_ask": 0.105,
+      "net_edge": 0.885,
+      "count": 137,
+      "fee": 1.37,
       "clock": 22.0,
       "score": "0-0"
     }
@@ -21,6 +21,6 @@
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.49
+    "avg_net_edge": 0.885
   }
 }
