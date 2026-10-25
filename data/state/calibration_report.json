@@ -1,26 +1,26 @@
 {
-  "match": "Djurgarden vs Orgryte",
-  "time": "2026-10-24T22:55:43.195965+05:30",
+  "match": "Sittard vs Excelsior",
+  "time": "2026-10-25T18:39:32.389344+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-24T22:51:25.526123+05:30",
-      "ticker": "KXALLSVENSKANGAME-26OCT24DJUORG-DJU",
+      "time": "2026-10-25T17:12:25.110059+05:30",
+      "ticker": "KXEREDIVISIEGAME-26OCT25FOREXC-FOR",
       "outcome": "home",
-      "fill_price": 0.43,
-      "model_prob": 0.7142857142857143,
-      "market_ask": 0.43,
-      "net_edge": 0.2642857142857143,
-      "count": 47,
-      "fee": 0.9400000000000001,
-      "clock": 89.0,
-      "score": "2-1"
+      "fill_price": 0.35,
+      "model_prob": 1.0,
+      "market_ask": 0.35,
+      "net_edge": 0.63,
+      "count": 55,
+      "fee": 1.1,
+      "clock": 22.0,
+      "score": "0-0"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.2643
+    "avg_net_edge": 0.63
   }
 }

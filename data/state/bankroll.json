@@ -1,15 +1,9 @@
 {
-  "bankroll": 387.97,
-  "start_of_day": 409.12,
-  "session_start": "2026-10-24T22:55:43.194782+05:30",
-  "total_pnl": -21.15,
+  "bankroll": 422.62,
+  "start_of_day": 387.97,
+  "session_start": "2026-10-25T18:39:32.388374+05:30",
+  "total_pnl": 34.65,
   "sessions": [
-    {
-      "match": "Al-Kholood vs Al Qadsiah",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-09T21:17:31.605299+05:30"
-    },
     {
       "match": "Genclerbirligi vs Amed",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -21.15,
       "time": "2026-10-24T22:55:43.194888+05:30"
+    },
+    {
+      "match": "Sittard vs Excelsior",
+      "trades": 1,
+      "pnl": 34.65,
+      "time": "2026-10-25T18:39:32.388499+05:30"
     }
   ],
-  "last_updated": "2026-10-24T22:55:43.194792+05:30",
-  "last_match": "Djurgarden vs Orgryte"
+  "last_updated": "2026-10-25T18:39:32.388390+05:30",
+  "last_match": "Sittard vs Excelsior"
 }
