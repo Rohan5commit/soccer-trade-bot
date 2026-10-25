@@ -1,15 +1,9 @@
 {
-  "bankroll": 422.62,
-  "start_of_day": 387.97,
-  "session_start": "2026-10-25T18:39:32.388374+05:30",
-  "total_pnl": 34.65,
+  "bankroll": 400.12,
+  "start_of_day": 422.62,
+  "session_start": "2026-10-26T00:30:00.116359+05:30",
+  "total_pnl": -22.5,
   "sessions": [
-    {
-      "match": "Genclerbirligi vs Amed",
-      "trades": 1,
-      "pnl": -20.06,
-      "time": "2026-10-10T17:57:38.733345+05:30"
-    },
     {
       "match": "Rizespor vs Fenerbahce",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 34.65,
       "time": "2026-10-25T18:39:32.388499+05:30"
+    },
+    {
+      "match": "Lecce vs Juventus",
+      "trades": 1,
+      "pnl": -22.5,
+      "time": "2026-10-26T00:30:00.116529+05:30"
     }
   ],
-  "last_updated": "2026-10-25T18:39:32.388390+05:30",
-  "last_match": "Sittard vs Excelsior"
+  "last_updated": "2026-10-26T00:30:00.116412+05:30",
+  "last_match": "Lecce vs Juventus"
 }
