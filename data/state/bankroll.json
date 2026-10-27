@@ -1,15 +1,9 @@
 {
   "bankroll": 379.32,
-  "start_of_day": 400.12,
-  "session_start": "2026-10-27T05:58:43.594904+05:30",
-  "total_pnl": -20.8,
+  "start_of_day": 379.32,
+  "session_start": "2026-10-27T18:05:33.352471+05:30",
+  "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Qingdao West Coast FC vs Dalian Yingbo FC",
-      "trades": 1,
-      "pnl": 12.0,
-      "time": "2026-10-11T17:26:56.155728+05:30"
-    },
     {
       "match": "Abha vs Al-Faisaly",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -20.8,
       "time": "2026-10-27T05:58:43.595028+05:30"
+    },
+    {
+      "match": "Abha vs Al-Faisaly",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-10-27T18:05:33.352570+05:30"
     }
   ],
-  "last_updated": "2026-10-27T05:58:43.594921+05:30",
-  "last_match": "Coritiba vs Gremio"
+  "last_updated": "2026-10-27T18:05:33.352485+05:30",
+  "last_match": "Abha vs Al-Faisaly"
 }
