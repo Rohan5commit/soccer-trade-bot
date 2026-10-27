@@ -1,15 +1,9 @@
 {
   "bankroll": 379.32,
   "start_of_day": 379.32,
-  "session_start": "2026-10-27T18:05:33.352471+05:30",
+  "session_start": "2026-10-28T00:57:53.638938+05:30",
   "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Abha vs Al-Faisaly",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-11T21:25:00.632039+05:30"
-    },
     {
       "match": "Torino vs Udinese",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-27T18:05:33.352570+05:30"
+    },
+    {
+      "match": "Sassuolo vs Lazio",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-10-28T00:57:53.639054+05:30"
     }
   ],
-  "last_updated": "2026-10-27T18:05:33.352485+05:30",
-  "last_match": "Abha vs Al-Faisaly"
+  "last_updated": "2026-10-28T00:57:53.638952+05:30",
+  "last_match": "Sassuolo vs Lazio"
 }
