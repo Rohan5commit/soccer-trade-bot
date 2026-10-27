@@ -1,19 +1,19 @@
 {
-  "match": "Lecce vs Juventus",
-  "time": "2026-10-26T00:30:00.117424+05:30",
+  "match": "Coritiba vs Gremio",
+  "time": "2026-10-27T05:58:43.595905+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-25T22:59:39.259269+05:30",
-      "ticker": "KXSERIEAGAME-26OCT25LECJUV-LEC",
+      "time": "2026-10-27T04:25:22.596644+05:30",
+      "ticker": "KXBRASILEIROGAME-26OCT26CFCGPA-CFC",
       "outcome": "home",
-      "fill_price": 0.14,
+      "fill_price": 0.38,
       "model_prob": 1.0,
-      "market_ask": 0.14,
-      "net_edge": 0.85,
-      "count": 150,
-      "fee": 1.5,
+      "market_ask": 0.38,
+      "net_edge": 0.6,
+      "count": 52,
+      "fee": 1.04,
       "clock": 22.0,
       "score": "0-0"
     }
@@ -21,6 +21,6 @@
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.85
+    "avg_net_edge": 0.6
   }
 }

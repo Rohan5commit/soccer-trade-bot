@@ -1,15 +1,9 @@
 {
-  "bankroll": 400.12,
-  "start_of_day": 422.62,
-  "session_start": "2026-10-26T00:30:00.116359+05:30",
-  "total_pnl": -22.5,
+  "bankroll": 379.32,
+  "start_of_day": 400.12,
+  "session_start": "2026-10-27T05:58:43.594904+05:30",
+  "total_pnl": -20.8,
   "sessions": [
-    {
-      "match": "Rizespor vs Fenerbahce",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-10T23:23:42.952482+05:30"
-    },
     {
       "match": "Qingdao West Coast FC vs Dalian Yingbo FC",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -22.5,
       "time": "2026-10-26T00:30:00.116529+05:30"
+    },
+    {
+      "match": "Coritiba vs Gremio",
+      "trades": 1,
+      "pnl": -20.8,
+      "time": "2026-10-27T05:58:43.595028+05:30"
     }
   ],
-  "last_updated": "2026-10-26T00:30:00.116412+05:30",
-  "last_match": "Lecce vs Juventus"
+  "last_updated": "2026-10-27T05:58:43.594921+05:30",
+  "last_match": "Coritiba vs Gremio"
 }
