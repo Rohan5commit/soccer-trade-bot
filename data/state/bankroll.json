@@ -1,15 +1,9 @@
 {
-  "bankroll": 359.22,
-  "start_of_day": 379.32,
-  "session_start": "2026-10-29T00:53:36.146471+05:30",
-  "total_pnl": -20.1,
+  "bankroll": 373.14,
+  "start_of_day": 359.22,
+  "session_start": "2026-10-29T06:00:00.316518+05:30",
+  "total_pnl": 13.92,
   "sessions": [
-    {
-      "match": "Bragantino vs Cruzeiro",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-13T07:30:00.137137+05:30"
-    },
     {
       "match": "Sabah Masazir vs Slavia Prague",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -20.1,
       "time": "2026-10-29T00:53:36.146586+05:30"
+    },
+    {
+      "match": "Fluminense vs Internacional",
+      "trades": 1,
+      "pnl": 13.92,
+      "time": "2026-10-29T06:00:00.316614+05:30"
     }
   ],
-  "last_updated": "2026-10-29T00:53:36.146486+05:30",
-  "last_match": "Milan vs Bologna"
+  "last_updated": "2026-10-29T06:00:00.316528+05:30",
+  "last_match": "Fluminense vs Internacional"
 }

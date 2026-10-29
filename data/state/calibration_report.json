@@ -1,26 +1,26 @@
 {
-  "match": "Milan vs Bologna",
-  "time": "2026-10-29T00:53:36.147541+05:30",
+  "match": "Fluminense vs Internacional",
+  "time": "2026-10-29T06:00:00.317482+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-28T23:22:15.584998+05:30",
-      "ticker": "KXSERIEAGAME-26OCT28ACMBFC-TIE",
-      "outcome": "draw",
-      "fill_price": 0.28,
-      "model_prob": 0.8,
-      "market_ask": 0.28,
-      "net_edge": 0.5,
-      "count": 67,
-      "fee": 1.34,
-      "clock": 20.0,
-      "score": "1-1"
+      "time": "2026-10-29T04:23:59.921683+05:30",
+      "ticker": "KXBRASILEIROGAME-26OCT28FLUINT-FLU",
+      "outcome": "home",
+      "fill_price": 0.545,
+      "model_prob": 1.0,
+      "market_ask": 0.545,
+      "net_edge": 0.43499999999999994,
+      "count": 32,
+      "fee": 0.64,
+      "clock": 22.0,
+      "score": "0-0"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.5
+    "avg_net_edge": 0.435
   }
 }
