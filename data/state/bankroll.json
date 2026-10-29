@@ -1,15 +1,9 @@
 {
   "bankroll": 373.14,
-  "start_of_day": 359.22,
-  "session_start": "2026-10-29T06:00:00.316518+05:30",
-  "total_pnl": 13.92,
+  "start_of_day": 373.14,
+  "session_start": "2026-10-29T21:30:00.045596+05:30",
+  "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Sabah Masazir vs Slavia Prague",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-13T21:30:00.719360+05:30"
-    },
     {
       "match": "Arsenal vs Lille",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 13.92,
       "time": "2026-10-29T06:00:00.316614+05:30"
+    },
+    {
+      "match": "Gremio vs Paranaense",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-10-29T21:30:00.045728+05:30"
     }
   ],
-  "last_updated": "2026-10-29T06:00:00.316528+05:30",
-  "last_match": "Fluminense vs Internacional"
+  "last_updated": "2026-10-29T21:30:00.045614+05:30",
+  "last_match": "Gremio vs Paranaense"
 }
