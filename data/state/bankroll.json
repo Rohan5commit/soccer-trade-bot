@@ -1,15 +1,9 @@
 {
-  "bankroll": 373.14,
+  "bankroll": 353.9,
   "start_of_day": 373.14,
-  "session_start": "2026-10-29T21:30:00.045596+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-10-30T03:15:00.143490+05:30",
+  "total_pnl": -19.24,
   "sessions": [
-    {
-      "match": "Arsenal vs Lille",
-      "trades": 1,
-      "pnl": 5.72,
-      "time": "2026-10-14T02:21:32.351696+05:30"
-    },
     {
       "match": "Bodoe/Glimt vs Dortmund",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-29T21:30:00.045728+05:30"
+    },
+    {
+      "match": "Fiorentina vs Atalanta",
+      "trades": 1,
+      "pnl": -19.24,
+      "time": "2026-10-30T03:15:00.143647+05:30"
     }
   ],
-  "last_updated": "2026-10-29T21:30:00.045614+05:30",
-  "last_match": "Gremio vs Paranaense"
+  "last_updated": "2026-10-30T03:15:00.143507+05:30",
+  "last_match": "Fiorentina vs Atalanta"
 }

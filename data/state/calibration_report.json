@@ -1,19 +1,19 @@
 {
-  "match": "Fluminense vs Internacional",
-  "time": "2026-10-29T06:00:00.317482+05:30",
+  "match": "Fiorentina vs Atalanta",
+  "time": "2026-10-30T03:15:00.144565+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-29T04:23:59.921683+05:30",
-      "ticker": "KXBRASILEIROGAME-26OCT28FLUINT-FLU",
+      "time": "2026-10-30T01:41:32.640068+05:30",
+      "ticker": "KXSERIEAGAME-26OCT29FIOATA-FIO",
       "outcome": "home",
-      "fill_price": 0.545,
+      "fill_price": 0.5,
       "model_prob": 1.0,
-      "market_ask": 0.545,
-      "net_edge": 0.43499999999999994,
-      "count": 32,
-      "fee": 0.64,
+      "market_ask": 0.5,
+      "net_edge": 0.48,
+      "count": 37,
+      "fee": 0.74,
       "clock": 22.0,
       "score": "0-0"
     }
@@ -21,6 +21,6 @@
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.435
+    "avg_net_edge": 0.48
   }
 }
