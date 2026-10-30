@@ -1,15 +1,9 @@
 {
   "bankroll": 335.18,
-  "start_of_day": 353.9,
-  "session_start": "2026-10-30T19:55:26.538588+05:30",
-  "total_pnl": -18.72,
+  "start_of_day": 335.18,
+  "session_start": "2026-10-31T00:26:37.908703+05:30",
+  "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Aston Villa vs Fenerbahce",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-15T02:19:39.057271+05:30"
-    },
     {
       "match": "Al-Faisaly vs Al-Kholood",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -18.72,
       "time": "2026-10-30T19:55:26.538685+05:30"
+    },
+    {
+      "match": "Konyaspor vs Galatasaray",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-10-31T00:26:37.908820+05:30"
     }
   ],
-  "last_updated": "2026-10-30T19:55:26.538601+05:30",
-  "last_match": "Abha vs Al-Ittihad"
+  "last_updated": "2026-10-31T00:26:37.908716+05:30",
+  "last_match": "Konyaspor vs Galatasaray"
 }
