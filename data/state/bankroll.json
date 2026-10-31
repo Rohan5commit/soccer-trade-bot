@@ -1,15 +1,9 @@
 {
-  "bankroll": 335.18,
+  "bankroll": 317.96,
   "start_of_day": 335.18,
-  "session_start": "2026-10-31T00:26:37.908703+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-10-31T14:54:32.662183+05:30",
+  "total_pnl": -17.22,
   "sessions": [
-    {
-      "match": "Al-Faisaly vs Al-Kholood",
-      "trades": 1,
-      "pnl": -21.44,
-      "time": "2026-10-15T21:10:00.567889+05:30"
-    },
     {
       "match": "SL Benfica vs Celtic",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-31T00:26:37.908820+05:30"
+    },
+    {
+      "match": "Gwangju vs Gimcheon Sangmu",
+      "trades": 1,
+      "pnl": -17.22,
+      "time": "2026-10-31T14:54:32.662277+05:30"
     }
   ],
-  "last_updated": "2026-10-31T00:26:37.908716+05:30",
-  "last_match": "Konyaspor vs Galatasaray"
+  "last_updated": "2026-10-31T14:54:32.662196+05:30",
+  "last_match": "Gwangju vs Gimcheon Sangmu"
 }

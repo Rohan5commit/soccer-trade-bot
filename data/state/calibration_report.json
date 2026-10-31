@@ -1,19 +1,19 @@
 {
-  "match": "Abha vs Al-Ittihad",
-  "time": "2026-10-30T19:55:26.539386+05:30",
+  "match": "Gwangju vs Gimcheon Sangmu",
+  "time": "2026-10-31T14:54:32.663155+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-30T18:24:32.157712+05:30",
-      "ticker": "KXSAUDIPLGAME-26OCT30ABHITJ-ABH",
+      "time": "2026-10-31T13:24:13.162445+05:30",
+      "ticker": "KXKLEAGUEGAME-26OCT31GWAGIS-GWA",
       "outcome": "home",
-      "fill_price": 0.15,
+      "fill_price": 0.39,
       "model_prob": 1.0,
-      "market_ask": 0.15,
-      "net_edge": 0.84,
-      "count": 117,
-      "fee": 1.17,
+      "market_ask": 0.39,
+      "net_edge": 0.59,
+      "count": 42,
+      "fee": 0.84,
       "clock": 22.0,
       "score": "0-0"
     }
@@ -21,6 +21,6 @@
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.84
+    "avg_net_edge": 0.59
   }
 }
