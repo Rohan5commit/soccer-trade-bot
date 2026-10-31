@@ -1,15 +1,9 @@
 {
   "bankroll": 317.96,
-  "start_of_day": 335.18,
-  "session_start": "2026-10-31T14:54:32.662183+05:30",
-  "total_pnl": -17.22,
+  "start_of_day": 317.96,
+  "session_start": "2026-10-31T17:30:00.327734+05:30",
+  "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "SL Benfica vs Celtic",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-16T02:20:38.092558+05:30"
-    },
     {
       "match": "Henan vs Tianjin Jinmen Tiger",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -17.22,
       "time": "2026-10-31T14:54:32.662277+05:30"
+    },
+    {
+      "match": "Jeonbuk vs Daejeon Citizen",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-10-31T17:30:00.327831+05:30"
     }
   ],
-  "last_updated": "2026-10-31T14:54:32.662196+05:30",
-  "last_match": "Gwangju vs Gimcheon Sangmu"
+  "last_updated": "2026-10-31T17:30:00.327745+05:30",
+  "last_match": "Jeonbuk vs Daejeon Citizen"
 }
