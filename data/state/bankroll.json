@@ -1,15 +1,9 @@
 {
   "bankroll": 317.96,
   "start_of_day": 317.96,
-  "session_start": "2026-10-31T17:30:00.327734+05:30",
+  "session_start": "2026-11-01T17:56:40.177734+05:30",
   "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Henan vs Tianjin Jinmen Tiger",
-      "trades": 1,
-      "pnl": -20.09,
-      "time": "2026-10-16T19:02:23.673277+05:30"
-    },
     {
       "match": "Corum vs Rizespor",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-10-31T17:30:00.327831+05:30"
+    },
+    {
+      "match": "Amed vs Eyupspor",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-11-01T17:56:40.177880+05:30"
     }
   ],
-  "last_updated": "2026-10-31T17:30:00.327745+05:30",
-  "last_match": "Jeonbuk vs Daejeon Citizen"
+  "last_updated": "2026-11-01T17:56:40.177753+05:30",
+  "last_match": "Amed vs Eyupspor"
 }
