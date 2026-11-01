@@ -1,15 +1,9 @@
 {
-  "bankroll": 317.96,
+  "bankroll": 325.88,
   "start_of_day": 317.96,
-  "session_start": "2026-11-01T17:56:40.177734+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-11-02T00:27:52.554505+05:30",
+  "total_pnl": 7.92,
   "sessions": [
-    {
-      "match": "Corum vs Rizespor",
-      "trades": 1,
-      "pnl": 25.08,
-      "time": "2026-10-17T00:22:41.641520+05:30"
-    },
     {
       "match": "Ulsan HD vs Bucheon",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-11-01T17:56:40.177880+05:30"
+    },
+    {
+      "match": "Lecce vs Genoa",
+      "trades": 1,
+      "pnl": 7.92,
+      "time": "2026-11-02T00:27:52.554606+05:30"
     }
   ],
-  "last_updated": "2026-11-01T17:56:40.177753+05:30",
-  "last_match": "Amed vs Eyupspor"
+  "last_updated": "2026-11-02T00:27:52.554522+05:30",
+  "last_match": "Lecce vs Genoa"
 }

@@ -1,26 +1,26 @@
 {
-  "match": "Gwangju vs Gimcheon Sangmu",
-  "time": "2026-10-31T14:54:32.663155+05:30",
+  "match": "Lecce vs Genoa",
+  "time": "2026-11-02T00:27:52.555456+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-10-31T13:24:13.162445+05:30",
-      "ticker": "KXKLEAGUEGAME-26OCT31GWAGIS-GWA",
-      "outcome": "home",
-      "fill_price": 0.39,
-      "model_prob": 1.0,
-      "market_ask": 0.39,
-      "net_edge": 0.59,
-      "count": 42,
-      "fee": 0.84,
-      "clock": 22.0,
-      "score": "0-0"
+      "time": "2026-11-01T22:52:19.813573+05:30",
+      "ticker": "KXSERIEAGAME-26NOV01LECGEN-GEN",
+      "outcome": "away",
+      "fill_price": 0.65,
+      "model_prob": 0.8,
+      "market_ask": 0.65,
+      "net_edge": 0.13000000000000003,
+      "count": 24,
+      "fee": 0.48,
+      "clock": 20.0,
+      "score": "0-1"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.59
+    "avg_net_edge": 0.13
   }
 }
