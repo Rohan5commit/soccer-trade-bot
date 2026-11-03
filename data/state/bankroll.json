@@ -1,15 +1,9 @@
 {
   "bankroll": 335.5,
-  "start_of_day": 325.88,
-  "session_start": "2026-11-03T06:30:00.652511+05:30",
-  "total_pnl": 9.62,
+  "start_of_day": 335.5,
+  "session_start": "2026-11-04T03:24:32.968158+05:30",
+  "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Pohang Steelers vs FC Anyang",
-      "trades": 1,
-      "pnl": -19.6,
-      "time": "2026-10-18T14:50:40.650712+05:30"
-    },
     {
       "match": "Halmstad vs Hammarby",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 9.62,
       "time": "2026-11-03T06:30:00.652611+05:30"
+    },
+    {
+      "match": "LASK vs Slovan Bratislava",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-11-04T03:24:32.968280+05:30"
     }
   ],
-  "last_updated": "2026-11-03T06:30:00.652523+05:30",
-  "last_match": "Bragantino vs Santos"
+  "last_updated": "2026-11-04T03:24:32.968174+05:30",
+  "last_match": "LASK vs Slovan Bratislava"
 }
