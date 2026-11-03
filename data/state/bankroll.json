@@ -1,15 +1,9 @@
 {
-  "bankroll": 325.88,
+  "bankroll": 335.5,
   "start_of_day": 325.88,
-  "session_start": "2026-11-02T21:30:00.845294+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-11-03T06:30:00.652511+05:30",
+  "total_pnl": 9.62,
   "sessions": [
-    {
-      "match": "Aberdeen vs St. Mirren",
-      "trades": 1,
-      "pnl": 6.5,
-      "time": "2026-10-17T21:24:19.795627+05:30"
-    },
     {
       "match": "Pohang Steelers vs FC Anyang",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-11-02T21:30:00.845406+05:30"
+    },
+    {
+      "match": "Bragantino vs Santos",
+      "trades": 1,
+      "pnl": 9.62,
+      "time": "2026-11-03T06:30:00.652611+05:30"
     }
   ],
-  "last_updated": "2026-11-02T21:30:00.845308+05:30",
-  "last_match": "Soenderjyske vs Copenhagen"
+  "last_updated": "2026-11-03T06:30:00.652523+05:30",
+  "last_match": "Bragantino vs Santos"
 }
