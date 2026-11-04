@@ -1,15 +1,9 @@
 {
-  "bankroll": 335.5,
+  "bankroll": 318.55,
   "start_of_day": 335.5,
-  "session_start": "2026-11-04T03:24:32.968158+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-11-04T08:00:00.637314+05:30",
+  "total_pnl": -16.95,
   "sessions": [
-    {
-      "match": "Halmstad vs Hammarby",
-      "trades": 1,
-      "pnl": -19.18,
-      "time": "2026-10-18T21:50:51.486113+05:30"
-    },
     {
       "match": "Al-Fayha vs Al Ahli Saudi",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-11-04T03:24:32.968280+05:30"
+    },
+    {
+      "match": "Internacional vs Coritiba",
+      "trades": 1,
+      "pnl": -16.95,
+      "time": "2026-11-04T08:00:00.637417+05:30"
     }
   ],
-  "last_updated": "2026-11-04T03:24:32.968174+05:30",
-  "last_match": "LASK vs Slovan Bratislava"
+  "last_updated": "2026-11-04T08:00:00.637325+05:30",
+  "last_match": "Internacional vs Coritiba"
 }
