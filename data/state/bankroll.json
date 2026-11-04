@@ -1,15 +1,9 @@
 {
-  "bankroll": 318.55,
+  "bankroll": 327.55,
   "start_of_day": 318.55,
-  "session_start": "2026-11-04T21:30:00.596904+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-11-05T03:27:30.403140+05:30",
+  "total_pnl": 9.0,
   "sessions": [
-    {
-      "match": "Corinthians vs Vitoria",
-      "trades": 1,
-      "pnl": -15.99,
-      "time": "2026-10-20T06:30:00.202665+05:30"
-    },
     {
       "match": "Fenerbahce vs Slavia Prague",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-11-04T21:30:00.596990+05:30"
+    },
+    {
+      "match": "Dortmund vs Real Betis",
+      "trades": 1,
+      "pnl": 9.0,
+      "time": "2026-11-05T03:27:30.403261+05:30"
     }
   ],
-  "last_updated": "2026-11-04T21:30:00.596918+05:30",
-  "last_match": "Slavia Prague vs Arsenal"
+  "last_updated": "2026-11-05T03:27:30.403156+05:30",
+  "last_match": "Dortmund vs Real Betis"
 }

@@ -1,19 +1,19 @@
 {
-  "match": "Internacional vs Coritiba",
-  "time": "2026-11-04T08:00:00.638168+05:30",
+  "match": "Dortmund vs Real Betis",
+  "time": "2026-11-05T03:27:30.404478+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-11-04T06:24:08.458081+05:30",
-      "ticker": "KXBRASILEIROGAME-26NOV03INTCFC-INT",
+      "time": "2026-11-05T01:57:17.415114+05:30",
+      "ticker": "KXUCLGAME-26NOV04BVBRBB-BVB",
       "outcome": "home",
-      "fill_price": 0.545,
+      "fill_price": 0.62,
       "model_prob": 1.0,
-      "market_ask": 0.545,
-      "net_edge": 0.43499999999999994,
-      "count": 30,
-      "fee": 0.6,
+      "market_ask": 0.62,
+      "net_edge": 0.36,
+      "count": 25,
+      "fee": 0.5,
       "clock": 22.0,
       "score": "0-0"
     }
@@ -21,6 +21,6 @@
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.435
+    "avg_net_edge": 0.36
   }
 }
