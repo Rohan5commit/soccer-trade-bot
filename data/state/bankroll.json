@@ -1,15 +1,9 @@
 {
   "bankroll": 318.55,
-  "start_of_day": 335.5,
-  "session_start": "2026-11-04T08:00:00.637314+05:30",
-  "total_pnl": -16.95,
+  "start_of_day": 318.55,
+  "session_start": "2026-11-04T21:30:00.596904+05:30",
+  "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Al-Fayha vs Al Ahli Saudi",
-      "trades": 1,
-      "pnl": -18.48,
-      "time": "2026-10-19T22:35:00.118626+05:30"
-    },
     {
       "match": "Corinthians vs Vitoria",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -16.95,
       "time": "2026-11-04T08:00:00.637417+05:30"
+    },
+    {
+      "match": "Slavia Prague vs Arsenal",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-11-04T21:30:00.596990+05:30"
     }
   ],
-  "last_updated": "2026-11-04T08:00:00.637325+05:30",
-  "last_match": "Internacional vs Coritiba"
+  "last_updated": "2026-11-04T21:30:00.596918+05:30",
+  "last_match": "Slavia Prague vs Arsenal"
 }
