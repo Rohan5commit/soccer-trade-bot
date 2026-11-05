@@ -1,26 +1,26 @@
 {
-  "match": "Dortmund vs Real Betis",
-  "time": "2026-11-05T03:27:30.404478+05:30",
+  "match": "Alkmaar vs Juventus",
+  "time": "2026-11-06T03:27:39.288364+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-11-05T01:57:17.415114+05:30",
-      "ticker": "KXUCLGAME-26NOV04BVBRBB-BVB",
-      "outcome": "home",
-      "fill_price": 0.62,
-      "model_prob": 1.0,
-      "market_ask": 0.62,
-      "net_edge": 0.36,
-      "count": 25,
-      "fee": 0.5,
-      "clock": 22.0,
-      "score": "0-0"
+      "time": "2026-11-06T01:54:18.796115+05:30",
+      "ticker": "KXUELGAME-26NOV05AZAJUV-JUV",
+      "outcome": "away",
+      "fill_price": 0.68,
+      "model_prob": 0.8,
+      "market_ask": 0.68,
+      "net_edge": 0.09999999999999999,
+      "count": 24,
+      "fee": 0.48,
+      "clock": 20.0,
+      "score": "0-1"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.36
+    "avg_net_edge": 0.1
   }
 }
