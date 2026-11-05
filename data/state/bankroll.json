@@ -1,15 +1,9 @@
 {
   "bankroll": 327.55,
-  "start_of_day": 318.55,
-  "session_start": "2026-11-05T03:27:30.403140+05:30",
-  "total_pnl": 9.0,
+  "start_of_day": 327.55,
+  "session_start": "2026-11-05T21:30:00.291965+05:30",
+  "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Fenerbahce vs Slavia Prague",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-20T21:30:00.293600+05:30"
-    },
     {
       "match": "Porto vs Eindhoven",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 9.0,
       "time": "2026-11-05T03:27:30.403261+05:30"
+    },
+    {
+      "match": "Milan vs Ferencvarosi",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-11-05T21:30:00.292089+05:30"
     }
   ],
-  "last_updated": "2026-11-05T03:27:30.403156+05:30",
-  "last_match": "Dortmund vs Real Betis"
+  "last_updated": "2026-11-05T21:30:00.291981+05:30",
+  "last_match": "Milan vs Ferencvarosi"
 }
