@@ -1,19 +1,19 @@
 {
-  "match": "Gimcheon Sangmu vs FC Anyang",
-  "time": "2026-11-07T14:57:24.315197+05:30",
+  "match": "Cagliari vs Frosinone",
+  "time": "2026-11-07T21:25:51.802015+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-11-07T13:25:25.935282+05:30",
-      "ticker": "KXKLEAGUEGAME-26NOV07GISANY-GIS",
+      "time": "2026-11-07T19:55:44.012467+05:30",
+      "ticker": "KXSERIEAGAME-26NOV07CAGFRO-CAG",
       "outcome": "home",
-      "fill_price": 0.38,
+      "fill_price": 0.33,
       "model_prob": 1.0,
-      "market_ask": 0.38,
-      "net_edge": 0.6,
-      "count": 45,
-      "fee": 0.9,
+      "market_ask": 0.33,
+      "net_edge": 0.6499999999999999,
+      "count": 56,
+      "fee": 1.12,
       "clock": 22.0,
       "score": "0-0"
     }
@@ -21,6 +21,6 @@
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.6
+    "avg_net_edge": 0.65
   }
 }

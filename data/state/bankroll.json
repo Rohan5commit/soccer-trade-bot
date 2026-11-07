@@ -1,15 +1,9 @@
 {
-  "bankroll": 370.59,
-  "start_of_day": 343.59,
-  "session_start": "2026-11-07T14:57:24.314298+05:30",
-  "total_pnl": 27.0,
+  "bankroll": 406.99,
+  "start_of_day": 370.59,
+  "session_start": "2026-11-07T21:25:51.801086+05:30",
+  "total_pnl": 36.4,
   "sessions": [
-    {
-      "match": "Al-Faisaly vs Al Nassr",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-23T20:54:43.962610+05:30"
-    },
     {
       "match": "Cruzeiro vs Remo",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 27.0,
       "time": "2026-11-07T14:57:24.314417+05:30"
+    },
+    {
+      "match": "Cagliari vs Frosinone",
+      "trades": 1,
+      "pnl": 36.4,
+      "time": "2026-11-07T21:25:51.801179+05:30"
     }
   ],
-  "last_updated": "2026-11-07T14:57:24.314313+05:30",
-  "last_match": "Gimcheon Sangmu vs FC Anyang"
+  "last_updated": "2026-11-07T21:25:51.801096+05:30",
+  "last_match": "Cagliari vs Frosinone"
 }
