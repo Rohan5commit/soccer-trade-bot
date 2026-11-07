@@ -1,15 +1,9 @@
 {
-  "bankroll": 334.75,
+  "bankroll": 343.59,
   "start_of_day": 334.75,
-  "session_start": "2026-11-06T21:30:00.392334+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-11-07T06:26:21.924584+05:30",
+  "total_pnl": 8.84,
   "sessions": [
-    {
-      "match": "Aston Villa vs Viking",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-22T02:26:49.074368+05:30"
-    },
     {
       "match": "Kairat vs Panathinaikos",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-11-06T21:30:00.392463+05:30"
+    },
+    {
+      "match": "Vitoria vs Fluminense",
+      "trades": 1,
+      "pnl": 8.84,
+      "time": "2026-11-07T06:26:21.924661+05:30"
     }
   ],
-  "last_updated": "2026-11-06T21:30:00.392347+05:30",
-  "last_match": "Al-Fateh vs Al-Riyadh"
+  "last_updated": "2026-11-07T06:26:21.924593+05:30",
+  "last_match": "Vitoria vs Fluminense"
 }

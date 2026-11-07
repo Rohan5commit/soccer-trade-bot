@@ -1,19 +1,19 @@
 {
-  "match": "Alkmaar vs Juventus",
-  "time": "2026-11-06T03:27:39.288364+05:30",
+  "match": "Vitoria vs Fluminense",
+  "time": "2026-11-07T06:26:21.925351+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-11-06T01:54:18.796115+05:30",
-      "ticker": "KXUELGAME-26NOV05AZAJUV-JUV",
+      "time": "2026-11-07T04:52:07.527672+05:30",
+      "ticker": "KXBRASILEIROGAME-26NOV06VITFLU-FLU",
       "outcome": "away",
-      "fill_price": 0.68,
+      "fill_price": 0.64,
       "model_prob": 0.8,
-      "market_ask": 0.68,
-      "net_edge": 0.09999999999999999,
-      "count": 24,
-      "fee": 0.48,
+      "market_ask": 0.64,
+      "net_edge": 0.14000000000000004,
+      "count": 26,
+      "fee": 0.52,
       "clock": 20.0,
       "score": "0-1"
     }
@@ -21,6 +21,6 @@
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.1
+    "avg_net_edge": 0.14
   }
 }
