@@ -1,26 +1,26 @@
 {
-  "match": "Vitoria vs Fluminense",
-  "time": "2026-11-07T06:26:21.925351+05:30",
+  "match": "Gimcheon Sangmu vs FC Anyang",
+  "time": "2026-11-07T14:57:24.315197+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-11-07T04:52:07.527672+05:30",
-      "ticker": "KXBRASILEIROGAME-26NOV06VITFLU-FLU",
-      "outcome": "away",
-      "fill_price": 0.64,
-      "model_prob": 0.8,
-      "market_ask": 0.64,
-      "net_edge": 0.14000000000000004,
-      "count": 26,
-      "fee": 0.52,
-      "clock": 20.0,
-      "score": "0-1"
+      "time": "2026-11-07T13:25:25.935282+05:30",
+      "ticker": "KXKLEAGUEGAME-26NOV07GISANY-GIS",
+      "outcome": "home",
+      "fill_price": 0.38,
+      "model_prob": 1.0,
+      "market_ask": 0.38,
+      "net_edge": 0.6,
+      "count": 45,
+      "fee": 0.9,
+      "clock": 22.0,
+      "score": "0-0"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.14
+    "avg_net_edge": 0.6
   }
 }

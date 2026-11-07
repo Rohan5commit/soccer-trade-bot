@@ -1,15 +1,9 @@
 {
-  "bankroll": 343.59,
-  "start_of_day": 334.75,
-  "session_start": "2026-11-07T06:26:21.924584+05:30",
-  "total_pnl": 8.84,
+  "bankroll": 370.59,
+  "start_of_day": 343.59,
+  "session_start": "2026-11-07T14:57:24.314298+05:30",
+  "total_pnl": 27.0,
   "sessions": [
-    {
-      "match": "Kairat vs Panathinaikos",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-22T21:54:14.350144+05:30"
-    },
     {
       "match": "Al-Faisaly vs Al Nassr",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 8.84,
       "time": "2026-11-07T06:26:21.924661+05:30"
+    },
+    {
+      "match": "Gimcheon Sangmu vs FC Anyang",
+      "trades": 1,
+      "pnl": 27.0,
+      "time": "2026-11-07T14:57:24.314417+05:30"
     }
   ],
-  "last_updated": "2026-11-07T06:26:21.924593+05:30",
-  "last_match": "Vitoria vs Fluminense"
+  "last_updated": "2026-11-07T14:57:24.314313+05:30",
+  "last_match": "Gimcheon Sangmu vs FC Anyang"
 }
