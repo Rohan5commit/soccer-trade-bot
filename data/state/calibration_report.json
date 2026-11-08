@@ -1,26 +1,26 @@
 {
-  "match": "Beijing Guoan vs Chongqing Tonglianglong FC",
-  "time": "2026-11-08T14:56:43.286188+05:30",
+  "match": "Heart of Midlothian vs Falkirk",
+  "time": "2026-11-08T22:28:13.349418+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-11-08T13:23:13.904886+05:30",
-      "ticker": "KXCHNSLGAME-26NOV08BJGCHO-BJG",
-      "outcome": "home",
-      "fill_price": 0.77,
-      "model_prob": 1.0,
-      "market_ask": 0.77,
-      "net_edge": 0.21,
-      "count": 26,
-      "fee": 0.52,
-      "clock": 22.0,
-      "score": "0-0"
+      "time": "2026-11-08T20:55:56.139473+05:30",
+      "ticker": "KXSCOTTISHPREMGAME-26NOV08HOMFAL-FAL",
+      "outcome": "away",
+      "fill_price": 0.62,
+      "model_prob": 0.8,
+      "market_ask": 0.62,
+      "net_edge": 0.16000000000000006,
+      "count": 33,
+      "fee": 0.66,
+      "clock": 21.0,
+      "score": "0-2"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.21
+    "avg_net_edge": 0.16
   }
 }

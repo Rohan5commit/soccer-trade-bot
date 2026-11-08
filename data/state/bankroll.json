@@ -1,15 +1,9 @@
 {
-  "bankroll": 412.45,
-  "start_of_day": 406.99,
-  "session_start": "2026-11-08T14:56:43.285365+05:30",
-  "total_pnl": 5.46,
+  "bankroll": 424.33,
+  "start_of_day": 412.45,
+  "session_start": "2026-11-08T22:28:13.348301+05:30",
+  "total_pnl": 11.88,
   "sessions": [
-    {
-      "match": "Chongqing Tonglianglong FC vs Qingdao Hainiu",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-24T14:54:42.373975+05:30"
-    },
     {
       "match": "Djurgarden vs Orgryte",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 5.46,
       "time": "2026-11-08T14:56:43.285439+05:30"
+    },
+    {
+      "match": "Heart of Midlothian vs Falkirk",
+      "trades": 1,
+      "pnl": 11.88,
+      "time": "2026-11-08T22:28:13.348576+05:30"
     }
   ],
-  "last_updated": "2026-11-08T14:56:43.285375+05:30",
-  "last_match": "Beijing Guoan vs Chongqing Tonglianglong FC"
+  "last_updated": "2026-11-08T22:28:13.348321+05:30",
+  "last_match": "Heart of Midlothian vs Falkirk"
 }
