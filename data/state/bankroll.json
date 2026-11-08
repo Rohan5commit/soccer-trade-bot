@@ -1,15 +1,9 @@
 {
-  "bankroll": 406.99,
-  "start_of_day": 370.59,
-  "session_start": "2026-11-07T21:25:51.801086+05:30",
-  "total_pnl": 36.4,
+  "bankroll": 412.45,
+  "start_of_day": 406.99,
+  "session_start": "2026-11-08T14:56:43.285365+05:30",
+  "total_pnl": 5.46,
   "sessions": [
-    {
-      "match": "Cruzeiro vs Remo",
-      "trades": 1,
-      "pnl": 121.25,
-      "time": "2026-10-24T06:29:24.389616+05:30"
-    },
     {
       "match": "Chongqing Tonglianglong FC vs Qingdao Hainiu",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 36.4,
       "time": "2026-11-07T21:25:51.801179+05:30"
+    },
+    {
+      "match": "Beijing Guoan vs Chongqing Tonglianglong FC",
+      "trades": 1,
+      "pnl": 5.46,
+      "time": "2026-11-08T14:56:43.285439+05:30"
     }
   ],
-  "last_updated": "2026-11-07T21:25:51.801096+05:30",
-  "last_match": "Cagliari vs Frosinone"
+  "last_updated": "2026-11-08T14:56:43.285375+05:30",
+  "last_match": "Beijing Guoan vs Chongqing Tonglianglong FC"
 }

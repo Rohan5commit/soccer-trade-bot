@@ -1,19 +1,19 @@
 {
-  "match": "Cagliari vs Frosinone",
-  "time": "2026-11-07T21:25:51.802015+05:30",
+  "match": "Beijing Guoan vs Chongqing Tonglianglong FC",
+  "time": "2026-11-08T14:56:43.286188+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-11-07T19:55:44.012467+05:30",
-      "ticker": "KXSERIEAGAME-26NOV07CAGFRO-CAG",
+      "time": "2026-11-08T13:23:13.904886+05:30",
+      "ticker": "KXCHNSLGAME-26NOV08BJGCHO-BJG",
       "outcome": "home",
-      "fill_price": 0.33,
+      "fill_price": 0.77,
       "model_prob": 1.0,
-      "market_ask": 0.33,
-      "net_edge": 0.6499999999999999,
-      "count": 56,
-      "fee": 1.12,
+      "market_ask": 0.77,
+      "net_edge": 0.21,
+      "count": 26,
+      "fee": 0.52,
       "clock": 22.0,
       "score": "0-0"
     }
@@ -21,6 +21,6 @@
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.65
+    "avg_net_edge": 0.21
   }
 }
