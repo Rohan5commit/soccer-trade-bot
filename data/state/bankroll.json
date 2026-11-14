@@ -1,15 +1,9 @@
 {
-  "bankroll": 424.33,
-  "start_of_day": 412.45,
-  "session_start": "2026-11-08T22:28:13.348301+05:30",
-  "total_pnl": 11.88,
+  "bankroll": 402.07,
+  "start_of_day": 424.33,
+  "session_start": "2026-11-15T04:59:29.638223+05:30",
+  "total_pnl": -22.26,
   "sessions": [
-    {
-      "match": "Djurgarden vs Orgryte",
-      "trades": 1,
-      "pnl": -21.15,
-      "time": "2026-10-24T22:55:43.194888+05:30"
-    },
     {
       "match": "Sittard vs Excelsior",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 11.88,
       "time": "2026-11-08T22:28:13.348576+05:30"
+    },
+    {
+      "match": "Mirassol vs Atletico Mineiro",
+      "trades": 1,
+      "pnl": -22.26,
+      "time": "2026-11-15T04:59:29.638327+05:30"
     }
   ],
-  "last_updated": "2026-11-08T22:28:13.348321+05:30",
-  "last_match": "Heart of Midlothian vs Falkirk"
+  "last_updated": "2026-11-15T04:59:29.638237+05:30",
+  "last_match": "Mirassol vs Atletico Mineiro"
 }

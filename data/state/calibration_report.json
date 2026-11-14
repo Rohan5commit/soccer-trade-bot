@@ -1,26 +1,26 @@
 {
-  "match": "Heart of Midlothian vs Falkirk",
-  "time": "2026-11-08T22:28:13.349418+05:30",
+  "match": "Mirassol vs Atletico Mineiro",
+  "time": "2026-11-15T04:59:29.639309+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-11-08T20:55:56.139473+05:30",
-      "ticker": "KXSCOTTISHPREMGAME-26NOV08HOMFAL-FAL",
-      "outcome": "away",
-      "fill_price": 0.62,
-      "model_prob": 0.8,
-      "market_ask": 0.62,
-      "net_edge": 0.16000000000000006,
-      "count": 33,
-      "fee": 0.66,
-      "clock": 21.0,
-      "score": "0-2"
+      "time": "2026-11-15T03:23:52.441281+05:30",
+      "ticker": "KXBRASILEIROGAME-26NOV14MIRATL-MIR",
+      "outcome": "home",
+      "fill_price": 0.4,
+      "model_prob": 1.0,
+      "market_ask": 0.4,
+      "net_edge": 0.58,
+      "count": 53,
+      "fee": 1.06,
+      "clock": 22.0,
+      "score": "0-0"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.16
+    "avg_net_edge": 0.58
   }
 }
