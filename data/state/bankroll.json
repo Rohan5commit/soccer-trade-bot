@@ -1,15 +1,9 @@
 {
   "bankroll": 402.07,
-  "start_of_day": 424.33,
-  "session_start": "2026-11-15T04:59:29.638223+05:30",
-  "total_pnl": -22.26,
+  "start_of_day": 402.07,
+  "session_start": "2026-11-15T21:30:00.206060+05:30",
+  "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Sittard vs Excelsior",
-      "trades": 1,
-      "pnl": 34.65,
-      "time": "2026-10-25T18:39:32.388499+05:30"
-    },
     {
       "match": "Lecce vs Juventus",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -22.26,
       "time": "2026-11-15T04:59:29.638327+05:30"
+    },
+    {
+      "match": "Moron vs Colegiales",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-11-15T21:30:00.206170+05:30"
     }
   ],
-  "last_updated": "2026-11-15T04:59:29.638237+05:30",
-  "last_match": "Mirassol vs Atletico Mineiro"
+  "last_updated": "2026-11-15T21:30:00.206075+05:30",
+  "last_match": "Moron vs Colegiales"
 }
