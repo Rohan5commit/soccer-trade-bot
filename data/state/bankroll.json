@@ -1,15 +1,9 @@
 {
   "bankroll": 402.07,
   "start_of_day": 402.07,
-  "session_start": "2026-11-15T21:30:00.206060+05:30",
+  "session_start": "2026-11-18T21:30:00.732292+05:30",
   "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Lecce vs Juventus",
-      "trades": 1,
-      "pnl": -22.5,
-      "time": "2026-10-26T00:30:00.116529+05:30"
-    },
     {
       "match": "Coritiba vs Gremio",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-11-15T21:30:00.206170+05:30"
+    },
+    {
+      "match": "Flamengo vs Paranaense",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-11-18T21:30:00.732405+05:30"
     }
   ],
-  "last_updated": "2026-11-15T21:30:00.206075+05:30",
-  "last_match": "Moron vs Colegiales"
+  "last_updated": "2026-11-18T21:30:00.732303+05:30",
+  "last_match": "Flamengo vs Paranaense"
 }
