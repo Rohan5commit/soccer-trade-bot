@@ -1,15 +1,9 @@
 {
-  "bankroll": 402.07,
+  "bankroll": 380.69,
   "start_of_day": 402.07,
-  "session_start": "2026-11-18T21:30:00.732292+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-11-19T06:00:00.760816+05:30",
+  "total_pnl": -21.38,
   "sessions": [
-    {
-      "match": "Coritiba vs Gremio",
-      "trades": 1,
-      "pnl": -20.8,
-      "time": "2026-10-27T05:58:43.595028+05:30"
-    },
     {
       "match": "Abha vs Al-Faisaly",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-11-18T21:30:00.732405+05:30"
+    },
+    {
+      "match": "Coritiba vs Santos",
+      "trades": 1,
+      "pnl": -21.38,
+      "time": "2026-11-19T06:00:00.760921+05:30"
     }
   ],
-  "last_updated": "2026-11-18T21:30:00.732303+05:30",
-  "last_match": "Flamengo vs Paranaense"
+  "last_updated": "2026-11-19T06:00:00.760828+05:30",
+  "last_match": "Coritiba vs Santos"
 }

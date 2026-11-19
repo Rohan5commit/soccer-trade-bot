@@ -1,19 +1,19 @@
 {
-  "match": "Mirassol vs Atletico Mineiro",
-  "time": "2026-11-15T04:59:29.639309+05:30",
+  "match": "Coritiba vs Santos",
+  "time": "2026-11-19T06:00:00.761693+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-11-15T03:23:52.441281+05:30",
-      "ticker": "KXBRASILEIROGAME-26NOV14MIRATL-MIR",
+      "time": "2026-11-19T04:27:20.748958+05:30",
+      "ticker": "KXBRASILEIROGAME-26NOV18CFCSAN-CFC",
       "outcome": "home",
-      "fill_price": 0.4,
+      "fill_price": 0.265,
       "model_prob": 1.0,
-      "market_ask": 0.4,
-      "net_edge": 0.58,
-      "count": 53,
-      "fee": 1.06,
+      "market_ask": 0.265,
+      "net_edge": 0.715,
+      "count": 75,
+      "fee": 1.5,
       "clock": 22.0,
       "score": "0-0"
     }
@@ -21,6 +21,6 @@
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.58
+    "avg_net_edge": 0.715
   }
 }
