@@ -1,26 +1,26 @@
 {
-  "match": "Seattle vs Salt Lake",
-  "time": "2026-11-20T10:30:00.795129+05:30",
+  "match": "Al Ahli Saudi vs Al Nassr",
+  "time": "2026-11-21T00:59:57.439342+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-11-20T09:04:06.560066+05:30",
-      "ticker": "KXMLSGAME-26NOV19SEARSL-SEA",
-      "outcome": "home",
-      "fill_price": 0.43,
-      "model_prob": 1.0,
-      "market_ask": 0.43,
-      "net_edge": 0.55,
-      "count": 45,
-      "fee": 0.9,
-      "clock": 22.0,
-      "score": "0-0"
+      "time": "2026-11-20T23:22:14.414469+05:30",
+      "ticker": "KXSAUDIPLGAME-26NOV20AASALN-ALN",
+      "outcome": "away",
+      "fill_price": 0.66,
+      "model_prob": 0.8,
+      "market_ask": 0.66,
+      "net_edge": 0.12000000000000001,
+      "count": 28,
+      "fee": 0.56,
+      "clock": 20.0,
+      "score": "0-1"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.55
+    "avg_net_edge": 0.12
   }
 }

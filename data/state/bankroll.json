@@ -1,15 +1,9 @@
 {
-  "bankroll": 370.01,
-  "start_of_day": 390.26,
-  "session_start": "2026-11-20T10:30:00.793894+05:30",
-  "total_pnl": -20.25,
+  "bankroll": 350.97,
+  "start_of_day": 370.01,
+  "session_start": "2026-11-21T00:59:57.438317+05:30",
+  "total_pnl": -19.04,
   "sessions": [
-    {
-      "match": "Milan vs Bologna",
-      "trades": 1,
-      "pnl": -20.1,
-      "time": "2026-10-29T00:53:36.146586+05:30"
-    },
     {
       "match": "Fluminense vs Internacional",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -20.25,
       "time": "2026-11-20T10:30:00.794030+05:30"
+    },
+    {
+      "match": "Al Ahli Saudi vs Al Nassr",
+      "trades": 1,
+      "pnl": -19.04,
+      "time": "2026-11-21T00:59:57.438438+05:30"
     }
   ],
-  "last_updated": "2026-11-20T10:30:00.793912+05:30",
-  "last_match": "Seattle vs Salt Lake"
+  "last_updated": "2026-11-21T00:59:57.438332+05:30",
+  "last_match": "Al Ahli Saudi vs Al Nassr"
 }
