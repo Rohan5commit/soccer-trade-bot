@@ -1,15 +1,9 @@
 {
-  "bankroll": 390.26,
-  "start_of_day": 380.69,
-  "session_start": "2026-11-20T05:59:54.974317+05:30",
-  "total_pnl": 9.57,
+  "bankroll": 370.01,
+  "start_of_day": 390.26,
+  "session_start": "2026-11-20T10:30:00.793894+05:30",
+  "total_pnl": -20.25,
   "sessions": [
-    {
-      "match": "Sassuolo vs Lazio",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-28T00:57:53.639054+05:30"
-    },
     {
       "match": "Milan vs Bologna",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 9.57,
       "time": "2026-11-20T05:59:54.974397+05:30"
+    },
+    {
+      "match": "Seattle vs Salt Lake",
+      "trades": 1,
+      "pnl": -20.25,
+      "time": "2026-11-20T10:30:00.794030+05:30"
     }
   ],
-  "last_updated": "2026-11-20T05:59:54.974328+05:30",
-  "last_match": "Vasco da Gama vs Internacional"
+  "last_updated": "2026-11-20T10:30:00.793912+05:30",
+  "last_match": "Seattle vs Salt Lake"
 }

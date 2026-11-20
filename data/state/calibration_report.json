@@ -1,19 +1,19 @@
 {
-  "match": "Vasco da Gama vs Internacional",
-  "time": "2026-11-20T05:59:54.975060+05:30",
+  "match": "Seattle vs Salt Lake",
+  "time": "2026-11-20T10:30:00.795129+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-11-20T04:24:56.851328+05:30",
-      "ticker": "KXBRASILEIROGAME-26NOV19VDGINT-VDG",
+      "time": "2026-11-20T09:04:06.560066+05:30",
+      "ticker": "KXMLSGAME-26NOV19SEARSL-SEA",
       "outcome": "home",
-      "fill_price": 0.65,
+      "fill_price": 0.43,
       "model_prob": 1.0,
-      "market_ask": 0.65,
-      "net_edge": 0.32999999999999996,
-      "count": 29,
-      "fee": 0.58,
+      "market_ask": 0.43,
+      "net_edge": 0.55,
+      "count": 45,
+      "fee": 0.9,
       "clock": 22.0,
       "score": "0-0"
     }
@@ -21,6 +21,6 @@
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.33
+    "avg_net_edge": 0.55
   }
 }
