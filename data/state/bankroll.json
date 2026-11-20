@@ -1,15 +1,9 @@
 {
-  "bankroll": 380.69,
-  "start_of_day": 402.07,
-  "session_start": "2026-11-19T06:00:00.760816+05:30",
-  "total_pnl": -21.38,
+  "bankroll": 390.26,
+  "start_of_day": 380.69,
+  "session_start": "2026-11-20T05:59:54.974317+05:30",
+  "total_pnl": 9.57,
   "sessions": [
-    {
-      "match": "Abha vs Al-Faisaly",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-27T18:05:33.352570+05:30"
-    },
     {
       "match": "Sassuolo vs Lazio",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -21.38,
       "time": "2026-11-19T06:00:00.760921+05:30"
+    },
+    {
+      "match": "Vasco da Gama vs Internacional",
+      "trades": 1,
+      "pnl": 9.57,
+      "time": "2026-11-20T05:59:54.974397+05:30"
     }
   ],
-  "last_updated": "2026-11-19T06:00:00.760828+05:30",
-  "last_match": "Coritiba vs Santos"
+  "last_updated": "2026-11-20T05:59:54.974328+05:30",
+  "last_match": "Vasco da Gama vs Internacional"
 }

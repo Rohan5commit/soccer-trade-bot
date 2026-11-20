@@ -1,19 +1,19 @@
 {
-  "match": "Coritiba vs Santos",
-  "time": "2026-11-19T06:00:00.761693+05:30",
+  "match": "Vasco da Gama vs Internacional",
+  "time": "2026-11-20T05:59:54.975060+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-11-19T04:27:20.748958+05:30",
-      "ticker": "KXBRASILEIROGAME-26NOV18CFCSAN-CFC",
+      "time": "2026-11-20T04:24:56.851328+05:30",
+      "ticker": "KXBRASILEIROGAME-26NOV19VDGINT-VDG",
       "outcome": "home",
-      "fill_price": 0.265,
+      "fill_price": 0.65,
       "model_prob": 1.0,
-      "market_ask": 0.265,
-      "net_edge": 0.715,
-      "count": 75,
-      "fee": 1.5,
+      "market_ask": 0.65,
+      "net_edge": 0.32999999999999996,
+      "count": 29,
+      "fee": 0.58,
       "clock": 22.0,
       "score": "0-0"
     }
@@ -21,6 +21,6 @@
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.715
+    "avg_net_edge": 0.33
   }
 }
