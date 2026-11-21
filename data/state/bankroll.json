@@ -1,15 +1,9 @@
 {
-  "bankroll": 332.99,
-  "start_of_day": 350.97,
-  "session_start": "2026-11-21T08:28:20.138723+05:30",
-  "total_pnl": -17.98,
+  "bankroll": 352.07,
+  "start_of_day": 332.99,
+  "session_start": "2026-11-21T20:24:46.558559+05:30",
+  "total_pnl": 19.08,
   "sessions": [
-    {
-      "match": "Gremio vs Paranaense",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-29T21:30:00.045728+05:30"
-    },
     {
       "match": "Fiorentina vs Atalanta",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -17.98,
       "time": "2026-11-21T08:28:20.138810+05:30"
+    },
+    {
+      "match": "Amed vs Rizespor",
+      "trades": 1,
+      "pnl": 19.08,
+      "time": "2026-11-21T20:24:46.558652+05:30"
     }
   ],
-  "last_updated": "2026-11-21T08:28:20.138734+05:30",
-  "last_match": "Puebla vs San Luis"
+  "last_updated": "2026-11-21T20:24:46.558568+05:30",
+  "last_match": "Amed vs Rizespor"
 }
