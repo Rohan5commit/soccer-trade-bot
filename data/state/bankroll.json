@@ -1,15 +1,9 @@
 {
-  "bankroll": 352.07,
-  "start_of_day": 332.99,
-  "session_start": "2026-11-21T20:24:46.558559+05:30",
-  "total_pnl": 19.08,
+  "bankroll": 363.09,
+  "start_of_day": 352.07,
+  "session_start": "2026-11-22T03:09:48.901901+05:30",
+  "total_pnl": 11.02,
   "sessions": [
-    {
-      "match": "Fiorentina vs Atalanta",
-      "trades": 1,
-      "pnl": -19.24,
-      "time": "2026-10-30T03:15:00.143647+05:30"
-    },
     {
       "match": "Abha vs Al-Ittihad",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 19.08,
       "time": "2026-11-21T20:24:46.558652+05:30"
+    },
+    {
+      "match": "Napoli vs Torino",
+      "trades": 1,
+      "pnl": 11.02,
+      "time": "2026-11-22T03:09:48.901996+05:30"
     }
   ],
-  "last_updated": "2026-11-21T20:24:46.558568+05:30",
-  "last_match": "Amed vs Rizespor"
+  "last_updated": "2026-11-22T03:09:48.901914+05:30",
+  "last_match": "Napoli vs Torino"
 }
