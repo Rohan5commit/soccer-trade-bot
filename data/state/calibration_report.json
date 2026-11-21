@@ -1,26 +1,26 @@
 {
-  "match": "Al Ahli Saudi vs Al Nassr",
-  "time": "2026-11-21T00:59:57.439342+05:30",
+  "match": "Puebla vs San Luis",
+  "time": "2026-11-21T08:28:20.139542+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-11-20T23:22:14.414469+05:30",
-      "ticker": "KXSAUDIPLGAME-26NOV20AASALN-ALN",
-      "outcome": "away",
-      "fill_price": 0.66,
+      "time": "2026-11-21T06:52:37.227866+05:30",
+      "ticker": "KXLIGAMXGAME-26NOV20PUEASL-PUE",
+      "outcome": "home",
+      "fill_price": 0.6,
       "model_prob": 0.8,
-      "market_ask": 0.66,
-      "net_edge": 0.12000000000000001,
-      "count": 28,
-      "fee": 0.56,
+      "market_ask": 0.6,
+      "net_edge": 0.18000000000000008,
+      "count": 29,
+      "fee": 0.58,
       "clock": 20.0,
-      "score": "0-1"
+      "score": "1-0"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.12
+    "avg_net_edge": 0.18
   }
 }

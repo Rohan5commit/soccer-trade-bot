@@ -1,15 +1,9 @@
 {
-  "bankroll": 350.97,
-  "start_of_day": 370.01,
-  "session_start": "2026-11-21T00:59:57.438317+05:30",
-  "total_pnl": -19.04,
+  "bankroll": 332.99,
+  "start_of_day": 350.97,
+  "session_start": "2026-11-21T08:28:20.138723+05:30",
+  "total_pnl": -17.98,
   "sessions": [
-    {
-      "match": "Fluminense vs Internacional",
-      "trades": 1,
-      "pnl": 13.92,
-      "time": "2026-10-29T06:00:00.316614+05:30"
-    },
     {
       "match": "Gremio vs Paranaense",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -19.04,
       "time": "2026-11-21T00:59:57.438438+05:30"
+    },
+    {
+      "match": "Puebla vs San Luis",
+      "trades": 1,
+      "pnl": -17.98,
+      "time": "2026-11-21T08:28:20.138810+05:30"
     }
   ],
-  "last_updated": "2026-11-21T00:59:57.438332+05:30",
-  "last_match": "Al Ahli Saudi vs Al Nassr"
+  "last_updated": "2026-11-21T08:28:20.138734+05:30",
+  "last_match": "Puebla vs San Luis"
 }
