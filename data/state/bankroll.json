@@ -1,15 +1,9 @@
 {
   "bankroll": 343.77,
-  "start_of_day": 363.09,
-  "session_start": "2026-11-22T20:23:32.582462+05:30",
-  "total_pnl": -19.32,
+  "start_of_day": 343.77,
+  "session_start": "2026-11-23T03:00:00.862849+05:30",
+  "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Konyaspor vs Galatasaray",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-31T00:26:37.908820+05:30"
-    },
     {
       "match": "Gwangju vs Gimcheon Sangmu",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": -19.32,
       "time": "2026-11-22T20:23:32.582557+05:30"
+    },
+    {
+      "match": "Nashville vs Cincinnati",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-11-23T03:00:00.862957+05:30"
     }
   ],
-  "last_updated": "2026-11-22T20:23:32.582476+05:30",
-  "last_match": "BK Hacken vs Elfsborg"
+  "last_updated": "2026-11-23T03:00:00.862860+05:30",
+  "last_match": "Nashville vs Cincinnati"
 }
