@@ -1,15 +1,9 @@
 {
-  "bankroll": 363.09,
-  "start_of_day": 352.07,
-  "session_start": "2026-11-22T03:09:48.901901+05:30",
-  "total_pnl": 11.02,
+  "bankroll": 343.77,
+  "start_of_day": 363.09,
+  "session_start": "2026-11-22T20:23:32.582462+05:30",
+  "total_pnl": -19.32,
   "sessions": [
-    {
-      "match": "Abha vs Al-Ittihad",
-      "trades": 1,
-      "pnl": -18.72,
-      "time": "2026-10-30T19:55:26.538685+05:30"
-    },
     {
       "match": "Konyaspor vs Galatasaray",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 11.02,
       "time": "2026-11-22T03:09:48.901996+05:30"
+    },
+    {
+      "match": "BK Hacken vs Elfsborg",
+      "trades": 1,
+      "pnl": -19.32,
+      "time": "2026-11-22T20:23:32.582557+05:30"
     }
   ],
-  "last_updated": "2026-11-22T03:09:48.901914+05:30",
-  "last_match": "Napoli vs Torino"
+  "last_updated": "2026-11-22T20:23:32.582476+05:30",
+  "last_match": "BK Hacken vs Elfsborg"
 }
