@@ -1,26 +1,26 @@
 {
-  "match": "BK Hacken vs Elfsborg",
-  "time": "2026-11-22T20:23:32.583349+05:30",
+  "match": "Hammarby vs Goteborg",
+  "time": "2026-11-24T01:20:45.849306+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-11-22T18:52:44.762787+05:30",
-      "ticker": "KXALLSVENSKANGAME-26NOV22HACELF-TIE",
-      "outcome": "draw",
-      "fill_price": 0.26,
-      "model_prob": 0.8,
-      "market_ask": 0.26,
-      "net_edge": 0.52,
-      "count": 69,
-      "fee": 1.3800000000000001,
-      "clock": 20.0,
-      "score": "1-1"
+      "time": "2026-11-23T23:54:17.105818+05:30",
+      "ticker": "KXALLSVENSKANGAME-26NOV23HIFIFK-HIF",
+      "outcome": "home",
+      "fill_price": 0.82,
+      "model_prob": 1.0,
+      "market_ask": 0.82,
+      "net_edge": 0.16000000000000006,
+      "count": 20,
+      "fee": 0.4,
+      "clock": 22.0,
+      "score": "0-0"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.52
+    "avg_net_edge": 0.16
   }
 }
