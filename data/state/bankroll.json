@@ -1,15 +1,9 @@
 {
   "bankroll": 346.97,
-  "start_of_day": 343.77,
-  "session_start": "2026-11-24T01:20:45.848373+05:30",
-  "total_pnl": 3.2,
+  "start_of_day": 346.97,
+  "session_start": "2026-11-24T21:30:00.528582+05:30",
+  "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Jeonbuk vs Daejeon Citizen",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-10-31T17:30:00.327831+05:30"
-    },
     {
       "match": "Amed vs Eyupspor",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 3.2,
       "time": "2026-11-24T01:20:45.848505+05:30"
+    },
+    {
+      "match": "Bodoe/Glimt vs LASK",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-11-24T21:30:00.528702+05:30"
     }
   ],
-  "last_updated": "2026-11-24T01:20:45.848414+05:30",
-  "last_match": "Hammarby vs Goteborg"
+  "last_updated": "2026-11-24T21:30:00.528598+05:30",
+  "last_match": "Bodoe/Glimt vs LASK"
 }
