@@ -1,15 +1,9 @@
 {
   "bankroll": 346.97,
   "start_of_day": 346.97,
-  "session_start": "2026-11-24T21:30:00.528582+05:30",
+  "session_start": "2026-11-25T09:00:00.966137+05:30",
   "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Amed vs Eyupspor",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-11-01T17:56:40.177880+05:30"
-    },
     {
       "match": "Lecce vs Genoa",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-11-24T21:30:00.528702+05:30"
+    },
+    {
+      "match": "San Jose vs Houston",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-11-25T09:00:00.966313+05:30"
     }
   ],
-  "last_updated": "2026-11-24T21:30:00.528598+05:30",
-  "last_match": "Bodoe/Glimt vs LASK"
+  "last_updated": "2026-11-25T09:00:00.966150+05:30",
+  "last_match": "San Jose vs Houston"
 }
