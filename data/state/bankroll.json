@@ -1,15 +1,9 @@
 {
   "bankroll": 346.97,
   "start_of_day": 346.97,
-  "session_start": "2026-11-25T09:00:00.966137+05:30",
+  "session_start": "2026-11-26T03:22:44.773961+05:30",
   "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Lecce vs Genoa",
-      "trades": 1,
-      "pnl": 7.92,
-      "time": "2026-11-02T00:27:52.554606+05:30"
-    },
     {
       "match": "Soenderjyske vs Copenhagen",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-11-25T09:00:00.966313+05:30"
+    },
+    {
+      "match": "Atletico vs Viking",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-11-26T03:22:44.774077+05:30"
     }
   ],
-  "last_updated": "2026-11-25T09:00:00.966150+05:30",
-  "last_match": "San Jose vs Houston"
+  "last_updated": "2026-11-26T03:22:44.773975+05:30",
+  "last_match": "Atletico vs Viking"
 }
