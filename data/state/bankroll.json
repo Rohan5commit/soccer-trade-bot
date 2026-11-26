@@ -1,15 +1,9 @@
 {
-  "bankroll": 346.97,
+  "bankroll": 373.97,
   "start_of_day": 346.97,
-  "session_start": "2026-11-26T09:00:00.495895+05:30",
-  "total_pnl": 0.0,
+  "session_start": "2026-11-26T21:51:44.290086+05:30",
+  "total_pnl": 27.0,
   "sessions": [
-    {
-      "match": "Bragantino vs Santos",
-      "trades": 1,
-      "pnl": 9.62,
-      "time": "2026-11-03T06:30:00.652611+05:30"
-    },
     {
       "match": "LASK vs Slovan Bratislava",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-11-26T09:00:00.495986+05:30"
+    },
+    {
+      "match": "Al-Fateh vs Al-Riyadh",
+      "trades": 1,
+      "pnl": 27.0,
+      "time": "2026-11-26T21:51:44.290187+05:30"
     }
   ],
-  "last_updated": "2026-11-26T09:00:00.495906+05:30",
-  "last_match": "Monterrey vs America"
+  "last_updated": "2026-11-26T21:51:44.290100+05:30",
+  "last_match": "Al-Fateh vs Al-Riyadh"
 }
