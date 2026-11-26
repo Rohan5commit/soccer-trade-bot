@@ -1,15 +1,9 @@
 {
   "bankroll": 346.97,
   "start_of_day": 346.97,
-  "session_start": "2026-11-26T03:22:44.773961+05:30",
+  "session_start": "2026-11-26T09:00:00.495895+05:30",
   "total_pnl": 0.0,
   "sessions": [
-    {
-      "match": "Soenderjyske vs Copenhagen",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-11-02T21:30:00.845406+05:30"
-    },
     {
       "match": "Bragantino vs Santos",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 0,
       "pnl": 0.0,
       "time": "2026-11-26T03:22:44.774077+05:30"
+    },
+    {
+      "match": "Monterrey vs America",
+      "trades": 0,
+      "pnl": 0.0,
+      "time": "2026-11-26T09:00:00.495986+05:30"
     }
   ],
-  "last_updated": "2026-11-26T03:22:44.773975+05:30",
-  "last_match": "Atletico vs Viking"
+  "last_updated": "2026-11-26T09:00:00.495906+05:30",
+  "last_match": "Monterrey vs America"
 }
