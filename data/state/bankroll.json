@@ -1,15 +1,9 @@
 {
-  "bankroll": 398.61,
-  "start_of_day": 373.97,
-  "session_start": "2026-11-27T03:25:29.837096+05:30",
-  "total_pnl": 24.64,
+  "bankroll": 404.33,
+  "start_of_day": 398.61,
+  "session_start": "2026-11-27T21:44:51.176898+05:30",
+  "total_pnl": 5.72,
   "sessions": [
-    {
-      "match": "Internacional vs Coritiba",
-      "trades": 1,
-      "pnl": -16.95,
-      "time": "2026-11-04T08:00:00.637417+05:30"
-    },
     {
       "match": "Slavia Prague vs Arsenal",
       "trades": 0,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 24.64,
       "time": "2026-11-27T03:25:29.837190+05:30"
+    },
+    {
+      "match": "Al Qadsiah vs Al-Fayha",
+      "trades": 1,
+      "pnl": 5.72,
+      "time": "2026-11-27T21:44:51.177011+05:30"
     }
   ],
-  "last_updated": "2026-11-27T03:25:29.837108+05:30",
-  "last_match": "Crystal Palace vs Real Sociedad"
+  "last_updated": "2026-11-27T21:44:51.176912+05:30",
+  "last_match": "Al Qadsiah vs Al-Fayha"
 }
