@@ -1,15 +1,9 @@
 {
-  "bankroll": 404.33,
-  "start_of_day": 398.61,
-  "session_start": "2026-11-27T21:44:51.176898+05:30",
-  "total_pnl": 5.72,
+  "bankroll": 430.41,
+  "start_of_day": 404.33,
+  "session_start": "2026-11-28T06:27:48.588917+05:30",
+  "total_pnl": 26.08,
   "sessions": [
-    {
-      "match": "Slavia Prague vs Arsenal",
-      "trades": 0,
-      "pnl": 0.0,
-      "time": "2026-11-04T21:30:00.596990+05:30"
-    },
     {
       "match": "Dortmund vs Real Betis",
       "trades": 1,
@@ -183,8 +177,14 @@
       "trades": 1,
       "pnl": 5.72,
       "time": "2026-11-27T21:44:51.177011+05:30"
+    },
+    {
+      "match": "Fluminense vs Cruzeiro",
+      "trades": 1,
+      "pnl": 26.08,
+      "time": "2026-11-28T06:27:48.588988+05:30"
     }
   ],
-  "last_updated": "2026-11-27T21:44:51.176912+05:30",
-  "last_match": "Al Qadsiah vs Al-Fayha"
+  "last_updated": "2026-11-28T06:27:48.588926+05:30",
+  "last_match": "Fluminense vs Cruzeiro"
 }

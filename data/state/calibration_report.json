@@ -1,26 +1,26 @@
 {
-  "match": "Al Qadsiah vs Al-Fayha",
-  "time": "2026-11-27T21:44:51.177786+05:30",
+  "match": "Fluminense vs Cruzeiro",
+  "time": "2026-11-28T06:27:48.589661+05:30",
   "liquidity_buffer": 0.7,
   "orderbook_depth": 20,
   "trades": [
     {
-      "time": "2026-11-27T20:14:13.852265+05:30",
-      "ticker": "KXSAUDIPLGAME-26NOV27QADFAY-QAD",
-      "outcome": "home",
-      "fill_price": 0.76,
-      "model_prob": 1.0,
-      "market_ask": 0.76,
-      "net_edge": 0.22,
-      "count": 26,
-      "fee": 0.52,
-      "clock": 22.0,
-      "score": "0-0"
+      "time": "2026-11-28T04:51:37.354633+05:30",
+      "ticker": "KXBRASILEIROGAME-26NOV27FLUCRU-CRU",
+      "outcome": "away",
+      "fill_price": 0.425,
+      "model_prob": 0.8,
+      "market_ask": 0.425,
+      "net_edge": 0.35500000000000004,
+      "count": 47,
+      "fee": 0.9400000000000001,
+      "clock": 20.0,
+      "score": "0-1"
     }
   ],
   "summary": {
     "total_trades": 1,
     "avg_fill_vs_ask": 0.0,
-    "avg_net_edge": 0.22
+    "avg_net_edge": 0.355
   }
 }
